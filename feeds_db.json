@@ -1,59 +1,31 @@
 {
   "ingredients": {
-    "الذرة الصفراء": {
-      "protein": 8.5,
-      "energy": 3350,
-      "calcium": 0.02,
-      "phosphorus": 0.08,
-      "max_limit": 1.0
-    },
-    "كسب فول الصويا 44%": {
-      "protein": 44.0,
-      "energy": 2230,
-      "calcium": 0.29,
-      "phosphorus": 0.27,
-      "max_limit": 1.0
-    },
-    "كسب عباد الشمس 36%": {
-      "protein": 36.0,
-      "energy": 1800,
-      "calcium": 0.43,
-      "phosphorus": 0.31,
-      "max_limit": 0.15
-    },
-    "الحجر الجيري": {
-      "protein": 0.0,
-      "energy": 0,
-      "calcium": 38.0,
-      "phosphorus": 0.0,
-      "max_limit": 0.02
-    },
-    "بريمكس (مخلوط فيتامينات وأملاح)": {
-      "protein": 0.0,
-      "energy": 0,
-      "calcium": 0.0,
-      "phosphorus": 0.0,
-      "max_limit": 0.003
-    }
+    "الذرة الصفراء": {"protein": 8.5, "energy": 3350, "calcium": 0.02, "phosphorus": 0.08, "max_limit": 1.0},
+    "كسب فول الصويا 44%": {"protein": 44.0, "energy": 2230, "calcium": 0.29, "phosphorus": 0.27, "max_limit": 1.0},
+    "كسب عباد الشمس 36%": {"protein": 36.0, "energy": 1800, "calcium": 0.43, "phosphorus": 0.31, "max_limit": 0.20},
+    "النخالة (الردة)": {"protein": 15.0, "energy": 1300, "calcium": 0.14, "phosphorus": 1.20, "max_limit": 0.35},
+    "الشعير": {"protein": 11.5, "energy": 2900, "calcium": 0.06, "phosphorus": 0.35, "max_limit": 0.40},
+    "كسب الفول السوداني": {"protein": 48.0, "energy": 2600, "calcium": 0.08, "phosphorus": 0.50, "max_limit": 0.15},
+    "الحجر الجيري": {"protein": 0.0, "energy": 0, "calcium": 38.0, "phosphorus": 0.0, "max_limit": 0.03},
+    "فوسفات ثنائي الكالسيوم": {"protein": 0.0, "energy": 0, "calcium": 22.0, "phosphorus": 18.0, "max_limit": 0.02},
+    "ملح الطعام": {"protein": 0.0, "energy": 0, "calcium": 0.0, "phosphorus": 0.0, "max_limit": 0.005},
+    "بريمكس مجترات": {"protein": 0.0, "energy": 0, "calcium": 0.0, "phosphorus": 0.0, "max_limit": 0.005},
+    "بريمكس دواجن": {"protein": 0.0, "energy": 0, "calcium": 0.0, "phosphorus": 0.0, "max_limit": 0.005},
+    "بريمكس خيول": {"protein": 0.0, "energy": 0, "calcium": 0.0, "phosphorus": 0.0, "max_limit": 0.005}
   },
   "requirements": {
-    "تسمين_بادي": {
-      "min_protein": 23.0,
-      "min_energy": 3000,
-      "min_calcium": 0.90,
-      "min_phosphorus": 0.45
-    },
-    "تسمين_نامي": {
-      "min_protein": 21.0,
-      "min_energy": 3100,
-      "min_calcium": 0.85,
-      "min_phosphorus": 0.42
-    },
-    "تسمين_ناهي": {
-      "min_protein": 19.0,
-      "min_energy": 3200,
-      "min_calcium": 0.80,
-      "min_phosphorus": 0.38
-    }
+    "المجترات - أبقار تسمين": {"min_protein": 14.0, "min_energy": 2600, "min_calcium": 0.50, "min_phosphorus": 0.30},
+    "المجترات - أبقار ألبان": {"min_protein": 16.5, "min_energy": 2700, "min_calcium": 0.60, "min_phosphorus": 0.38},
+    "المجترات - أغنام تسمين": {"min_protein": 15.0, "min_energy": 2650, "min_calcium": 0.55, "min_phosphorus": 0.32},
+    "المجترات - أغنام ألبان": {"min_protein": 16.0, "min_energy": 2600, "min_calcium": 0.60, "min_phosphorus": 0.35},
+    "المجترات - ماعز تسمين": {"min_protein": 14.5, "min_energy": 2550, "min_calcium": 0.50, "min_phosphorus": 0.30},
+    "المجترات - ماعز ألبان": {"min_protein": 15.5, "min_energy": 2600, "min_calcium": 0.58, "min_phosphorus": 0.35},
+    "الدواجن - بادي": {"min_protein": 23.0, "min_energy": 3000, "min_calcium": 0.95, "min_phosphorus": 0.45},
+    "الدواجن - نامي": {"min_protein": 21.0, "min_energy": 3100, "min_calcium": 0.90, "min_phosphorus": 0.42},
+    "الدواجن - ناهي": {"min_protein": 19.0, "min_energy": 3200, "min_calcium": 0.85, "min_phosphorus": 0.38},
+    "الدواجن - بياض": {"min_protein": 17.0, "min_energy": 2750, "min_calcium": 3.60, "min_phosphorus": 0.40},
+    "الخيول - رياضة": {"min_protein": 12.0, "min_energy": 2500, "min_calcium": 0.45, "min_phosphorus": 0.30},
+    "الخيول - أمهار": {"min_protein": 15.0, "min_energy": 2700, "min_calcium": 0.60, "min_phosphorus": 0.45},
+    "الخيول - فرسات": {"min_protein": 13.5, "min_energy": 2600, "min_calcium": 0.50, "min_phosphorus": 0.35}
   }
 }
