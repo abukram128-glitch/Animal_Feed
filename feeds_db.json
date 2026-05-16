@@ -1,0 +1,59 @@
+{
+  "ingredients": {
+    "الذرة الصفراء": {
+      "protein": 8.5,
+      "energy": 3350,
+      "calcium": 0.02,
+      "phosphorus": 0.08,
+      "max_limit": 1.0
+    },
+    "كسب فول الصويا 44%": {
+      "protein": 44.0,
+      "energy": 2230,
+      "calcium": 0.29,
+      "phosphorus": 0.27,
+      "max_limit": 1.0
+    },
+    "كسب عباد الشمس 36%": {
+      "protein": 36.0,
+      "energy": 1800,
+      "calcium": 0.43,
+      "phosphorus": 0.31,
+      "max_limit": 0.15
+    },
+    "الحجر الجيري": {
+      "protein": 0.0,
+      "energy": 0,
+      "calcium": 38.0,
+      "phosphorus": 0.0,
+      "max_limit": 0.02
+    },
+    "بريمكس (مخلوط فيتامينات وأملاح)": {
+      "protein": 0.0,
+      "energy": 0,
+      "calcium": 0.0,
+      "phosphorus": 0.0,
+      "max_limit": 0.003
+    }
+  },
+  "requirements": {
+    "تسمين_بادي": {
+      "min_protein": 23.0,
+      "min_energy": 3000,
+      "min_calcium": 0.90,
+      "min_phosphorus": 0.45
+    },
+    "تسمين_نامي": {
+      "min_protein": 21.0,
+      "min_energy": 3100,
+      "min_calcium": 0.85,
+      "min_phosphorus": 0.42
+    },
+    "تسمين_ناهي": {
+      "min_protein": 19.0,
+      "min_energy": 3200,
+      "min_calcium": 0.80,
+      "min_phosphorus": 0.38
+    }
+  }
+}
