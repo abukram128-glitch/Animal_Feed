@@ -6,8 +6,8 @@ import os
 # إعدادات الصفحة
 st.set_page_config(page_title="مُركّب الأعلاف الذكي", page_icon="🌾", layout="centered")
 
-# بيانات التحكم والوصول (نظام الاستئذان والموافقة)
-OWNER_USER = "عبد القادر إسماعيل"
+# بيانات التحكم والوصول (نظام الاستئذان والموافقة المحدث)
+OWNER_USER = "تاور"
 OWNER_PASS = "2026"
 
 # تنسيق الواجهة بالـ CSS وتعديل ألوان رسائل التنبيه والتوقيع المصغر بجهة اليسار
@@ -90,7 +90,7 @@ if not st.session_state["approved"]:
     st.markdown("<h2 style='color: #c62828;'>🔒 نظام حماية المطور</h2>", unsafe_allow_html=True)
     st.markdown("<p style='color: #555;'>يتطلب تشغيل هذا البرنامج إذن وموافقة اختصاصي الإنتاج الحيواني المالك للمشروع.</p>", unsafe_allow_html=True)
     
-    input_user = st.text_input("👤 اسم المستخدم المطور:", placeholder="أدخل الاسم المعين")
+    input_user = st.text_input("👤 اسم المستخدم المطور:", placeholder="أدخل اسم المستخدم الجديد")
     input_pass = st.text_input("🔑 كلمة المرور السريّة:", type="password", placeholder="أدخل كلمة المرور")
     
     if st.button("منح الإذن والموافقة لفتح البرنامج 🔓", type="primary", use_container_width=True):
@@ -235,7 +235,6 @@ if st.button("🚀 احسب التركيبة الاقتصادية المثلى",
             st.markdown('<div class="section-title">📊 النتائج والتحليل الاقتصادي المقترح للخلطة</div>', unsafe_allow_html=True)
             st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة لعلائق اللاحم بنجاح كامل ومتضمنة مضاد السموم الفطرية والبيولوجية!")
             
-            # نسب الخلط مع إضافة 0.1% مضاد سموم فطرية وبيولوجية وخصمها من الذرة لتوازن الطن
             if "بادي" in selected_stage:
                 soy_ratio, corn_ratio, conc_ratio, lime_ratio, toxin_ratio = 0.32, 0.599, 0.05, 0.03, 0.001
             elif "نامي" in selected_stage:
