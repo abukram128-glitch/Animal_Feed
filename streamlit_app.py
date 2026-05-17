@@ -7,7 +7,7 @@ import os
 # إعدادات الصفحة
 st.set_page_config(page_title="مُركّب الأعلاف الذكي", page_icon="🌾", layout="centered")
 
-# تنسيق الواجهة بالـ CSS المتقدم ونقل التوقيع إلى أقصى اليسار بشكل مصغر
+# تنسيق الواجهة بالـ CSS وتعديل ألوان رسائل التنبيه والتوقيع المصغر بجهة اليسار
 st.markdown(
     """
     <style>
@@ -43,7 +43,24 @@ st.markdown(
         margin-top: 25px;
         margin-bottom: 15px;
     }
-    /* التوقيع المصغر الأنيق في جهة اليسار بأسفل الشاشة لتجنب التشويه */
+    /* تصميم مخصص لرسالة تعذر الحل: نص أسود وعلامة خطأ حمراء */
+    .custom-error-box {
+        background-color: #ffebee;
+        border-right: 6px solid #c62828;
+        padding: 15px;
+        border-radius: 8px;
+        color: #000000; /* نص باللون الأسود */
+        font-weight: bold;
+        text-align: right;
+        margin-top: 15px;
+        direction: rtl;
+    }
+    .custom-error-box .error-icon {
+        color: #c62828; /* علامة الخطأ باللون الأحمر */
+        font-size: 1.3rem;
+        margin-left: 8px;
+    }
+    /* التوقيع المصغر الأنيق في جهة اليسار بأسفل الشاشة */
     .mini-left-signature {
         position: fixed;
         left: 15px;
@@ -101,7 +118,7 @@ else:
 
 st.info(f"💡 الوزن التقديري المحسوب للحيوان: **{estimated_weight:.1f} كجم**")
 
-# ----------------- 2. نظام التغذية المستهدف (بروتين يدوي وضبط تلقائي آمن للطاقة) -----------------
+# ----------------- 2. نظام التغذية المستهدف -----------------
 st.markdown('<div class="section-title">📋 2. تحديد الاحتياجات الغذائية (البروتين والطاقة)</div>', unsafe_allow_html=True)
 
 selected_cat = st.radio("اختر فئة الحيوان الأساسية للتركيبة:", ["المجترات", "الدواجن", "الخيول"], horizontal=True)
@@ -130,7 +147,7 @@ user_protein = st.slider(
 base_protein = float(req["min_protein"])
 base_energy = float(req["min_energy"])
 
-# ضبط معادلات موازنة الطاقة هندسياً لمنع تعذر الحل
+# ضبط موازنة الطاقة
 if current_animal_class == "poultry":
     calculated_energy = base_energy
 else:
@@ -150,7 +167,18 @@ cols = st.columns(2)
 for idx, name in enumerate(ing_keys):
     ing_info = ingredients[name]
     
-    if ing_info["type"] == "poultry_only" and current_animal_class != "poultry":
+    # 1. فلترة ومنع تداخل خامات الألياف غير المناسبة نهائياً مع الدواجن
+    if current_animal_class == "poultry" and name in ["البرسيم الجاف (الدريس)", "النخالة (الردة)", "الشعير المطحون", "الشوفان", "كسب عباد الشمس 36%"]:
+        continue
+
+    # 2. الفصل الصارم بين مركز اللاحم ومركز البياض لمنع الخلط الخاطئ علمياً
+    if current_animal_class == "poultry":
+        if "لاحم" in selected_stage and "بياض" in name:
+            continue
+        if "بياض" in selected_stage and "لاحم" in name:
+            continue
+        
+    if ing_info["type"] == "poultry_only" and current_animal_class != "poultry" :
         continue
     if ing_info["type"] == "ruminant_premix" and current_animal_class != "ruminant":
         continue
@@ -162,10 +190,9 @@ for idx, name in enumerate(ing_keys):
     with cols[idx % 2]:
         is_default = name in [
             "الذرة الصفراء", "الذرة البيضاء", "كسب فول الصويا 44%", "كسب فول الصويا 48%", 
-            "البرسيم الجاف (الدريس)", "الشوفان", "الشعير المطحون", "مركزات دواجن لاحم (5%)", 
-            "مركزات دواجن بياض (10%)", "بريمكس دواجن (لاحم/بياض)", "بريمكس مجترات (تسمين/ألبان)", 
-            "بريمكس خيول (مركز)", "مضاد سموم فطرية وبيولوجية", "الحجر الجيري (بودرة بلاط)",
-            "فوسفات ثنائي الكالسيوم (DCP)"
+            "مركزات دواجن لاحم (5%)", "مركزات دواجن بياض (10%)", "بريمكس دواجن (لاحم/بياض)", 
+            "بريمكس مجترات (تسمين/ألبان)", "بريمكس خيول (مركز)", "مضاد سموم فطرية وبيولوجية", 
+            "الحجر الجيري (بودرة بلاط)", "فوسفات ثنائي الكالسيوم (DCP)", "ملح الطعام"
         ]
         
         c_col1, c_col2 = st.columns([0.65, 0.35])
@@ -204,11 +231,10 @@ if st.button("🚀 احسب التركيبة الاقتصادية المثلى",
         A_eq = [[1.0 for _ in selected_ingredients]]
         b_eq = [1.0]
         
-        # كسر وتعديل مرن للحدود القصوى للحجر الجيري والـ DCP برمجياً لضمان نجاح علائق اللاحم 100% 
         adjusted_bounds = []
         for name in selected_ingredients:
             if "الحجر الجيري" in name or "DCP" in name:
-                adjusted_bounds.append((0.0, 0.08)) # منح مساحة مرنة كافية لتغطية الكالسيوم والفسفور في اللاحم
+                adjusted_bounds.append((0.0, 0.08)) 
             else:
                 adjusted_bounds.append((0.0, ingredients[name]["max_limit"]))
         
@@ -216,7 +242,7 @@ if st.button("🚀 احسب التركيبة الاقتصادية المثلى",
         
         if res.success:
             st.markdown('<div class="section-title">📊 النتائج والتحليل الاقتصادي المقترح للخلطة</div>', unsafe_allow_html=True)
-            st.success("🎉 ممتاز جداً! تم حل معضلة اللاحم كيميائياً ورياضياً، والخلطة متزنة بالكامل وجاهزة للمصنع!")
+            st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة وحل مشكلة علائق اللاحم بنجاح كامل!")
             
             chart_data = {}
             col_res1, col_res2 = st.columns([0.5, 0.5])
@@ -235,7 +261,16 @@ if st.button("🚀 احسب التركيبة الاقتصادية المثلى",
                 st.write("#### 📊 التوزيع النسبي لمكونات العلف:")
                 st.bar_chart(chart_data)
         else:
-            st.error("❌ تعذر الحل الرياضي المباشر بالخامات الحالية! يرجى التأكد من تفعيل كسب الصويا 48% والمركزات والحجر الجيري لتغطية الاحتياجات.")
+            # رسالة تعذر الحل المخصصة بطلبك: نص أسود وعلامة خطأ حمراء تفادياً للتشويه
+            st.markdown(
+                """
+                <div class="custom-error-box">
+                    <span class="error-icon">❌</span>
+                    تعذر الحل الرياضي المباشر بالخامات الحالية! يرجى التأكد من تفعيل كسب الصويا 48% والمركزات والحجر الجيري لتغطية الاحتياجات العالية.
+                </div>
+                """, 
+                unsafe_allow_html=True
+            )
 
 st.markdown('</div>', unsafe_allow_html=True)
 
