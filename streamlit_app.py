@@ -62,7 +62,6 @@ st.markdown(
         font-size: 1.3rem;
         margin-left: 8px;
     }
-    /* تصميم ديباجة جوال العلف الجاهزة للطباعة */
     .sack-tag {
         border: 3px dashed #1b5e20;
         padding: 20px;
@@ -172,31 +171,57 @@ with tab_formulation:
     st.info(f"💡 الوزن التقديري المحسوب للحيوان: **{estimated_weight:.1f} كجم**")
     st.success(f"🎯 كمية العليقة المركبة المقترحة تلقائياً لهذا الحيوان: **{daily_feed_grams:.0f} جرام/يوم** (أي ما يعادل {daily_feed_kg:.2f} كجم يومياً)")
 
-    st.markdown('<div class="section-title">📋 تحديد الاحتياجات الغذائية (البروتين والطاقة)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📋 تحديد الاحتياجات الغذائية والإنتاجية حسب السلالات</div>', unsafe_allow_html=True)
     selected_cat = st.radio("اختر فئة الحيوان الأساسية للتركيبة:", ["المجترات", "الدواجن", "الخيول"], horizontal=True, key="cat_radio")
 
     if selected_cat == "المجترات":
-        sub_list = ["أبقار تسمين", "أبقار ألبان", "أغنام تسمين", "ماعز تسمين"]
+        sub_list = ["أبقار تسمين", "أبقار ألبان", "أغنام تسمين", "أغنام ألبان", "ماعز تسمين", "ماعز ألبان"]
     elif selected_cat == "الدواجن":
         sub_list = ["بادي (لاحم)", "نامي (لاحم)", "ناهي (لاحم)", "بياض (إنتاج بيض)"]
     else:
         sub_list = ["خيول - رياضة", "خيول - أمهار", "خيول - فرسات"]
 
     selected_stage = st.selectbox("اختر غرض العليقة والمرحلة الإنتاجية:", sub_list, key="stage_select")
+    
+    # معالجة المفاتيح غير الموجودة افتراضياً بقاعدة البيانات لخيارات الألبان الجديدة
     db_key = f"{selected_cat} - {selected_stage}"
-    req = requirements[db_key]
+    if db_key in requirements:
+        req = requirements[db_key]
+    else:
+        if "ألبان" in selected_stage or "حليب" in selected_stage:
+            req = {"class": "ruminant", "min_protein": 16.0, "min_energy": 2400}
+        else:
+            req = {"class": "ruminant", "min_protein": 12.0, "min_energy": 2200}
+            
     current_animal_class = req["class"]
 
-    user_protein = st.slider(f"🎯 حدد نسبة البروتين المرغوبة لعليقة ({selected_stage}):", min_value=9.0, max_value=26.0, value=float(req["min_protein"]), step=0.5, key="protein_slider")
-    base_protein = float(req["min_protein"])
+    # 🧬 نظام السلالات التفاعلي والربط التلقائي بنسبة الإنتاج ومستوى العلف
+    production_multiplier = 1.0
+    if "ألبان" in selected_stage or "بياض" in selected_stage:
+        st.markdown("##### 🧬 برمجة السلالات ومعدل الكفاءة الإنتاجية:")
+        col_breed, col_prod = st.columns(2)
+        with col_breed:
+            if selected_cat == "المجترات":
+                breed = st.selectbox("اختر سلالة القطيع الحالية:", ["هولشتاين / فريزيان", "جيرسي", "أغنام عواسي", "أغنام بربري", "ماعز دمشقي / قبرصي", "محلي هجين"])
+            else:
+                breed = st.selectbox("اختر سلالة الدجاج البياض:", ["لوهمان براون", "لجهورن أبيض", "هاي سكس", "بلدي محسن"])
+        with col_prod:
+            prod_rate = st.slider("📊 حدد نسبة الإنتاج الحالية بالمزرعة (%):", min_value=10, max_value=100, value=75, step=5)
+        
+        # التأثير الحسابي لنسبة الإنتاج على الاحتياج الغذائي (كلما زاد الإنتاج زاد الاحتياج)
+        production_multiplier = 1.0 + ((prod_rate - 70) * 0.005)
+
+    base_protein = float(req["min_protein"]) * production_multiplier
     base_energy = float(req["min_energy"])
+
+    user_protein = st.slider(f"🎯 حدد نسبة البروتين المرغوبة لعليقة ({selected_stage}):", min_value=9.0, max_value=26.0, value=round(base_protein, 1), step=0.5, key="protein_slider")
 
     if current_animal_class == "poultry":
         calculated_energy = base_energy
     else:
         calculated_energy = base_energy + ((user_protein - base_protein) * 20)
 
-    st.warning(f"⚙️ النظام التلقائي: تم ضبط الطاقة الممثلة المستهدفة لتكون **{calculated_energy:.0f} كـ/كجم** لتتلاءم مع نسبة البروتين المحددة.")
+    st.warning(f"⚙️ النظام التلقائي: تم ضبط الطاقة الممثلة المستهدفة لتكون **{calculated_energy:.0f} كـ/كجم** لتتلاءم مع نسبة الإنتاج والبروتين.")
 
     st.markdown('<div class="section-title">💰 الخامات العلفية المتاحة وأسعار السوق</div>', unsafe_allow_html=True)
     selected_ingredients = []
@@ -223,7 +248,7 @@ with tab_formulation:
             continue
             
         with cols[idx % 2]:
-            is_default = name in ["الذرة الصفراء", "الذرة البيضاء", "كسب فول الصويا 44%", "كسب فول الصويا 48%", "مركزات دواجن لاحم (5%)", "مركزات دواجن بياض (10%)", "بريمكس دواجن (لاحم/بياض)", "بريمكس مجترات (تسمين/ألبان)", "بريمكس خيول (مركز)", "مضاد سموم فطرية وبيولوجية", "الحجر الجيري (بودرة بلاط)", "فوسفات ثنائي الكالسيوم (DCP)", "ملح التعامل"]
+            is_default = name in ["الذرة الصفراء", "الذرة البيضاء", "كسب فول الصويا 44%", "كسب فول الصويا 48%", "مركزات دواجن لاحم (5%)", "مركزات دواجن بياض (10%)", "بريمكس دواجن (لاحم/بياض)", "بريمكس مجترات (تسمين/ألبان)", "بريمكس خيول (مركز)", "مضاد سموم فطرية وبيولوجية", "الحجر الجيري (بودرة بلاط)", "فوسفات ثنائي الكالسيوم (DCP)", "ملح الطعام"]
             c_col1, c_col2 = st.columns([0.65, 0.35])
             with c_col1:
                 activated = st.checkbox(name, value=is_default, key=f"chk_{name}")
@@ -239,24 +264,55 @@ with tab_formulation:
         if len(selected_ingredients) < 2:
             st.error("⚠️ يرجى اختيار مادتين علفيتين على الأقل لتشغيل نظام الخلط الحسابي.")
         else:
+            # 🧂 تعيين وتثبيت نسبة ملح الطعام إجبارياً وتلقائياً لكل تشغيلة لحماية الطيور والحيوانات
+            salt_ratio = 0.003 if current_animal_class == "poultry" else 0.005
+            
             if current_animal_class == "poultry" and "لاحم" in selected_stage:
                 st.markdown('<div class="section-title">📊 النتائج والتحليل الاقتصادي المقترح للخلطة</div>', unsafe_allow_html=True)
-                st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة لعلائق اللاحم بنجاح كامل ومتضمنة مضاد السموم!")
+                st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة لعلائق اللاحم بنجاح كامل ومتضمنة ملح الطعام ومضاد السموم الفطرية!")
+                
                 if "بادي" in selected_stage:
-                    soy_ratio, corn_ratio, conc_ratio, lime_ratio, toxin_ratio = 0.32, 0.599, 0.05, 0.03, 0.001
+                    soy_ratio, corn_ratio, conc_ratio, lime_ratio, toxin_ratio = 0.32, (0.599 - salt_ratio), 0.05, 0.03, 0.001
                 elif "نامي" in selected_stage:
-                    soy_ratio, corn_ratio, conc_ratio, lime_ratio, toxin_ratio = 0.26, 0.659, 0.05, 0.03, 0.001
+                    soy_ratio, corn_ratio, conc_ratio, lime_ratio, toxin_ratio = 0.26, (0.659 - salt_ratio), 0.05, 0.03, 0.001
                 else:
-                    soy_ratio, corn_ratio, conc_ratio, lime_ratio, toxin_ratio = 0.20, 0.719, 0.05, 0.03, 0.001
+                    soy_ratio, corn_ratio, conc_ratio, lime_ratio, toxin_ratio = 0.20, (0.719 - salt_ratio), 0.05, 0.03, 0.001
                     
                 st.session_state["last_formula"] = {
                     "الذرة الصفراء": corn_ratio * 100,
                     "كسب فول الصويا 48%": soy_ratio * 100,
                     "مركزات دواجن لاحم (5%)": conc_ratio * 100,
                     "الحجر الجيري (بودرة بلاط)": lime_ratio * 100,
+                    "ملح الطعام": salt_ratio * 100,
                     "مضاد سموم فطرية وبيولوجية": toxin_ratio * 100
                 }
-                
+            else:
+                # المجترات، والخيول، والدجاج البياض
+                success = False
+                if "الذرة الصفراء" in selected_ingredients and "كسب فول الصويا 44%" in selected_ingredients:
+                    success = True
+                    # حجز نسبة الملح وخصمها من الذرة الصفراء للحفاظ على دقة الـ 100%
+                    st.session_state["last_formula"] = {
+                        "الذرة الصفراء": 65.0 - (salt_ratio * 100), 
+                        "كسب فول الصويا 44%": 24.5, 
+                        "البرسيم الجاف (الدريس)": 10.0,
+                        "ملح الطعام": salt_ratio * 100
+                    }
+                elif "الشعير المطحون" in selected_ingredients:
+                    success = True
+                    st.session_state["last_formula"] = {
+                        "الشعير المطحون": 70.0 - (salt_ratio * 100), 
+                        "البرسيم الجاف (الدريس)": 29.5,
+                        "ملح الطعام": salt_ratio * 100
+                    }
+                    
+                if success:
+                    st.markdown('<div class="section-title">📊 النتائج والتحليل الاقتصادي المقترح للخلطة</div>', unsafe_allow_html=True)
+                    st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة بنجاح كامل ومتضمنة ملح الطعام التلقائي!")
+                else:
+                    st.markdown('<div class="custom-error-box"><span class="error-icon">❌</span>تعذر الحل الرياضي المباشر بالخامات الحالية! يرجى التأكد من تفعيل كسب الصويا والذرة والحجر الجيري وملح الطعام لتغطية الاحتياجات العالية.</div>', unsafe_allow_html=True)
+
+            if "last_formula" in st.session_state:
                 col_res1, col_res2 = st.columns([0.5, 0.5])
                 with col_res1:
                     st.write("#### 📝 نسب ومقادير الخلط بالطن (1000 كجم):")
@@ -269,32 +325,6 @@ with tab_formulation:
                 with col_res2:
                     st.write("#### 📊 التوزيع النسبي لمكونات العلف:")
                     st.bar_chart(st.session_state["last_formula"])
-            else:
-                success = False
-                if "الذرة الصفراء" in selected_ingredients and "كسب فول الصويا 44%" in selected_ingredients:
-                    success = True
-                    st.session_state["last_formula"] = {"الذرة الصفراء": 65.0, "كسب فول الصويا 44%": 25.0, "البرسيم الجاف (الدريس)": 10.0}
-                elif "الشعير المطحون" in selected_ingredients:
-                    success = True
-                    st.session_state["last_formula"] = {"الشعير المطحون": 70.0, "البرسيم الجاف (الدريس)": 30.0}
-                    
-                if success:
-                    st.markdown('<div class="section-title">📊 النتائج والتحليل الاقتصادي المقترح للخلطة</div>', unsafe_allow_html=True)
-                    st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة بنجاح كامل!")
-                    col_res1, col_res2 = st.columns([0.5, 0.5])
-                    with col_res1:
-                        st.write("#### 📝 نسب ومقادير الخلط بالطن (1000 كجم):")
-                        for k, v in st.session_state["last_formula"].items():
-                            st.markdown(f"▪️ **{k}:** `{v:.2f} %` ➡️ (**{v*10:.1f} كجم** / طن)")
-                        st.markdown("---")
-                        total_cost = sum([v/100 * prices.get(k, 450.0) for k, v in st.session_state["last_formula"].items()])
-                        st.session_state["last_cost"] = total_cost
-                        st.metric(label="💰 التكلفة الإجمالية الاقتصادية المحسوبة للطن الواحد:", value=f"${total_cost:.2f}")
-                    with col_res2:
-                        st.write("#### 📊 التوزيع النسبي لمكونات العلف:")
-                        st.bar_chart(st.session_state["last_formula"])
-                else:
-                    st.markdown('<div class="custom-error-box"><span class="error-icon">❌</span>تعذر الحل الرياضي المباشر بالخامات الحالية! يرجى التأكد من تفعيل كسب الصويا والذرة والحجر الجيري لتغطية الاحتياجات العالية.</div>', unsafe_allow_html=True)
 
 # ==================== التبويب الثاني: إدارة المزرعة والمخازن ====================
 with tab_management:
