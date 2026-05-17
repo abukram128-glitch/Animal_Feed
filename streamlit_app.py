@@ -9,6 +9,7 @@ st.set_page_config(page_title="منصة تاور الذكية لإدارة ال�
 # بيانات التحكم والوصول والأمان
 OWNER_USER = "تاور"
 OWNER_PASS = "2026"
+MY_PHOTO = "14686.jpg"  # اسم ملف صورتك الشخصية الجديدة المرفوعة بالمستودع
 
 # تنسيق الواجهة بالـ CSS والمظهر التجاري الفخم
 st.markdown(
@@ -125,10 +126,19 @@ if not st.session_state["approved"]:
 # ----------------- بعد الحصول على الموافقة تفتح المنصة بالكامل -----------------
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
-# واجهة الشعار الهوية التجارية الموحدة للمشروع
-st.markdown("<h1 style='color: #2E7D32; margin-bottom: 0;'>منصة تاور الذكية للإنتاج الحيواني 🌾</h1>", unsafe_allow_html=True)
-st.markdown("<h3 style='color: #1565C0; margin-top: 5px; margin-bottom: 0;'>النظام المتكامل لإدارة المزارع وتسويق الأعلاف</h3>", unsafe_allow_html=True)
-st.markdown("<h2 style='color: #c62828; font-weight: bold; margin-top: 5px;'>عبد القادر إسماعيل تاور</h2>", unsafe_allow_html=True)
+# واجهة الشعار والهوية البصرية المدمج بها صورتك الشخصية الحالية بشكل ممتاز ومتناسق
+col_logo, col_title = st.columns([0.28, 0.72])
+with col_logo:
+    if os.path.exists(MY_PHOTO):
+        st.image(MY_PHOTO, use_container_width=True, style="border-radius: 12px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1);")
+    else:
+        st.markdown("<div style='font-size:4rem; text-align:center;'>👨‍🔬</div>", unsafe_allow_html=True)
+
+with col_title:
+    st.markdown("<h2 style='color: #2E7D32; text-align:right; margin-bottom: 0; margin-top:10px;'>منصة تاور الذكية للإنتاج الحيواني 🌾</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #1565C0; text-align:right; margin-top: 2px; font-size:1.1rem; margin-bottom: 0;'>النظام المتكامل لإدارة المزارع وتصميم الأعلاف</p>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color: #c62828; text-align:right; font-weight: bold; margin-top: 2px;'>عبد القادر إسماعيل تاور</h3>", unsafe_allow_html=True)
+
 st.markdown("---")
 
 # تحميل قاعدة البيانات الأساسية للأعلاف
@@ -143,7 +153,7 @@ with open(db_file, "r", encoding="utf-8") as f:
 ingredients = data["ingredients"]
 requirements = data["requirements"]
 
-# ----------------- إنشاء التبويبات العلوية للتنقل بين الأنظمة -----------------
+# ----------------- إنشاء التبويبات العلوية -----------------
 tab_formulation, tab_management, tab_marketing, tab_branding = st.tabs([
     "⚖️ تركيب الأعلاف والأوزان", 
     "🚜 إدارة المزرعة والمخازن", 
@@ -156,11 +166,13 @@ with tab_formulation:
     st.markdown('<div class="section-title">⚖️ نظام قياس وتقدير الأوزان والاحتياج اليومي تلقائياً</div>', unsafe_allow_html=True)
     animal_for_weight = st.radio("اختر فئة الحيوان المراد وزنه وحساب عليقته:", ["أبقار (محلي/هجين)", "أغنام", "ماعز", "خيول"], horizontal=True)
 
-    col_w1, col_w2 = st.columns(2)
+    col_w1, col_w2, col_age = st.columns(3)
     with col_w1:
         heart_girth = st.number_input("📏 محيط الصدر (سم):", min_value=10.0, value=160.0 if animal_for_weight in ["أبقار (محلي/هجين)", "خيول"] else 70.0, step=1.0, key="hg_input")
     with col_w2:
         body_length = st.number_input("📏 طول الجسم (سم):", min_value=10.0, value=140.0 if animal_for_weight in ["أبقار (محلي/هجين)", "خيول"] else 60.0, step=1.0, key="bl_input")
+    with col_age:
+        animal_age_months = st.number_input("⏳ عمر الحيوان (بالأشهر):", min_value=1, value=18 if animal_for_weight in ["أبقار (محلي/هجين)", "خيول"] else 8, step=1)
 
     if animal_for_weight == "أبقار (محلي/هجين)":
         estimated_weight = (heart_girth ** 2 * body_length) / 10838
@@ -181,7 +193,7 @@ with tab_formulation:
     st.info(f"💡 الوزن التقديري المحسوب للحيوان: **{estimated_weight:.1f} كجم**")
     st.success(f"🎯 كمية العليقة المركبة المقترحة تلقائياً لهذا الحيوان: **{daily_feed_grams:.0f} جرام/يوم** (أي ما يعادل {daily_feed_kg:.2f} كجم يومياً)")
 
-    st.markdown('<div class="section-title">📋 تحديد الاحتياجات الغذائية والإنتاجية حسب السلالات</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📋 تحديد الاحتياجات ونظام البروتين المزدوج (البرمجي / الاختياري)</div>', unsafe_allow_html=True)
     selected_cat = st.radio("اختر فئة الحيوان الأساسية للتركيبة:", ["المجترات", "الدواجن", "الخيول"], horizontal=True, key="cat_radio")
 
     if selected_cat == "المجترات":
@@ -197,38 +209,43 @@ with tab_formulation:
     if db_key in requirements:
         req = requirements[db_key]
     else:
-        if "ألبان" in selected_stage or "حليب" in selected_stage:
+        if "ألبان" in selected_stage:
             req = {"class": "ruminant", "min_protein": 16.0, "min_energy": 2400}
         else:
             req = {"class": "ruminant", "min_protein": 12.0, "min_energy": 2200}
             
     current_animal_class = req["class"]
 
-    production_multiplier = 1.0
-    if "ألبان" in selected_stage or "بياض" in selected_stage:
-        st.markdown("##### 🧬 برمجة السلالات ومعدل الكفاءة الإنتاجية:")
-        col_breed, col_prod = st.columns(2)
-        with col_breed:
-            if selected_cat == "المجترات":
-                breed = st.selectbox("اختر سلالة القطيع الحالية:", ["هولشتاين / فريزيان", "جيرسي", "أغنام عواسي", "أغنام بربري", "ماعز دمشقي / قبرصي", "محلي هجين"])
-            else:
-                breed = st.selectbox("اختر سلالة الدجاج البياض:", ["لوهمان براون", "لجهورن أبيض", "هاي سكس", "بلدي محسن"])
-        with col_prod:
-            prod_rate = st.slider("📊 حدد نسبة الإنتاج الحالية بالمزرعة (%):", min_value=10, max_value=100, value=75, step=5)
-        
-        production_multiplier = 1.0 + ((prod_rate - 70) * 0.005)
+    # حساب دالة البروتين البرمجي التلقائي بناءً على الوزن، العمر، ونوع الإنتاج
+    computed_protein = float(req["min_protein"])
+    if current_animal_class == "ruminant":
+        if animal_age_months < 6:  
+            computed_protein += 2.5
+        elif estimated_weight > 400 and "تسمين" in selected_stage: 
+            computed_protein -= 1.0
+        if "ألبان" in selected_stage: 
+            computed_protein += 1.5
 
-    base_protein = float(req["min_protein"]) * production_multiplier
+    # عرض نظام خانات البروتين المزدوج
+    st.write("##### 📊 نظام ضبط وتحديد نسبة البروتين:")
+    col_p1, col_p2 = st.columns(2)
+    
+    with col_p1:
+        st.metric(label="🧬 نسبة البروتين المحسوبة برمجياً وتلقائياً:", value=f"{computed_protein:.1f} %", help="محسوبة مبرمجة مع وزن الحيوان وعمره ونوع إنتاجه")
+    
+    with col_p2:
+        manual_override = st.checkbox("🛠️ تفعيل خانة البروتين الاختياري", value=False)
+        if manual_override:
+            user_protein = st.slider("🎯 حدد نسبة البروتين الاختيارية (رؤية فنية):", min_value=9.0, max_value=26.0, value=round(computed_protein, 1), step=0.5)
+        else:
+            user_protein = computed_protein
+            st.info("💡 النظام يعتمد الآن على البروتين البرمجي التلقائي بالكامل.")
+
     base_energy = float(req["min_energy"])
-
-    user_protein = st.slider(f"🎯 حدد نسبة البروتين المرغوبة لعليقة ({selected_stage}):", min_value=9.0, max_value=26.0, value=round(base_protein, 1), step=0.5, key="protein_slider")
-
     if current_animal_class == "poultry":
         calculated_energy = base_energy
     else:
-        calculated_energy = base_energy + ((user_protein - base_protein) * 20)
-
-    st.warning(f"⚙️ النظام التلقائي: تم ضبط الطاقة الممثلة المستهدفة لتكون **{calculated_energy:.0f} كـ/كجم** لتتلاءم مع نسبة الإنتاج والبروتين.")
+        calculated_energy = base_energy + ((user_protein - computed_protein) * 20)
 
     st.markdown('<div class="section-title">💰 الخامات العلفية المتاحة وأسعار السوق</div>', unsafe_allow_html=True)
     selected_ingredients = []
@@ -271,11 +288,9 @@ with tab_formulation:
         if len(selected_ingredients) < 2:
             st.error("⚠️ يرجى اختيار مادتين علفيتين على الأقل لتشغيل نظام الخلط الحسابي.")
         else:
-            # 🧂 تثبيت نسبة الملح ونسبة المركزات (5%) إجبارياً في الحساب الكلي للطن
             salt_ratio = 0.003 if current_animal_class == "poultry" else 0.005
-            concentrate_ratio = 0.050  # 5% مركز علفي ثابت مبرمج إجبارياً لتغطية النقص السابق
+            concentrate_ratio = 0.050  
             
-            # تحديد اسم المركز المقابل لنوع الحيوان لإظهاره بالتركيبة
             if current_animal_class == "poultry":
                 conc_name = "مركزات دواجن بياض (10%)" if "بياض" in selected_stage else "مركزات دواجن لاحم (5%)"
             elif current_animal_class == "ruminant":
@@ -304,7 +319,6 @@ with tab_formulation:
                 }
             else:
                 success = False
-                # حساب يدوي مبرمج لحجز الـ 5% للمركز والـملح في باقي الأصناف والمجترات
                 rem_ratio = 100.0 - (concentrate_ratio * 100) - (salt_ratio * 100)
                 
                 if "الذرة الصفراء" in selected_ingredients and "كسب فول الصويا 44%" in selected_ingredients:
@@ -332,6 +346,7 @@ with tab_formulation:
                     st.markdown('<div class="custom-error-box"><span class="error-icon">❌</span>تعذر الحل الرياضي المباشر بالخامات الحالية! يرجى التأكد من تفعيل كسب الصويا والذرة والمركزات لتغطية الاحتياجات العالية.</div>', unsafe_allow_html=True)
 
             if "last_formula" in st.session_state:
+                st.session_state["target_protein_printed"] = user_protein
                 col_res1, col_res2 = st.columns([0.5, 0.5])
                 with col_res1:
                     st.write("#### 📝 نسب ومقادير الخلط بالطن (1000 كجم):")
@@ -348,7 +363,6 @@ with tab_formulation:
 # ==================== التبويب الثاني: إدارة المزرعة والمخازن ====================
 with tab_management:
     st.markdown('<div class="section-title">🚜 سجل إدارة القطيع ومخازن الأعلاف في المزرعة</div>', unsafe_allow_html=True)
-    
     col_m1, col_m2 = st.columns(2)
     with col_m1:
         st.write("### 📊 حالة القطيع الحالية")
@@ -360,13 +374,10 @@ with tab_management:
         st.slider("🌽 مخزون الذرة الصفراء المتوفر:", 0.0, 50.0, 22.5)
         st.slider("🌱 مخزون كسب صويا 48% متوفر:", 0.0, 50.0, 11.0)
         st.slider("🧪 مخزون المركزات والبريمكس:", 0.0, 10.0, 3.5)
-    
-    st.info("💡 نصيحة اختصاصي الإنتاج الحيواني: مخزون كسب الصويا الحالي يغطي احتياجات مزرعتك لمدة 24 يوماً قادمة بناءً على معدل السحب اليومي المقدر.")
 
 # ==================== التبويب الثالث: تسويق الأعلاف والفواتير ====================
 with tab_marketing:
     st.markdown('<div class="section-title">💰 نظام تسويق وبيع الأعلاف وإصدار فواتير العملاء</div>', unsafe_allow_html=True)
-    
     customer_name = st.text_input("👤 اسم العميل / المربي المستلم:", "مزرعة الوادي السعيد للإنتاج الحيواني")
     order_tons = st.number_input("⚖️ كمية الطلبية المطلوبة (بالطن):", min_value=0.5, value=2.0, step=0.5)
     margin_profit = st.number_input("💵 هامش ربحك الصافي في الطن الواحد ($):", min_value=0.0, value=40.0, step=5.0)
@@ -389,29 +400,29 @@ with tab_marketing:
 # ==================== التبويب الرابع: مصمم ديباجة الجوالات والدعاية ====================
 with tab_branding:
     st.markdown('<div class="section-title">🏷️ مُصمم ديباجة الدعاية وبطاقة التحليل على جوالات الأعلاف</div>', unsafe_allow_html=True)
-    st.write("يقوم هذا القسم بتوليد بطاقة التحليل الفني والدعاية القانونية الملصقة على أكياس وجوالات الأعلاف الخارجة من مصنعك:")
-    
     brand_name = st.text_input("🏢 اسم العمل التجاري (براند الدعاية):", "مجموعة تاور لإنتاج الأعلاف عالية الجودة")
     phone_number = st.text_input("📞 رقم هاتف المبيعات والدعم الفني:", "+218-XX-XXXXXXX")
     notes = st.text_area("📝 إرشادات استخدام وتخزين خاصة للزبائن:", "يُحفظ في مكان بارد وجاف بعيداً عن أشعة الشمس المباشرة. يُقدم للحيوانات بانتظام حسب توصيات المطور.")
     
     if "last_formula" in st.session_state:
         st.markdown("### 🖨️ معاينة ديباجة الجوال (جاهزة للطباعة واللصق)")
-        
-        # إضافة شريط صور الحيوانات التسويقية الفخم بأعلى الجوال مباشرة
+        target_p = st.session_state.get("target_protein_printed", 16.0)
+
         st.markdown(f"""
         <div class="sack-tag">
             <div class="animal-banner">🐄 🐐 🐏 🐓 🐎</div>
             <h2 style="color: #1b5e20; text-align: center; margin-top:0;">🌟 {brand_name} 🌟</h2>
-            <p style="text-align: center; font-weight: bold; color: #1565C0;">توصية واختيار اختصاصي الإنتاج الحيواني: م. عبد القادر إسماعيل تاور</p>
+            <p style="text-align: center; font-weight: bold; color: #1565C0; margin-bottom:5px;">بإشراف وتوصية اختصاصي الإنتاج الحيواني</p>
+            <h3 style="text-align: center; color: #c62828; margin-top:0; font-weight: bold;">م. عبد القادر إسماعيل تاور</h3>
+            <p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:5px; border-radius:5px; color:#1b5e20;">🎯 نسبة البروتين المستهدفة في هذه التشغيلة: {target_p:.1f}%</p>
             <hr style="border-top: 1px solid #1b5e20;">
-            <h4>📊 بطاقة التحليل الفني والتركيب النهائي الشامل (لكل 1 طن):</h4>
+            <h4>📊 بطاقة التحليل الفني والتركيب النهائي (لكل 1 طن):</h4>
             <ul>
                 {"".join([f"<li><b>{k}:</b> {v:.2f}%</li>" for k, v in st.session_state["last_formula"].items()])}
             </ul>
             <hr style="border-top: 1px solid #1b5e20;">
             <p><b>⚠️ إرشادات وتوجيهات الحقل:</b> {notes}</p>
-            <p style="text-align: center; font-weight: bold; color: #c62828; margin-bottom:0;">📞 لطلبات الدعم والاستشارة: {phone_number}</p>
+            <p style="text-align: center; font-weight: bold; color: #c62828; margin-bottom:0;">📞 لطلبات الدعم والاستشارة الفنية: {phone_number}</p>
         </div>
         """, unsafe_allow_html=True)
     else:
