@@ -6,7 +6,7 @@ import os
 # إعدادات الصفحة
 st.set_page_config(page_title="مُركّب الأعلاف الذكي", page_icon="🌾", layout="centered")
 
-# بيانات التحكم والوصول (نظام الاستئذان والموافقة المحدث)
+# بيانات التحكم والوصول (نظام الاستئذان والموافقة)
 OWNER_USER = "تاور"
 OWNER_PASS = "2026"
 
@@ -90,7 +90,7 @@ if not st.session_state["approved"]:
     st.markdown("<h2 style='color: #c62828;'>🔒 نظام حماية المطور</h2>", unsafe_allow_html=True)
     st.markdown("<p style='color: #555;'>يتطلب تشغيل هذا البرنامج إذن وموافقة اختصاصي الإنتاج الحيواني المالك للمشروع.</p>", unsafe_allow_html=True)
     
-    input_user = st.text_input("👤 اسم المستخدم المطور:", placeholder="أدخل اسم المستخدم الجديد")
+    input_user = st.text_input("👤 اسم المستخدم المطور:", placeholder="أدخل اسم المستخدم المعين")
     input_pass = st.text_input("🔑 كلمة المرور السريّة:", type="password", placeholder="أدخل كلمة المرور")
     
     if st.button("منح الإذن والموافقة لفتح البرنامج 🔓", type="primary", use_container_width=True):
@@ -124,22 +124,36 @@ with open(db_file, "r", encoding="utf-8") as f:
 ingredients = data["ingredients"]
 requirements = data["requirements"]
 
-# ----------------- 1. نظام تقدير أوزان الحيوانات ميدانياً -----------------
-st.markdown('<div class="section-title">⚖️ 1. نظام قياس وتقدير أوزان الحيوانات ميدانياً</div>', unsafe_allow_html=True)
-animal_for_weight = st.radio("اختر فئة الحيوان المراد وزنه:", ["أبقار (محلي/هجين)", "خيول"], horizontal=True)
+# ----------------- 1. نظام تقدير أوزان الحيوانات والحساب التلقائي لجرامات العليقة -----------------
+st.markdown('<div class="section-title">⚖️ 1. نظام قياس وتقدير الأوزان والاحتياج اليومي تلقائياً</div>', unsafe_allow_html=True)
+animal_for_weight = st.radio("اختر فئة الحيوان المراد وزنه وحساب عليقته:", ["أبقار (محلي/هجين)", "أغنام", "ماعز", "خيول"], horizontal=True)
 
 col_w1, col_w2 = st.columns(2)
 with col_w1:
-    heart_girth = st.number_input("📏 محيط الصدر (سم):", min_value=40.0, value=160.0, step=1.0)
+    heart_girth = st.number_input("📏 محيط الصدر (سم):", min_value=10.0, value=70.0 if animal_for_weight in ["أغنام", "ماعza"] else 160.0, step=1.0)
 with col_w2:
-    body_length = st.number_input("📏 طول الجسم (سم):", min_value=40.0, value=140.0, step=1.0)
+    body_length = st.number_input("📏 طول الجسم (سم):", min_value=10.0, value=60.0 if animal_for_weight in ["أغنام", "ماعز"] else 140.0, step=1.0)
 
+# حساب الوزن التقديري بناءً على الفئات المعدلة والموسعة
 if animal_for_weight == "أبقار (محلي/هجين)":
     estimated_weight = (heart_girth ** 2 * body_length) / 10838
-else:
+    feed_percentage = 0.020 # 2% من وزن الجسم كعلف مركز
+elif animal_for_weight == "أغنام":
+    estimated_weight = (heart_girth ** 2 * body_length) / 11110  # معادلة الأغنام القياسية لـ Schaeffer
+    feed_percentage = 0.025 # 2.5% من وزن الجسم علف مركز للتسمين والإنتاج
+elif animal_for_weight == "ماعز":
+    estimated_weight = (heart_girth ** 2 * body_length) / 11250  # مصفوفة قياس الماعز الميدانية
+    feed_percentage = 0.025 # 2.5% من وزن الجسم
+else: # خيول
     estimated_weight = (heart_girth ** 2 * body_length) / 11877
+    feed_percentage = 0.015 # 1.5% من وزن الجسم علف مركز
+
+# حساب الاحتياج التلقائي اليومي من العلف بالجرامات والكيلوجرامات
+daily_feed_kg = estimated_weight * feed_percentage
+daily_feed_grams = daily_feed_kg * 1000
 
 st.info(f"💡 الوزن التقديري المحسوب للحيوان: **{estimated_weight:.1f} كجم**")
+st.success(f"🎯 كمية العليقة المركبة المقترحة تلقائياً لهذا الحيوان: **{daily_feed_grams:.0f} جرام/يوم** (أي ما يعادل {daily_feed_kg:.2f} كجم يومياً)")
 
 # ----------------- 2. تحديد الاحتياجات الغذائية -----------------
 st.markdown('<div class="section-title">📋 2. تحديد الاحتياجات الغذائية (البروتين والطاقة)</div>', unsafe_allow_html=True)
