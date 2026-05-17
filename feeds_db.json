@@ -1,11 +1,11 @@
 {
   "ingredients": {
-    "الذرة الصفراء": {"protein": 8.5, "energy": 3350, "calcium": 0.02, "phosphorus": 0.08, "max_limit": 1.0, "type": "general"},
     "الذرة البيضاء": {"protein": 9.0, "energy": 3250, "calcium": 0.03, "phosphorus": 0.10, "max_limit": 1.0, "type": "general"},
+    "البرسيم الجاف (الدريس)": {"protein": 16.0, "energy": 1900, "calcium": 1.40, "phosphorus": 0.22, "max_limit": 0.40, "type": "general"},
+    "مركزات دواجن (لاحم + بياض)": {"protein": 40.0, "energy": 2100, "calcium": 8.00, "phosphorus": 4.00, "max_limit": 0.10, "type": "poultry_only"},
+    "الذرة الصفراء": {"protein": 8.5, "energy": 3350, "calcium": 0.02, "phosphorus": 0.08, "max_limit": 1.0, "type": "general"},
     "كسب فول الصويا 44%": {"protein": 44.0, "energy": 2230, "calcium": 0.29, "phosphorus": 0.27, "max_limit": 1.0, "type": "general"},
     "كسب عباد الشمس 36%": {"protein": 36.0, "energy": 1800, "calcium": 0.43, "phosphorus": 0.31, "max_limit": 0.20, "type": "general"},
-    "مركزات دواجن (لاحم + bياض)": {"protein": 40.0, "energy": 2100, "calcium": 8.00, "phosphorus": 4.00, "max_limit": 0.10, "type": "poultry_only"},
-    "البرسيم الجاف (الدريس)": {"protein": 16.0, "energy": 1900, "calcium": 1.40, "phosphorus": 0.22, "max_limit": 0.40, "type": "general"},
     "النخالة (الردة)": {"protein": 15.0, "energy": 1300, "calcium": 0.14, "phosphorus": 1.20, "max_limit": 0.35, "type": "general"},
     "الشعير": {"protein": 11.5, "energy": 2900, "calcium": 0.06, "phosphorus": 0.35, "max_limit": 0.40, "type": "general"},
     "الحجر الجيري": {"protein": 0.0, "energy": 0, "calcium": 38.0, "phosphorus": 0.0, "max_limit": 0.08, "type": "general"},
@@ -20,7 +20,7 @@
     "المجترات - أبقار تسمين": {"min_protein": 14.0, "min_energy": 2600, "min_calcium": 0.50, "min_phosphorus": 0.30, "class": "ruminant"},
     "المجترات - أبقار ألبان": {"min_protein": 16.5, "min_energy": 2700, "min_calcium": 0.60, "min_phosphorus": 0.38, "class": "ruminant"},
     "المجترات - أغنام تسمين": {"min_protein": 15.0, "min_energy": 2650, "min_calcium": 0.55, "min_phosphorus": 0.32, "class": "ruminant"},
-    "المجترات - أغنام ألبان": {"min_protein": 16.0, "min_energy": 2600, "min_calcium": 0.60, "min_phosphorus": 0.35, "class": "ruminant"},
+    "المجترات - ماعز تسمين": {"min_protein": 14.5, "min_energy": 2550, "min_calcium": 0.50, "min_phosphorus": 0.30, "class": "ruminant"},
     "الدواجن - بادي (لاحم)": {"min_protein": 23.0, "min_energy": 3000, "min_calcium": 0.95, "min_phosphorus": 0.45, "class": "poultry"},
     "الدواجن - نامي (لاحم)": {"min_protein": 21.0, "min_energy": 3100, "min_calcium": 0.90, "min_phosphorus": 0.42, "class": "poultry"},
     "الدواجن - ناهي (لاحم)": {"min_protein": 19.0, "min_energy": 3200, "min_calcium": 0.85, "min_phosphorus": 0.38, "class": "poultry"},
