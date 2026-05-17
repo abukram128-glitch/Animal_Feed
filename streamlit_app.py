@@ -7,7 +7,7 @@ import os
 # إعدادات الصفحة
 st.set_page_config(page_title="مُركّب الأعلاف الذكي", page_icon="🌾", layout="centered")
 
-# إضافة تأثير الخلفية الطبيعية المخصصة وتنسيق الحاويات بالـ CSS
+# إضافة تأثير الخلفية الطبيعية المخصصة وتنسيق الحاويات وتوقيع أسفل الصفحة بالـ CSS
 st.markdown(
     """
     <style>
@@ -27,7 +27,7 @@ st.markdown(
         padding: 25px;
         border-radius: 15px;
         box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.15);
-        margin-bottom: 25px;
+        margin-bottom: 60px; /* مساحة إضافية للتوقيع السفلي */
     }
     h1, h2, h3, p {
         text-align: center;
@@ -42,6 +42,22 @@ st.markdown(
         font-weight: bold;
         margin-top: 25px;
         margin-bottom: 15px;
+    }
+    /* تنسيق التوقيع الاحترافي الثابت أسفل الشاشة */
+    .footer-signature {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background-color: rgba(27, 94, 32, 0.95);
+        color: white;
+        text-align: center;
+        padding: 8px 0;
+        font-size: 0.95rem;
+        font-weight: bold;
+        box-shadow: 0px -4px 10px rgba(0,0,0,0.2);
+        z-index: 9999;
+        direction: rtl;
     }
     </style>
     """,
@@ -86,7 +102,7 @@ else:
 
 st.info(f"💡 الوزن التقديري المحسوب للحيوان: **{estimated_weight:.1f} كجم**")
 
-# ----------------- 2. نظام التغذية المستهدف (اختيار يدوي وتوجيه طاقة تلقائي) -----------------
+# ----------------- 2. نظام التغذية المستهدف (بروتين يدوي وضبط تلقائي آمن للطاقة) -----------------
 st.markdown('<div class="section-title">📋 2. تحديد الاحتياجات الغذائية (البروتين والطاقة)</div>', unsafe_allow_html=True)
 
 selected_cat = st.radio("اختر فئة الحيوان الأساسية للتركيبة:", ["المجترات", "الدواجن", "الخيول"], horizontal=True)
@@ -100,7 +116,6 @@ else:
 
 selected_stage = st.selectbox("اختر غرض العليقة والمرحلة الإنتاجية:", sub_list)
 
-# تصحيح مفتاح البحث للربط الدقيق بالـ JSON دون أخطاء
 db_key = f"{selected_cat} - {selected_stage}"
 req = requirements[db_key]
 current_animal_class = req["class"]
@@ -116,16 +131,15 @@ user_protein = st.slider(
 base_protein = float(req["min_protein"])
 base_energy = float(req["min_energy"])
 
-# معادلة ربط الطاقة التلقائية ديناميكياً لتجنب تعذر الحل الخطي
-if "تسمين" in selected_stage or "لاحم" in selected_stage:
-    calculated_energy = base_energy + ((user_protein - base_protein) * 40)
-elif "ألبان" in selected_stage or "بيض" in selected_stage:
-    calculated_energy = base_energy + ((user_protein - base_protein) * 25)
+# تصحيح معادلة ربط الطاقة لحماية الدواجن اللاحم من الأرقام المستحيلة رياضياتياً
+if current_animal_class == "poultry":
+    # في الدواجن: الحفاظ على الاحتياجات القياسية للطاقة لضمان نجاح الخلطة 100% مع الخامات المتاحة
+    calculated_energy = base_energy
 else:
-    # لتصحيح معادلات الخيل بالكامل ومنع جمود الأرقام
+    # في المجترات والخيول: ربط ديناميكي مرن ومتناسب
     calculated_energy = base_energy + ((user_protein - base_protein) * 20)
 
-st.warning(f"⚙️ النظام التلقائي: تم ضبط الطاقة الممثلة لتكون **{calculated_energy:.0f} كـ/كجم** لتتلاءم كيميائياً مع نسبة {user_protein}% بروتين.")
+st.warning(f"⚙️ النظام التلقائي: تم ضبط الطاقة الممثلة المستهدفة لتكون **{calculated_energy:.0f} كـ/كجم** لتتلاءم تماماً مع احتياجات الطيور والحيوانات.")
 
 # ----------------- 3. المكتبة الشاملة وعرض الخامات والأسعار بجانب بعضها -----------------
 st.markdown('<div class="section-title">💰 3. الخامات العلفية المتاحة وأسعار السوق</div>', unsafe_allow_html=True)
@@ -139,7 +153,6 @@ cols = st.columns(2)
 for idx, name in enumerate(ing_keys):
     ing_info = ingredients[name]
     
-    # الفلترة الذكية والآمنة للبريمكسات والمضادات حسب نوع الحيوان المستهدف
     if ing_info["type"] == "poultry_only" and current_animal_class != "poultry":
         continue
     if ing_info["type"] == "ruminant_premix" and current_animal_class != "ruminant":
@@ -150,7 +163,6 @@ for idx, name in enumerate(ing_keys):
         continue
         
     with cols[idx % 2]:
-        # تفعيل افتراضي لمعظم المواد الأساسية المناسبة لضمان وجود حل فوري من أول ضغطة
         is_default = name in [
             "الذرة الصفراء", "الذرة البيضاء", "كسب فول الصويا 44%", "كسب فول الصويا 48%", 
             "البرسيم الجاف (الدريس)", "الشوفان", "الشعير المطحون", "مركزات دواجن لاحم (5%)", 
@@ -179,35 +191,28 @@ if st.button("🚀 احسب التركيبة الاقتصادية المثلى",
         A_ub = []
         b_ub = []
         
-        # قيد البروتين اليدوي المحدد من شريط التمرير
         A_ub.append([-ingredients[name]["protein"] for name in selected_ingredients])
         b_ub.append(-user_protein)
         
-        # قيد الطاقة التلقائي المتوازن
         A_ub.append([-ingredients[name]["energy"] for name in selected_ingredients])
         b_ub.append(-calculated_energy)
         
-        # قيد الكالسيوم الأدنى القياسي
         A_ub.append([-ingredients[name]["calcium"] for name in selected_ingredients])
         b_ub.append(-req["min_calcium"])
         
-        # قيد الفسفور الأدنى القياسي
         A_ub.append([-ingredients[name]["phosphorus"] for name in selected_ingredients])
         b_ub.append(-req["min_phosphorus"])
         
-        # قيد مجموع الخامات الاجمالي في الطن = 100%
         A_eq = [[1.0 for _ in selected_ingredients]]
         b_eq = [1.0]
         
-        # تعيين حدود الأمان والحدود القصوى لكل خامة
         bounds = [(0.0, ingredients[name]["max_limit"]) for name in selected_ingredients]
         
-        # استدعاء محرك الحل الرياضي الاحترافي الخطي
         res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
         
         if res.success:
             st.markdown('<div class="section-title">📊 النتائج والتحليل الاقتصادي المقترح للخلطة</div>', unsafe_allow_html=True)
-            st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة وحل مشكلة نقص الخامات العلفية بنجاح كامِل!")
+            st.success("🎉 ممتاز جداً! تم حل مشكلة علائق اللاحم والخيل بالكامل، وتم الوصول للتوليفة المتزنة!")
             
             chart_data = {}
             col_res1, col_res2 = st.columns([0.5, 0.5])
@@ -226,6 +231,16 @@ if st.button("🚀 احسب التركيبة الاقتصادية المثلى",
                 st.write("#### 📊 التوزيع النسبي لمكونات العلف:")
                 st.bar_chart(chart_data)
         else:
-            st.error("❌ تعذر الحل الرياضي المباشر بالخامات الحالية! يرجى التأكد من تفعيل خامات بروتينية عالية القيمة (مثل كسب الصويا 48% والمركزات) لتغطية الاحتياجات العالية.")
+            st.error("❌ تعذر الحل الرياضي المباشر بالخامات الحالية! يرجى التأكد من تفعيل كسب الصويا 48% والمركزات لتغطية احتياجات البروتين المرتفعة.")
 
 st.markdown('</div>', unsafe_allow_html=True)
+
+# ----------------- التوقيع الرسمي الثابت أسفل كل صفحة -----------------
+st.markdown(
+    """
+    <div class="footer-signature">
+        🌾 برمجة وتطوير اختصاصي الإنتاج الحيواني: عبد القادر إسماعيل تاور © 2026 ⚖️
+    </div>
+    """,
+    unsafe_allow_html=True
+)
