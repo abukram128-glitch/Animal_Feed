@@ -64,12 +64,22 @@ st.markdown(
     }
     .sack-tag {
         border: 3px dashed #1b5e20;
-        padding: 20px;
+        padding: 25px;
         border-radius: 10px;
         background-color: #f1f8e9;
         direction: rtl;
         text-align: right;
         margin-top: 20px;
+    }
+    .animal-banner {
+        background-color: #ffffff;
+        padding: 10px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 2.25rem;
+        margin-bottom: 15px;
+        border: 1px solid #c8e6c9;
+        box-shadow: 0px 2px 5px rgba(0,0,0,0.05);
     }
     .mini-left-signature {
         position: fixed;
@@ -183,7 +193,6 @@ with tab_formulation:
 
     selected_stage = st.selectbox("اختر غرض العليقة والمرحلة الإنتاجية:", sub_list, key="stage_select")
     
-    # معالجة المفاتيح غير الموجودة افتراضياً بقاعدة البيانات لخيارات الألبان الجديدة
     db_key = f"{selected_cat} - {selected_stage}"
     if db_key in requirements:
         req = requirements[db_key]
@@ -195,7 +204,6 @@ with tab_formulation:
             
     current_animal_class = req["class"]
 
-    # 🧬 نظام السلالات التفاعلي والربط التلقائي بنسبة الإنتاج ومستوى العلف
     production_multiplier = 1.0
     if "ألبان" in selected_stage or "بياض" in selected_stage:
         st.markdown("##### 🧬 برمجة السلالات ومعدل الكفاءة الإنتاجية:")
@@ -208,7 +216,6 @@ with tab_formulation:
         with col_prod:
             prod_rate = st.slider("📊 حدد نسبة الإنتاج الحالية بالمزرعة (%):", min_value=10, max_value=100, value=75, step=5)
         
-        # التأثير الحسابي لنسبة الإنتاج على الاحتياج الغذائي (كلما زاد الإنتاج زاد الاحتياج)
         production_multiplier = 1.0 + ((prod_rate - 70) * 0.005)
 
     base_protein = float(req["min_protein"]) * production_multiplier
@@ -264,53 +271,65 @@ with tab_formulation:
         if len(selected_ingredients) < 2:
             st.error("⚠️ يرجى اختيار مادتين علفيتين على الأقل لتشغيل نظام الخلط الحسابي.")
         else:
-            # 🧂 تعيين وتثبيت نسبة ملح الطعام إجبارياً وتلقائياً لكل تشغيلة لحماية الطيور والحيوانات
+            # 🧂 تثبيت نسبة الملح ونسبة المركزات (5%) إجبارياً في الحساب الكلي للطن
             salt_ratio = 0.003 if current_animal_class == "poultry" else 0.005
+            concentrate_ratio = 0.050  # 5% مركز علفي ثابت مبرمج إجبارياً لتغطية النقص السابق
             
+            # تحديد اسم المركز المقابل لنوع الحيوان لإظهاره بالتركيبة
+            if current_animal_class == "poultry":
+                conc_name = "مركزات دواجن بياض (10%)" if "بياض" in selected_stage else "مركزات دواجن لاحم (5%)"
+            elif current_animal_class == "ruminant":
+                conc_name = "بريمكس مجترات (تسمين/ألبان)"
+            else:
+                conc_name = "بريمكس خيول (مركز)"
+
             if current_animal_class == "poultry" and "لاحم" in selected_stage:
                 st.markdown('<div class="section-title">📊 النتائج والتحليل الاقتصادي المقترح للخلطة</div>', unsafe_allow_html=True)
-                st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة لعلائق اللاحم بنجاح كامل ومتضمنة ملح الطعام ومضاد السموم الفطرية!")
+                st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة لعلائق اللاحم بنجاح كامل ومتضمنة المركز والملح ومضاد السموم الفطرية!")
                 
                 if "بادي" in selected_stage:
-                    soy_ratio, corn_ratio, conc_ratio, lime_ratio, toxin_ratio = 0.32, (0.599 - salt_ratio), 0.05, 0.03, 0.001
+                    soy_ratio, corn_ratio, lime_ratio, toxin_ratio = 0.32, (0.599 - salt_ratio), 0.03, 0.001
                 elif "نامي" in selected_stage:
-                    soy_ratio, corn_ratio, conc_ratio, lime_ratio, toxin_ratio = 0.26, (0.659 - salt_ratio), 0.05, 0.03, 0.001
+                    soy_ratio, corn_ratio, lime_ratio, toxin_ratio = 0.26, (0.659 - salt_ratio), 0.03, 0.001
                 else:
-                    soy_ratio, corn_ratio, conc_ratio, lime_ratio, toxin_ratio = 0.20, (0.719 - salt_ratio), 0.05, 0.03, 0.001
+                    soy_ratio, corn_ratio, lime_ratio, toxin_ratio = 0.20, (0.719 - salt_ratio), 0.03, 0.001
                     
                 st.session_state["last_formula"] = {
                     "الذرة الصفراء": corn_ratio * 100,
                     "كسب فول الصويا 48%": soy_ratio * 100,
-                    "مركزات دواجن لاحم (5%)": conc_ratio * 100,
+                    conc_name: concentrate_ratio * 100,
                     "الحجر الجيري (بودرة بلاط)": lime_ratio * 100,
                     "ملح الطعام": salt_ratio * 100,
                     "مضاد سموم فطرية وبيولوجية": toxin_ratio * 100
                 }
             else:
-                # المجترات، والخيول، والدجاج البياض
                 success = False
+                # حساب يدوي مبرمج لحجز الـ 5% للمركز والـملح في باقي الأصناف والمجترات
+                rem_ratio = 100.0 - (concentrate_ratio * 100) - (salt_ratio * 100)
+                
                 if "الذرة الصفراء" in selected_ingredients and "كسب فول الصويا 44%" in selected_ingredients:
                     success = True
-                    # حجز نسبة الملح وخصمها من الذرة الصفراء للحفاظ على دقة الـ 100%
                     st.session_state["last_formula"] = {
-                        "الذرة الصفراء": 65.0 - (salt_ratio * 100), 
-                        "كسب فول الصويا 44%": 24.5, 
-                        "البرسيم الجاف (الدريس)": 10.0,
+                        "الذرة الصفراء": (rem_ratio * 0.65), 
+                        "كسب فول الصويا 44%": (rem_ratio * 0.25), 
+                        "البرسيم الجاف (الدريس)": (rem_ratio * 0.10),
+                        conc_name: concentrate_ratio * 100,
                         "ملح الطعام": salt_ratio * 100
                     }
                 elif "الشعير المطحون" in selected_ingredients:
                     success = True
                     st.session_state["last_formula"] = {
-                        "الشعير المطحون": 70.0 - (salt_ratio * 100), 
-                        "البرسيم الجاف (الدريس)": 29.5,
+                        "الشعير المطحون": (rem_ratio * 0.70), 
+                        "البرسيم الجاف (الدريس)": (rem_ratio * 0.30),
+                        conc_name: concentrate_ratio * 100,
                         "ملح الطعام": salt_ratio * 100
                     }
                     
                 if success:
                     st.markdown('<div class="section-title">📊 النتائج والتحليل الاقتصادي المقترح للخلطة</div>', unsafe_allow_html=True)
-                    st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة بنجاح كامل ومتضمنة ملح الطعام التلقائي!")
+                    st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة بنجاح كامل ومتضمنة المركز 5% والملح التلقائي!")
                 else:
-                    st.markdown('<div class="custom-error-box"><span class="error-icon">❌</span>تعذر الحل الرياضي المباشر بالخامات الحالية! يرجى التأكد من تفعيل كسب الصويا والذرة والحجر الجيري وملح الطعام لتغطية الاحتياجات العالية.</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="custom-error-box"><span class="error-icon">❌</span>تعذر الحل الرياضي المباشر بالخامات الحالية! يرجى التأكد من تفعيل كسب الصويا والذرة والمركزات لتغطية الاحتياجات العالية.</div>', unsafe_allow_html=True)
 
             if "last_formula" in st.session_state:
                 col_res1, col_res2 = st.columns([0.5, 0.5])
@@ -374,23 +393,25 @@ with tab_branding:
     
     brand_name = st.text_input("🏢 اسم العمل التجاري (براند الدعاية):", "مجموعة تاور لإنتاج الأعلاف عالية الجودة")
     phone_number = st.text_input("📞 رقم هاتف المبيعات والدعم الفني:", "+218-XX-XXXXXXX")
-    notes = st.text_area("📝 إرشادات استخدام وتخزين خاصة للزبائن:", "يُحفظ في مكان بارد وجاف بعيداً عن أشعة الشمس المباشرة. يُقدم للطيور حسب الجدول العمري بانتظام.")
+    notes = st.text_area("📝 إرشادات استخدام وتخزين خاصة للزبائن:", "يُحفظ في مكان بارد وجاف بعيداً عن أشعة الشمس المباشرة. يُقدم للحيوانات بانتظام حسب توصيات المطور.")
     
     if "last_formula" in st.session_state:
         st.markdown("### 🖨️ معاينة ديباجة الجوال (جاهزة للطباعة واللصق)")
         
+        # إضافة شريط صور الحيوانات التسويقية الفخم بأعلى الجوال مباشرة
         st.markdown(f"""
         <div class="sack-tag">
+            <div class="animal-banner">🐄 🐐 🐏 🐓 🐎</div>
             <h2 style="color: #1b5e20; text-align: center; margin-top:0;">🌟 {brand_name} 🌟</h2>
-            <p style="text-align: center; font-weight: bold; color: #1565C0;">توصية واختيار اختصاصي الإنتاج الحيواني: م. عبد القادر إسماعيل</p>
+            <p style="text-align: center; font-weight: bold; color: #1565C0;">توصية واختيار اختصاصي الإنتاج الحيواني: م. عبد القادر إسماعيل تاور</p>
             <hr style="border-top: 1px solid #1b5e20;">
-            <h4>📊 بطاقة التحليل الفني والتركيب (لكل 1 طن):</h4>
+            <h4>📊 بطاقة التحليل الفني والتركيب النهائي الشامل (لكل 1 طن):</h4>
             <ul>
                 {"".join([f"<li><b>{k}:</b> {v:.2f}%</li>" for k, v in st.session_state["last_formula"].items()])}
             </ul>
             <hr style="border-top: 1px solid #1b5e20;">
-            <p><b>⚠️ إرشادات الهيئة الاستشارية للإنتاج:</b> {notes}</p>
-            <p style="text-align: center; font-weight: bold; color: #c62828; margin-bottom:0;">📞 لطلبات الدعم والطلب: {phone_number}</p>
+            <p><b>⚠️ إرشادات وتوجيهات الحقل:</b> {notes}</p>
+            <p style="text-align: center; font-weight: bold; color: #c62828; margin-bottom:0;">📞 لطلبات الدعم والاستشارة: {phone_number}</p>
         </div>
         """, unsafe_allow_html=True)
     else:
