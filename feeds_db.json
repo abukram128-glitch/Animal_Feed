@@ -1,20 +1,23 @@
 {
   "ingredients": {
-    "الذرة البيضاء": {"protein": 9.0, "energy": 3250, "calcium": 0.03, "phosphorus": 0.10, "max_limit": 1.0, "type": "general"},
-    "البرسيم الجاف (الدريس)": {"protein": 16.0, "energy": 1900, "calcium": 1.40, "phosphorus": 0.22, "max_limit": 0.40, "type": "general"},
-    "مركزات دواجن (لاحم + بياض)": {"protein": 40.0, "energy": 2100, "calcium": 8.00, "phosphorus": 4.00, "max_limit": 0.10, "type": "poultry_only"},
-    "الذرة الصفراء": {"protein": 8.5, "energy": 3350, "calcium": 0.02, "phosphorus": 0.08, "max_limit": 1.0, "type": "general"},
-    "كسب فول الصويا 44%": {"protein": 44.0, "energy": 2230, "calcium": 0.29, "phosphorus": 0.27, "max_limit": 1.0, "type": "general"},
-    "كسب عباد الشمس 36%": {"protein": 36.0, "energy": 1800, "calcium": 0.43, "phosphorus": 0.31, "max_limit": 0.20, "type": "general"},
-    "النخالة (الردة)": {"protein": 15.0, "energy": 1300, "calcium": 0.14, "phosphorus": 1.20, "max_limit": 0.35, "type": "general"},
-    "الشعير": {"protein": 11.5, "energy": 2900, "calcium": 0.06, "phosphorus": 0.35, "max_limit": 0.40, "type": "general"},
-    "الحجر الجيري": {"protein": 0.0, "energy": 0, "calcium": 38.0, "phosphorus": 0.0, "max_limit": 0.08, "type": "general"},
-    "فوسفات ثنائي الكالسيوم": {"protein": 0.0, "energy": 0, "calcium": 22.0, "phosphorus": 18.0, "max_limit": 0.03, "type": "general"},
-    "ملح الطعام": {"protein": 0.0, "energy": 0, "calcium": 0.0, "phosphorus": 0.0, "max_limit": 0.005, "type": "general"},
-    "مضاد سموم فطرية (دواجن)": {"protein": 0.0, "energy": 0, "calcium": 0.0, "phosphorus": 0.0, "max_limit": 0.002, "type": "poultry_only"},
-    "بريمكس مجترات": {"protein": 0.0, "energy": 0, "calcium": 0.0, "phosphorus": 0.0, "max_limit": 0.005, "type": "ruminant_premix"},
-    "بريمكس دواجن": {"protein": 0.0, "energy": 0, "calcium": 0.0, "phosphorus": 0.0, "max_limit": 0.005, "type": "poultry_premix"},
-    "بريمكس خيول": {"protein": 0.0, "energy": 0, "calcium": 0.0, "phosphorus": 0.0, "max_limit": 0.005, "type": "horse_premix"}
+    "الذرة الصفراء": {"protein": 8.5, "energy": 3350, "calcium": 0.02, "phosphorus": 0.08, "max_limit": 0.75, "type": "general"},
+    "الذرة البيضاء": {"protein": 9.0, "energy": 3250, "calcium": 0.03, "phosphorus": 0.10, "max_limit": 0.75, "type": "general"},
+    "كسب فول الصويا 44%": {"protein": 44.0, "energy": 2230, "calcium": 0.29, "phosphorus": 0.27, "max_limit": 0.50, "type": "general"},
+    "كسب فول الصويا 48%": {"protein": 48.0, "energy": 2440, "calcium": 0.30, "phosphorus": 0.30, "max_limit": 0.45, "type": "general"},
+    "كسب عباد الشمس 36%": {"protein": 36.0, "energy": 1800, "calcium": 0.43, "phosphorus": 0.31, "max_limit": 0.25, "type": "general"},
+    "مركزات دواجن لاحم (5%)": {"protein": 40.0, "energy": 2100, "calcium": 7.50, "phosphorus": 3.50, "max_limit": 0.07, "type": "poultry_only"},
+    "مركزات دواجن بياض (10%)": {"protein": 32.0, "energy": 1950, "calcium": 8.50, "phosphorus": 4.00, "max_limit": 0.12, "type": "poultry_only"},
+    "البرسيم الجاف (الدريس)": {"protein": 16.0, "energy": 1900, "calcium": 1.40, "phosphorus": 0.22, "max_limit": 0.70, "type": "general"},
+    "النخالة (الردة)": {"protein": 15.0, "energy": 1300, "calcium": 0.14, "phosphorus": 1.20, "max_limit": 0.40, "type": "general"},
+    "الشعير المطحون": {"protein": 11.5, "energy": 2900, "calcium": 0.06, "phosphorus": 0.35, "max_limit": 0.60, "type": "general"},
+    "الشوفان": {"protein": 11.0, "energy": 2750, "calcium": 0.10, "phosphorus": 0.35, "max_limit": 0.50, "type": "general"},
+    "الحجر الجيري (بودرة بلاط)": {"protein": 0.0, "energy": 0, "calcium": 38.0, "phosphorus": 0.0, "max_limit": 0.10, "type": "general"},
+    "فوسفات ثنائي الكالسيوم (DCP)": {"protein": 0.0, "energy": 0, "calcium": 22.0, "phosphorus": 18.0, "max_limit": 0.03, "type": "general"},
+    "ملح الطعام": {"protein": 0.0, "energy": 0, "calcium": 0.0, "phosphorus": 0.0, "max_limit": 0.01, "type": "general"},
+    "مضاد سموم فطرية وبيولوجية": {"protein": 0.0, "energy": 0, "calcium": 0.0, "phosphorus": 0.0, "max_limit": 0.003, "type": "poultry_only"},
+    "بريمكس مجترات (تسمين/ألبان)": {"protein": 0.0, "energy": 0, "calcium": 0.0, "phosphorus": 0.0, "max_limit": 0.005, "type": "ruminant_premix"},
+    "بريمكس دواجن (لاحم/بياض)": {"protein": 0.0, "energy": 0, "calcium": 0.0, "phosphorus": 0.0, "max_limit": 0.005, "type": "poultry_premix"},
+    "بريمكس خيول (مركز)": {"protein": 0.0, "energy": 0, "calcium": 0.0, "phosphorus": 0.0, "max_limit": 0.005, "type": "horse_premix"}
   },
   "requirements": {
     "المجترات - أبقار تسمين": {"min_protein": 14.0, "min_energy": 2600, "min_calcium": 0.50, "min_phosphorus": 0.30, "class": "ruminant"},
@@ -25,8 +28,8 @@
     "الدواجن - نامي (لاحم)": {"min_protein": 21.0, "min_energy": 3100, "min_calcium": 0.90, "min_phosphorus": 0.42, "class": "poultry"},
     "الدواجن - ناهي (لاحم)": {"min_protein": 19.0, "min_energy": 3200, "min_calcium": 0.85, "min_phosphorus": 0.38, "class": "poultry"},
     "الدواجن - بياض (إنتاج بيض)": {"min_protein": 16.5, "min_energy": 2750, "min_calcium": 3.50, "min_phosphorus": 0.40, "class": "poultry"},
-    "الخيول - رياضة": {"min_protein": 12.0, "min_energy": 2500, "min_calcium": 0.45, "min_phosphorus": 0.30, "class": "horse"},
-    "الخيول - أمهار": {"min_protein": 15.0, "min_energy": 2700, "min_calcium": 0.60, "min_phosphorus": 0.45, "class": "horse"},
-    "الخيول - فرسات": {"min_protein": 13.5, "min_energy": 2600, "min_calcium": 0.50, "min_phosphorus": 0.35, "class": "horse"}
+    "الخيول - خيول - رياضة": {"min_protein": 12.0, "min_energy": 2500, "min_calcium": 0.45, "min_phosphorus": 0.30, "class": "horse"},
+    "الخيول - خيول - أمهار": {"min_protein": 15.0, "min_energy": 2700, "min_calcium": 0.60, "min_phosphorus": 0.45, "class": "horse"},
+    "الخيول - خيول - فرسات": {"min_protein": 13.5, "min_energy": 2600, "min_calcium": 0.50, "min_phosphorus": 0.35, "class": "horse"}
   }
 }
