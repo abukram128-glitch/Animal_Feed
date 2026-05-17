@@ -6,6 +6,10 @@ import os
 # إعدادات الصفحة
 st.set_page_config(page_title="مُركّب الأعلاف الذكي", page_icon="🌾", layout="centered")
 
+# بيانات التحكم والوصول (نظام الاستئذان والموافقة)
+OWNER_USER = "عبد القادر إسماعيل"
+OWNER_PASS = "2026"
+
 # تنسيق الواجهة بالـ CSS وتعديل ألوان رسائل التنبيه والتوقيع المصغر بجهة اليسار
 st.markdown(
     """
@@ -42,7 +46,6 @@ st.markdown(
         margin-top: 25px;
         margin-bottom: 15px;
     }
-    /* تصميم مخصص لرسالة تعذر الحل: نص أسود وعلامة خطأ حمراء */
     .custom-error-box {
         background-color: #ffebee;
         border-right: 6px solid #c62828;
@@ -59,7 +62,6 @@ st.markdown(
         font-size: 1.3rem;
         margin-left: 8px;
     }
-    /* التوقيع المصغر في جهة اليسار بأسفل الشاشة لتجنب التشويه */
     .mini-left-signature {
         position: fixed;
         left: 15px;
@@ -79,7 +81,29 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# الحاوية البيضاء الرئيسية
+# ----------------- بوابات نظام الاستئذان والموافقة قبل التشغيل -----------------
+if "approved" not in st.session_state:
+    st.session_state["approved"] = False
+
+if not st.session_state["approved"]:
+    st.markdown('<div class="main-box" style="max-width: 500px; margin: 100px auto;">', unsafe_allow_html=True)
+    st.markdown("<h2 style='color: #c62828;'>🔒 نظام حماية المطور</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #555;'>يتطلب تشغيل هذا البرنامج إذن وموافقة اختصاصي الإنتاج الحيواني المالك للمشروع.</p>", unsafe_allow_html=True)
+    
+    input_user = st.text_input("👤 اسم المستخدم المطور:", placeholder="أدخل الاسم المعين")
+    input_pass = st.text_input("🔑 كلمة المرور السريّة:", type="password", placeholder="أدخل كلمة المرور")
+    
+    if st.button("منح الإذن والموافقة لفتح البرنامج 🔓", type="primary", use_container_width=True):
+        if input_user == OWNER_USER and input_pass == OWNER_PASS:
+            st.session_state["approved"] = True
+            st.success("تم التحقق بنجاح! جاري فتح النظام...")
+            st.rerun()
+        else:
+            st.error("❌ بيانات الاعتماد غير صحيحة، لا يمكن تشغيل البرنامج دون إذن المطور.")
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.stop()
+
+# ----------------- بعد الحصول على الموافقة يفتح البرنامج هنا -----------------
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
 # واجهة الشعار والعناوين الرسمية
@@ -207,24 +231,24 @@ if st.button("🚀 احسب التركيبة الاقتصادية المثلى",
     if len(selected_ingredients) < 2:
         st.error("⚠️ يرجى اختيار مادتين علفيتين على الأقل لتشغيل نظام الخلط الحسابي.")
     else:
-        # الحل المباشر والمستقر لعلائق اللاحم لمنع تعذر الحل نهائياً
         if current_animal_class == "poultry" and "لاحم" in selected_stage:
             st.markdown('<div class="section-title">📊 النتائج والتحليل الاقتصادي المقترح للخلطة</div>', unsafe_allow_html=True)
-            st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة لعلائق اللاحم بنجاح كامل وفقاً للمقاييس القياسية!")
+            st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة لعلائق اللاحم بنجاح كامل ومتضمنة مضاد السموم الفطرية والبيولوجية!")
             
-            # حسابات رياضية دقيقة مبنية على الاحتياجات الفعلية لمراحل اللاحم
+            # نسب الخلط مع إضافة 0.1% مضاد سموم فطرية وبيولوجية وخصمها من الذرة لتوازن الطن
             if "بادي" in selected_stage:
-                soy_ratio, corn_ratio, conc_ratio, lime_ratio = 0.32, 0.60, 0.05, 0.03
+                soy_ratio, corn_ratio, conc_ratio, lime_ratio, toxin_ratio = 0.32, 0.599, 0.05, 0.03, 0.001
             elif "نامي" in selected_stage:
-                soy_ratio, corn_ratio, conc_ratio, lime_ratio = 0.26, 0.66, 0.05, 0.03
+                soy_ratio, corn_ratio, conc_ratio, lime_ratio, toxin_ratio = 0.26, 0.659, 0.05, 0.03, 0.001
             else: # ناهي
-                soy_ratio, corn_ratio, conc_ratio, lime_ratio = 0.20, 0.72, 0.05, 0.03
+                soy_ratio, corn_ratio, conc_ratio, lime_ratio, toxin_ratio = 0.20, 0.719, 0.05, 0.03, 0.001
                 
             chart_data = {
                 "الذرة الصفراء": corn_ratio * 100,
                 "كسب فول الصويا 48%": soy_ratio * 100,
                 "مركزات دواجن لاحم (5%)": conc_ratio * 100,
-                "الحجر الجيري (بودرة بلاط)": lime_ratio * 100
+                "الحجر الجيري (بودرة بلاط)": lime_ratio * 100,
+                "مضاد سموم فطرية وبيولوجية": toxin_ratio * 100
             }
             
             col_res1, col_res2 = st.columns([0.5, 0.5])
@@ -240,7 +264,6 @@ if st.button("🚀 احسب التركيبة الاقتصادية المثلى",
                 st.write("#### 📊 التوزيع النسبي لمكونات العلف:")
                 st.bar_chart(chart_data)
         else:
-            # استخدام مصفوفة مبسطة ومستقرة للمجترات والخيول والبياض تفادياً للمكتبات الخارجية
             success = False
             if "الذرة الصفراء" in selected_ingredients and "كسب فول الصويا 44%" in selected_ingredients:
                 success = True
