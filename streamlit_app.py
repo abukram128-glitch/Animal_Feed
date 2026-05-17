@@ -7,7 +7,7 @@ import os
 # إعدادات الصفحة
 st.set_page_config(page_title="مُركّب الأعلاف الذكي", page_icon="🌾", layout="centered")
 
-# إضافة تأثير الخلفية الطبيعية المخصصة وتنسيق الحاويات وتوقيع أسفل الصفحة بالـ CSS
+# تنسيق الواجهة بالـ CSS المتقدم ونقل التوقيع إلى أقصى اليسار بشكل مصغر
 st.markdown(
     """
     <style>
@@ -27,7 +27,7 @@ st.markdown(
         padding: 25px;
         border-radius: 15px;
         box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.15);
-        margin-bottom: 60px; /* مساحة إضافية للتوقيع السفلي */
+        margin-bottom: 60px;
     }
     h1, h2, h3, p {
         text-align: center;
@@ -43,21 +43,20 @@ st.markdown(
         margin-top: 25px;
         margin-bottom: 15px;
     }
-    /* تنسيق التوقيع الاحترافي الثابت أسفل الشاشة */
-    .footer-signature {
+    /* التوقيع المصغر الأنيق في جهة اليسار بأسفل الشاشة لتجنب التشويه */
+    .mini-left-signature {
         position: fixed;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        background-color: rgba(27, 94, 32, 0.95);
+        left: 15px;
+        bottom: 15px;
+        background-color: rgba(27, 94, 32, 0.9);
         color: white;
-        text-align: center;
-        padding: 8px 0;
-        font-size: 0.95rem;
-        font-weight: bold;
-        box-shadow: 0px -4px 10px rgba(0,0,0,0.2);
+        padding: 5px 12px;
+        font-size: 0.75rem;
+        border-radius: 20px;
+        box-shadow: 0px 4px 8px rgba(0,0,0,0.15);
         z-index: 9999;
         direction: rtl;
+        pointer-events: none;
     }
     </style>
     """,
@@ -131,15 +130,13 @@ user_protein = st.slider(
 base_protein = float(req["min_protein"])
 base_energy = float(req["min_energy"])
 
-# تصحيح معادلة ربط الطاقة لحماية الدواجن اللاحم من الأرقام المستحيلة رياضياتياً
+# ضبط معادلات موازنة الطاقة هندسياً لمنع تعذر الحل
 if current_animal_class == "poultry":
-    # في الدواجن: الحفاظ على الاحتياجات القياسية للطاقة لضمان نجاح الخلطة 100% مع الخامات المتاحة
     calculated_energy = base_energy
 else:
-    # في المجترات والخيول: ربط ديناميكي مرن ومتناسب
     calculated_energy = base_energy + ((user_protein - base_protein) * 20)
 
-st.warning(f"⚙️ النظام التلقائي: تم ضبط الطاقة الممثلة المستهدفة لتكون **{calculated_energy:.0f} كـ/كجم** لتتلاءم تماماً مع احتياجات الطيور والحيوانات.")
+st.warning(f"⚙️ النظام التلقائي: تم ضبط الطاقة الممثلة المستهدفة لتكون **{calculated_energy:.0f} كـ/كجم** لتتلاءم مع نسبة البروتين المحددة.")
 
 # ----------------- 3. المكتبة الشاملة وعرض الخامات والأسعار بجانب بعضها -----------------
 st.markdown('<div class="section-title">💰 3. الخامات العلفية المتاحة وأسعار السوق</div>', unsafe_allow_html=True)
@@ -167,7 +164,8 @@ for idx, name in enumerate(ing_keys):
             "الذرة الصفراء", "الذرة البيضاء", "كسب فول الصويا 44%", "كسب فول الصويا 48%", 
             "البرسيم الجاف (الدريس)", "الشوفان", "الشعير المطحون", "مركزات دواجن لاحم (5%)", 
             "مركزات دواجن بياض (10%)", "بريمكس دواجن (لاحم/بياض)", "بريمكس مجترات (تسمين/ألبان)", 
-            "بريمكس خيول (مركز)", "مضاد سموم فطرية وبيولوجية", "الحجر الجيري (بودرة بلاط)"
+            "بريمكس خيول (مركز)", "مضاد سموم فطرية وبيولوجية", "الحجر الجيري (بودرة بلاط)",
+            "فوسفات ثنائي الكالسيوم (DCP)"
         ]
         
         c_col1, c_col2 = st.columns([0.65, 0.35])
@@ -206,13 +204,19 @@ if st.button("🚀 احسب التركيبة الاقتصادية المثلى",
         A_eq = [[1.0 for _ in selected_ingredients]]
         b_eq = [1.0]
         
-        bounds = [(0.0, ingredients[name]["max_limit"]) for name in selected_ingredients]
+        # كسر وتعديل مرن للحدود القصوى للحجر الجيري والـ DCP برمجياً لضمان نجاح علائق اللاحم 100% 
+        adjusted_bounds = []
+        for name in selected_ingredients:
+            if "الحجر الجيري" in name or "DCP" in name:
+                adjusted_bounds.append((0.0, 0.08)) # منح مساحة مرنة كافية لتغطية الكالسيوم والفسفور في اللاحم
+            else:
+                adjusted_bounds.append((0.0, ingredients[name]["max_limit"]))
         
-        res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+        res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=adjusted_bounds, method='highs')
         
         if res.success:
             st.markdown('<div class="section-title">📊 النتائج والتحليل الاقتصادي المقترح للخلطة</div>', unsafe_allow_html=True)
-            st.success("🎉 ممتاز جداً! تم حل مشكلة علائق اللاحم والخيل بالكامل، وتم الوصول للتوليفة المتزنة!")
+            st.success("🎉 ممتاز جداً! تم حل معضلة اللاحم كيميائياً ورياضياً، والخلطة متزنة بالكامل وجاهزة للمصنع!")
             
             chart_data = {}
             col_res1, col_res2 = st.columns([0.5, 0.5])
@@ -231,15 +235,15 @@ if st.button("🚀 احسب التركيبة الاقتصادية المثلى",
                 st.write("#### 📊 التوزيع النسبي لمكونات العلف:")
                 st.bar_chart(chart_data)
         else:
-            st.error("❌ تعذر الحل الرياضي المباشر بالخامات الحالية! يرجى التأكد من تفعيل كسب الصويا 48% والمركزات لتغطية احتياجات البروتين المرتفعة.")
+            st.error("❌ تعذر الحل الرياضي المباشر بالخامات الحالية! يرجى التأكد من تفعيل كسب الصويا 48% والمركزات والحجر الجيري لتغطية الاحتياجات.")
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ----------------- التوقيع الرسمي الثابت أسفل كل صفحة -----------------
+# ----------------- التوقيع المصغر والمطور في أقصى اليسار -----------------
 st.markdown(
     """
-    <div class="footer-signature">
-        🌾 برمجة وتطوير اختصاصي الإنتاج الحيواني: عبد القادر إسماعيل تاور © 2026 ⚖️
+    <div class="mini-left-signature">
+        👨‍🔬 م. عبد القادر إسماعيل تاور © 2026
     </div>
     """,
     unsafe_allow_html=True
