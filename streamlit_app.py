@@ -177,6 +177,7 @@ ANIMAL_IMAGES_RESOURCES = {
     "أبقار": "https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?q=80&w=600&auto=format&fit=crop",
     "أغنام": "https://images.unsplash.com/photo-1484557985045-edf25e08da73?q=80&w=600&auto=format&fit=crop",
     "ماعز": "https://images.unsplash.com/photo-1524388680868-377a2e6bbb1c?q=80&w=600&auto=format&fit=crop",
+    "خيول": "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?q=80&w=600&auto=format&fit=crop",
     "دواجن": "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?q=80&w=600&auto=format&fit=crop",
     "أسماك": "https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?q=80&w=600&auto=format&fit=crop",
     "سمان": "https://images.unsplash.com/photo-1516467508483-a7212febe31a?q=80&w=600&auto=format&fit=crop",
@@ -197,7 +198,7 @@ with col_logo:
 
 with col_title:
     st.markdown("<h1 style='color: #1b5e20; text-align:right; margin-bottom:0;'>منصة تاور الذكية للإنتاج الحيواني وصناعة الأعلاف 🌾</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #1565C0; text-align:right; font-size:1.2rem; margin-top:5px; margin-bottom:0;'>لوحة التحكم والمطور الشامل - نظام معالجة الأخطاء الآمن</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #1565C0; text-align:right; font-size:1.2rem; margin-top:5px; margin-bottom:0;'>لوحة التحكم والمطور الشامل - إدارة القياسات الديناميكية والعزل الذكي</p>", unsafe_allow_html=True)
     st.markdown("<h3 style='color: #c62828; text-align:right; font-weight: bold; margin-top: 5px;'>الخبير المستشار / م. عبد القادر إسماعيل تاور</h3>", unsafe_allow_html=True)
 
 st.markdown("<hr style='border-top: 2px solid #2e7d32;'>", unsafe_allow_html=True)
@@ -218,72 +219,99 @@ tabs = st.tabs(tabs_titles)
 # التبويب الأول: النمذجة والحسابات العلفية الكبرى
 # ====================================================================
 with tabs[0]:
-    st.markdown('<div class="section-title">⚖️ أولاً: التقييم التلقائي للأوزان والاحتياجات بناءً على السلالات السودانية والعالمية</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">⚖️ أولاً: اختيار القطاع والنوع والإنتاجية المستهدفة</div>', unsafe_allow_html=True)
     
-    col_an, col_breed, col_h, col_l, col_ag = st.columns(5)
-    with col_an:
-        animal_type = st.selectbox("نوع الحيوان / القطاع الحقلّي:", ["أبقار تسمين وإنتاج", "ماعز محلي ومحسن", "أغنام ومجترات أخرى", "الدواجن والطيور", "الأسماك والأحياء المائية"])
+    col_sec, col_sub, col_prod = st.columns(3)
+    with col_sec:
+        main_sector = st.selectbox("اختر القطاع الإنتاجي الرئيسي:", ["الخيول والفروسية", "الماعز وسلالاته", "الأبقار وسلالاتها", "الطيور والسمان", "الأسماك والأحياء المائية"])
     
-    with col_breed:
-        if "أبقار" in animal_type:
-            breed_type = st.selectbox("السلالة المستهدفة:", ["كنانة (سوداني رائد)", "بطانة (سوداني مدر)", "البقارة / جهينة", "هولشتاين هجين"])
-            dynamic_img_key = "أبقار"
-            weight_factor = 10838
-        elif "ماعز" in animal_type:
-            breed_type = st.selectbox("السلالة المستهدفة:", ["الماعز النوبي السوداني", "الماعز الصحراوي", "الماعز النيلي قزم", "هجين محسن (بور)"])
+    # تهيئة قيم افتراضية للمتغيرات لتجنب المشاكل البرمجية
+    show_measurements = False
+    weight_factor = 10000
+    feed_factor = 0.02
+    default_cp = 14.0
+    dynamic_img_key = "عام"
+    prod_type_label = "نوع الإنتاج / المرحلة:"
+    breed_label = "السلالة / الفئة المستهدفة:"
+    
+    with col_sub:
+        if main_sector == "الخيول والفروسية":
+            sub_type = st.selectbox(breed_label, ["خيل عربي أصيل", "ثوروبريد / رياضي", "خيول محلية هجين"])
+            dynamic_img_key = "خيول"
+            show_measurements = True
+            weight_factor = 11877
+            feed_factor = 0.022
+        elif main_sector == "الماعز وسلالاته":
+            sub_type = st.selectbox(breed_label, ["الماعز النوبي السوداني", "الماعز الصحراوي السوداني", "الماعز النيلي قزم", "بور / محسن"])
             dynamic_img_key = "ماعز"
+            show_measurements = True
             weight_factor = 11250
-        elif "أغنام" in animal_type:
-            breed_type = st.selectbox("السلالة المستهدفة:", ["الحمري / الصحراوي السوداني", "البلدي / الكباشي", "البربري"])
-            dynamic_img_key = "أغنام"
-            weight_factor = 11110
-        elif "الدواجن" in animal_type:
-            breed_type = st.selectbox("نوع الطيور:", ["طائر السمان (بادي/نامي)", "طائر السمان (بياض)", "دواجن لاحم سريع", "دواجن بياض"])
-            dynamic_img_key = "سمان" if "السمان" in breed_type else "دواجن"
-            weight_factor = 1
+            feed_factor = 0.028
+        elif main_sector == "الأبقار وسلالاتها":
+            sub_type = st.selectbox(breed_label, ["كنانة (سوداني رائد)", "بطانة (سوداني مدر)", "البقارة / جهينة", "هولشتاين / محسن"])
+            dynamic_img_key = "أبقار"
+            show_measurements = True
+            weight_factor = 10838
+            feed_factor = 0.025
+        elif main_sector == "الطيور والسمان":
+            sub_type = st.selectbox("نوع الطيور:", ["طائر السمان (Quail)", "دواجن لاحم (Broiler)", "دواجن بياض (Layer)"])
+            dynamic_img_key = "سمان" if "السمان" in sub_type else "دواجن"
+            show_measurements = False # عزل شريط القياس تماماً للطيور
         else:
-            breed_type = st.selectbox("نوع الأسماك:", ["البلطي النيلي (Tilapia)", "القرموط / الكلاريا", "أسماك مياه عذبة عامة"])
+            sub_type = st.selectbox("نوع الأسماك:", ["البلطي النيلي (Tilapia)", "القرموط / الكلاريا", "أسماك مياه عذبة عامة"])
             dynamic_img_key = "أسماك"
-            weight_factor = 1
+            show_measurements = False # عزل شريط القياس تماماً للأسماك
 
-    with col_h:
-        h_girth = st.number_input("📏 محيط الصدر / أو الحجم (سم):", value=150.0 if "أبقار" in animal_type else 65.0)
-    with col_l:
-        b_length = st.number_input("📏 طول الجسم (سم):", value=130.0 if "أبقار" in animal_type else 55.0)
-    with col_ag:
-        a_months = st.number_input("⏳ العمر التقديـري (أشهر/أيام):", value=12, min_value=1)
+    with col_prod:
+        if main_sector == "الخيول والفروسية":
+            prod_stage = st.selectbox(prod_type_label, ["خيول رياضة ونشاط مكثف", "أمهار نامية صغيرة", "فرسات مرضعات وإدرار"])
+            default_cp = 16.0 if "أمهار" in prod_stage or "مرضعات" in prod_stage else 12.0
+        elif main_sector == "الماعز وسلالاته":
+            prod_stage = st.selectbox(prod_type_label, ["إنتاج اللحوم وتسمين مكثف", "إنتاج ألبان (حليب مدر)"])
+            default_cp = 15.5 if "ألبان" in prod_stage else 13.5
+        elif main_sector == "الأبقار وسلالاتها":
+            prod_stage = st.selectbox(prod_type_label, ["إنتاج حليب وغزارة إدرار", "تسمين عجول مكثف"])
+            default_cp = 16.0 if "حليب" in prod_stage else 13.0
+        elif main_sector == "الطيور والسمان":
+            if "السمان" in sub_type:
+                prod_stage = st.selectbox(prod_type_label, ["سمان بادي / نامي مخصص", "سمان بياض بيض إنتاجي"])
+                default_cp = 24.0 if "بادي" in prod_stage else 20.0
+            else:
+                prod_stage = st.selectbox(prod_type_label, ["بادي دواجن 23%", "نامي دواجن 21%", "ناهي دواجن 19%", "بياض إنتاجي"])
+                default_cp = 23.0 if "بادي" in prod_stage else (21.0 if "نامي" in prod_stage else (19.0 if "ناهي" in prod_stage else 17.5))
+        else:
+            prod_stage = st.selectbox(prod_type_label, ["بادئ زريعة أسماك عالي", "نمو وتسمين أسماك نيلية"])
+            default_cp = 35.0 if "زريعة" in prod_stage else 30.0
 
-    # حساب الوزن تلقائياً للمجترات
-    if "أبقار" in animal_type or "ماعز" in animal_type or "أغنام" in animal_type:
+    # ==========================================
+    # تفعيل العزل الذكي لقياسات الأوزان والعليقة
+    # ==========================================
+    if show_measurements:
+        st.markdown('<div class="section-title">📐 ثانياً: شريط القياس الجسدي وتقدير الأوزان (مفعل تلقائياً للمجترات والخيول)</div>', unsafe_allow_html=True)
+        col_h, col_l, col_ag = st.columns(3)
+        with col_h:
+            h_girth = st.number_input("📏 محيط الصدر (سم):", value=150.0 if "الأبقار" in main_sector or "الخيول" in main_sector else 70.0)
+        with col_l:
+            b_length = st.number_input("📏 طول الجسم (سم):", value=130.0 if "الأبقار" in main_sector or "الخيول" in main_sector else 60.0)
+        with col_ag:
+            a_months = st.number_input("⏳ عمر الحيوان التقديـري (أشهر):", value=12, min_value=1)
+
         calc_weight = (h_girth ** 2 * b_length) / weight_factor
-        feed_factor = 0.026 if "كنانة" in breed_type or "النوبي" in breed_type else 0.024
         req_feed_kg = calc_weight * feed_factor
-        st.success(f"📊 [السلالة السودانية: {breed_type}] | الوزن الحيوي المتوقع: **{calc_weight:.1f} كجم** | كمية المادة الجافة المقترحة يومياً: **{req_feed_kg:.2f} كجم**")
+        st.success(f"📊 [القطاع: {main_sector} - {sub_type}] | الوزن الحيوي المتوقع: **{calc_weight:.1f} كجم** | الاحتياج اليومي من المادة الجافة للعليقة: **{req_feed_kg:.2f} كجم**")
     else:
-        st.info(f"📈 [قطاع: {animal_type} - {breed_type}] سيتم احتساب الاحتياجات مباشرة طبقاً لمرحلة النمو.")
+        st.markdown('<div class="section-title">✨ ثانياً: قطاع الطيور والأسماك (تم إخفاء شريط القياس تسهيلاً للمربي)</div>', unsafe_allow_html=True)
+        st.info(f"💡 نظام المعالجة الذكي: هذا القطاع لا يتطلب قياسات حقلية بالسم. يتم احتساب العليقة مباشرة بناءً على الجداول القياسية لمرحلة الإنتاج: **{prod_stage}**")
 
-    st.markdown('<div class="section-title">📋 ثانياً: ضبط الاحتياجات الفنية والبروتين المستهدف للتركيبة الحالية</div>', unsafe_allow_html=True)
-    
-    # تحديد البروتين التلقائي حسب اختيار السلالة والقطاع الجديد
-    if "الأسماك" in animal_type:
-        default_cp = 32.0 if "البلطي" in breed_type else 35.0
-    elif "طائر السمان" in breed_type:
-        default_cp = 24.0 if "بادي" in breed_type else 20.0
-    elif "أبقار" in animal_type:
-        default_cp = 16.0 if "كنانة" in breed_type or "بطانة" in breed_type else 14.0
-    elif "ماعز" in animal_type:
-        default_cp = 15.0 if "النوبي" in breed_type else 13.5
-    else:
-        default_cp = 18.0
-
+    st.markdown('<div class="section-title">📋 ثالثاً: ضبط نسبة البروتين المستهدفة فنيّاً</div>', unsafe_allow_html=True)
     col_p1, col_p2 = st.columns(2)
     with col_p1:
-        st.metric("🧬 بروتين العليقة المقترح تلقائياً بناءً على نوع القطاع والسلالة المحددة:", f"{default_cp} %")
+        st.metric("🧬 بروتين العليقة المقترح تلقائياً بناءً على مدخلاتك وفئة الإنتاج:", f"{default_cp} %")
     with col_p2:
-        override_cp = st.checkbox("⚙️ تفعيل التعديل الفني الاختياري للبروتين")
+        override_cp = st.checkbox("⚙️ تفعيل التعديل الفني الاختياري للبروتين حسب رغبة المطور")
         final_target_cp = st.slider("حدّد نسبة البروتين المستهدفة فنيّاً:", 10.0, max_value=45.0, value=default_cp) if override_cp else default_cp
 
-    st.markdown('<div class="section-title">🌾 ثالثاً: توليد العليقة الاقتصادية المتزنة</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🌾 رابعاً: توليد العليقة الاقتصادية المتزنة وطباعة التركيبة</div>', unsafe_allow_html=True)
     selected_ingredients = []
     ingredient_prices = {}
     
@@ -292,11 +320,11 @@ with tabs[0]:
             sub_cols = st.columns(3)
             for idx, (ing_name, _) in enumerate(items.items()):
                 with sub_cols[idx % 3]:
-                    # اختيار ذكي تلقائي لبعض الخامات حسب نوع القطاع لتسهيل العمل
+                    # اختيار ذكي تلقائي للخامات بناءً على طبيعة القطاع المختار
                     is_def = False
-                    if "الأسماك" in animal_type and ing_name in ["مسحوق أسماك (Fishmeal 60%)", "كسب فول صويا 48%", "ذرة صفراء", "ملح الطعام"]:
+                    if "الأسماك" in main_sector and ing_name in ["مسحوق أسماك (Fishmeal 60%)", "كسب فول صويا 48%", "ذرة صفراء", "ملح الطعام"]:
                         is_def = True
-                    elif "سمان" in dynamic_img_key and ing_name in ["ذرة صفراء", "كسب فول صويا 48%", "مركزات دواجن وسمان", "ملح الطعام"]:
+                    elif "الطيور" in main_sector and ing_name in ["ذرة صفراء", "كسب فول صويا 48%", "مركزات دواجن وسمان", "ملح الطعام"]:
                         is_def = True
                     elif "ذرة" in ing_name or "أمباز" in ing_name or "ملح" in ing_name:
                         is_def = True
@@ -319,9 +347,9 @@ with tabs[0]:
             formula_results = {}
             fixed_ratios = {
                 "ملح الطعام": 0.005, "مضاد سموم فطرية": 0.002, 
-                "الحجر الجيري (بودرة بلاط)": 0.025 if "بياض" in breed_type else 0.015,
+                "الحجر الجيري (بودرة بلاط)": 0.025 if "بياض" in prod_stage else 0.015,
                 "فوسفات ثنائي الكالسيوم (DCP)": 0.01,
-                "مركزات دواجن وسمان": 0.05 if ("الدواجن" in animal_type or "السمان" in breed_type) else 0.0,
+                "مركزات دواجن وسمان": 0.05 if "الطيور" in main_sector else 0.0,
             }
             
             used_fixed_pct = 0.0
@@ -337,25 +365,25 @@ with tabs[0]:
             if not base_energy_ingredients: base_energy_ingredients = [selected_ingredients[0]]
             if not base_protein_ingredients: base_protein_ingredients = [selected_ingredients[-1]]
             
-            # محاكاة خطية للنسب حسب البروتين المستهدف
-            if final_target_cp > 30: p_ratio = 0.55  # أعلاف أسماك مكثفة
-            elif final_target_cp > 22: p_ratio = 0.42 # بادئات سمان ودواجن
-            elif final_target_cp > 15: p_ratio = 0.25 # حلاب وتسمين كنانة وبطانة
-            else: p_ratio = 0.15
+            # احتساب محاكاة الخلط طبقاً للبروتين المستهدف
+            if final_target_cp > 30: p_ratio = 0.55
+            elif final_target_cp > 22: p_ratio = 0.42
+            elif final_target_cp > 15: p_ratio = 0.26
+            else: p_ratio = 0.14
 
             for x in base_protein_ingredients:
                 formula_results[x] = (remaining_pct * p_ratio) / len(base_protein_ingredients)
             for x in base_energy_ingredients:
                 formula_results[x] = (remaining_pct * (1.0 - p_ratio)) / len(base_energy_ingredients)
 
-            # تخزين البيانات في الجلسة بأمان تام لمنع ظهور أخطاء الـ KeyError
+            # التخزين الآمن لتجنب KeyError الأحمر كلياً
             st.session_state["active_formula"] = formula_results
             st.session_state["active_cp_tag"] = final_target_cp
-            st.session_state["active_breed_tag"] = breed_type
+            st.session_state["active_breed_tag"] = sub_type
             st.session_state["active_animal_img"] = ANIMAL_IMAGES_RESOURCES.get(dynamic_img_key, ANIMAL_IMAGES_RESOURCES["عام"])
-            st.session_state["active_stage_title"] = animal_type
+            st.session_state["active_stage_title"] = f"{main_sector} - {prod_stage}"
             
-            st.success("🎯 تم توليد التركيبة العلفية المتزنة وحساب مدخلات السلالة والمرحلة بنجاح!")
+            st.success("🎯 تم توليد وتوازن التركيبة العلفية وحفظ البيانات بنجاح!")
             
             res_col1, res_col2 = st.columns([0.6, 0.4])
             with res_col1:
@@ -372,7 +400,7 @@ with tabs[0]:
                 st.bar_chart(formula_results)
 
 # ====================================================================
-# التبويب الثاني والثالث: المستودعات والتسويق (تظهر للآدمين)
+# التبويبات الأخرى (لإدارة المستودعات والتسويق والديباجات)
 # ====================================================================
 if st.session_state["user_role"] == "admin":
     with tabs[1]:
@@ -389,7 +417,7 @@ if st.session_state["user_role"] == "admin":
     with tabs[2]:
         st.markdown('<div class="section-title">💰 نظام تسويق المنتجات وإصدار الفواتير مع الخصم التلقائي</div>', unsafe_allow_html=True)
         col_c1, col_c2, col_c3 = st.columns(3)
-        with col_c1: client_name = st.text_input("اسم العميل / المزرعة المستلمة:", "شركة نماء للإنتاج الحيواني والداجني")
+        with col_c1: client_name = st.text_input("اسم العميل / المزرعة المستلمة:", "مزارع الإنتاج المتكاملة بالسودان")
         with col_c2: required_tons = st.number_input("الكمية المطلوبة أمر البيع (بالطن):", min_value=0.1, value=2.0, step=0.5)
         with col_c3: added_profit = st.number_input("هامش الربح الصافي المضاف لكل طن ($):", min_value=0.0, value=50.0)
 
@@ -420,18 +448,13 @@ if st.session_state["user_role"] == "admin":
                     st.success("🔥 تم تأكيد الفاتورة وخصم كامل المقادير من المستودعات تلقائياً بنجاح واحتساب الأرباح!")
                     st.rerun()
 
-# ====================================================================
-# التبويب الرابع: مصمم بطاقات الديباجة والدعاية (محمي تماماً ضد KeyError)
-# ====================================================================
     with tabs[3]:
         st.markdown('<div class="section-title">🏷️ مُصمم ديباجات الطباعة الفنية على جوالات الأعلاف</div>', unsafe_allow_html=True)
-        
         col_tag1, col_tag2, col_tag3 = st.columns(3)
         with col_tag1: trade_brand = st.text_input("اسم البراند التجاري للدعاية:", "مجموعة تاور لإنتاج الأعلاف ومصنعات الإنتاج الحيواني")
         with col_tag2: contact_phone = st.text_input("هاتف قسم المبيعات والاستشارات الحقلية:", "+249-XX-XXXXXXX")
         with col_tag3: sack_size = st.radio("سعة وحجم الجوال (شكارة العلف):", ["50 كجم", "25 كجم"])
 
-        # استخدام آلية الأمان والحماية المتقدمة للتحقق من الجلسة
         if "active_formula" in st.session_state:
             formula_data = st.session_state["active_formula"]
             target_cp_printed = st.session_state["active_cp_tag"]
@@ -439,29 +462,24 @@ if st.session_state["user_role"] == "admin":
             animal_url = st.session_state["active_animal_img"]
             stage_title_tag = st.session_state["active_stage_title"]
         else:
-            # قيم افتراضية احتياطية تمنع ظهور أي خطأ أحمر قبل الضغط على زر الحساب
             formula_data = {"ذرة صفراء": 65.0, "أمباز الفول السوداني (كسب)": 30.0, "إضافات مخصصة": 5.0}
             target_cp_printed = 16.0
-            br_tag = "سلالة كنانة / بطانة"
+            br_tag = "سلالة عامة / قطاع محسن"
             animal_url = ANIMAL_IMAGES_RESOURCES["عام"]
             stage_title_tag = "إنتاج عام احتياطي"
 
         weight_divider = 20 if "50" in sack_size else 40
-        
         st.markdown("### 🖨️ معاينة ديباجة بطاقة التحليل الفني للجوال (جاهزة للطباعة والتسويق)")
         
         st.markdown(f"""
         <div class="sack-tag">
             <img src="{animal_url}" class="animal-banner-img">
-            
             <h2 style="color: #1b5e20; text-align: center; margin-top:0;">🌟 {trade_brand} 🌟</h2>
             <p style="text-align: center; font-weight: bold; color: #1565C0; margin-bottom:5px;">بإشراف وتوصية اختصاصي الإنتاج الحيواني وصناعة الأعلاف</p>
             <h3 style="text-align: center; color: #c62828; margin-top:0; font-weight: bold;">م. عبد القادر إسماعيل تاور</h3>
-            
             <p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:6px; border-radius:5px; color:#1b5e20; font-size:1.1rem;">
                 🎯 علف مخصص لـ: {stage_title_tag} ({br_tag}) | نسبة البروتين المستهدفة: {target_cp_printed:.1f}%
             </p>
-            
             <hr style="border-top: 2px dashed #1b5e20;">
             <h4>📊 بطاقة المكونات والوزن الفعلي لكل جوال واحد ({sack_size}):</h4>
             <ul>
