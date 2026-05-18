@@ -11,19 +11,21 @@ st.set_page_config(page_title="منصة تاور الذكية لإدارة ال�
 USER_ADMIN = "تاور"       # حسابك الشخصي (المالك)
 PASS_ADMIN = "202687"     # كلمة المرور الفنية الخاصة بك
 
-USER_GUEST = "مربي"       # حساب الضيوف / العملاء (حد صلاحيتهم الأعلاف فقط)
-PASS_GUEST = "1234"
+USER_GUEST = "مربي"       # حساب العامة / الضيوف / المربين
+PASS_GUEST = "2026"       # كلمة المرور الجديدة للعامة حسب طلبك
 
-MY_PHOTO = "14686.jpg"  # اسم ملف صورتك الشخصية المرفوعة
+# مصفوفة بأسماء الملفات المحتملة لصورتك الشخصية لضمان قراءتها الصحيحة
+PHOTO_OPTIONS = ["14686.jpg", "1000069464.jpg", "14686.JPG", "1000069464.JPG"]
 
-# دالة برمجية لقراءة الصورة المحلية وتحويلها إلى كود خلفي لضمان ظهورها عبر الـ HTML والـ CSS دون مشاكل
-def get_image_base64(path):
-    if os.path.exists(path):
-        with open(path, "rb") as image_file:
-            return base64.b64encode(image_file.read()).decode()
+# دالة برمجية ذكية للبحث عن الصورة وتحويلها لضمان الظهور الفوري
+def get_image_base64(paths):
+    for path in paths:
+        if os.path.exists(path):
+            with open(path, "rb") as image_file:
+                return base64.b64encode(image_file.read()).decode()
     return None
 
-img_base64 = get_image_base64(MY_PHOTO)
+img_base64 = get_image_base64(PHOTO_OPTIONS)
 
 # تنسيق الواجهة بالـ CSS والمظهر التجاري الفخم
 st.markdown(
@@ -148,7 +150,7 @@ if not st.session_state["approved"]:
             st.rerun()
         elif input_user == USER_GUEST and input_pass == PASS_GUEST:
             st.session_state["approved"] = True
-            st.session_state["user_role"] = "guest"  # العميل وصلاحيته محددة فقط في الأعلاف
+            st.session_state["user_role"] = "guest"  # العامة (صلاحيتهم محددة في الأعلاف فقط)
             st.success("تم التحقق بنجاح! جاري فتح حقل تركيب الأعلاف...")
             st.rerun()
         else:
@@ -159,14 +161,14 @@ if not st.session_state["approved"]:
 # ----------------- بعد الحصول على الموافقة تفتح المنصة -----------------
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
-# واجهة الشعار والهوية البصرية للمنصة (تم تعديل العرض هنا لضمان ظهور صورتك)
+# واجهة الشعار والهوية البصرية للمنصة
 col_logo, col_title = st.columns([0.35, 0.65])
 with col_logo:
     if img_base64:
-        # عرض الصورة باستخدام كود Base64 المباشر لضمان كسر قيود التنسيق وظهورها فوراً
         st.markdown(f'<img src="data:image/jpeg;base64,{img_base64}" class="profile-img-style">', unsafe_allow_html=True)
     else:
-        st.markdown("<div style='font-size:5rem; text-align:center;'>👨‍🔬</div>", unsafe_allow_html=True)
+        # إذا لم يجد أي صورة محلية نهائياً، يضع هذه الصورة الافتراضية من الإنترنت بدلاً من الرمز التعبيري
+        st.markdown('<img src="https://images.unsplash.com/photo-1595246140625-573b715d11dc?q=80&w=150" class="profile-img-style">', unsafe_allow_html=True)
 
 with col_title:
     st.markdown("<h2 style='color: #2E7D32; text-align:right; margin-bottom: 0; margin-top:10px;'>منصة تاور الذكية للإنتاج الحيواني 🌾</h2>", unsafe_allow_html=True)
@@ -457,7 +459,7 @@ if st.session_state["user_role"] == "admin":
                 <h2 style="color: #1b5e20; text-align: center; margin-top:0;">🌟 {brand_name} 🌟</h2>
                 <p style="text-align: center; font-weight: bold; color: #1565C0; margin-bottom:5px;">بإشراف وتوصية اختصاصي الإنتاج الحيواني</p>
                 <h3 style="text-align: center; color: #c62828; margin-top:0; font-weight: bold;">م. عبد القادر إسماعيل تاور</h3>
-                <p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:5px; border-radius:5px; color:#1b5e20;">🎯 نسبة البروتين المستهدفة in هذه التشغيلة: {target_p:.1f}%</p>
+                <p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:5px; border-radius:5px; color:#1b5e20;">🎯 نسبة البروتين المستهدفة في هذه التشغيلة: {target_p:.1f}%</p>
                 <hr style="border-top: 1px solid #1b5e20;">
                 <h4>📊 بطاقة التحليل الفني والتركيب النهائي (لكل 1 طن):</h4>
                 <ul>
