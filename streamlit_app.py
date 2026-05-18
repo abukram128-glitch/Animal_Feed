@@ -2,14 +2,28 @@ import streamlit as st
 import numpy as np
 import json
 import os
+import base64
 
 # إعدادات الصفحة الرسمية
 st.set_page_config(page_title="منصة تاور الذكية لإدارة المزارع والأعلاف", page_icon="🌾", layout="centered")
 
-# بيانات التحكم والوصول والأمان
-OWNER_USER = "تاور"
-OWNER_PASS = "2026"
-MY_PHOTO = "14686.jpg"  # اسم ملف صورتك الشخصية الجديدة المرفوعة بالمستودع
+# بيانات التحكم والوصول والأمان (إدارة الصلاحيات والمستخدمين)
+USER_ADMIN = "تاور"       # حسابك الشخصي (المالك)
+PASS_ADMIN = "202687"     # كلمة المرور الفنية الخاصة بك
+
+USER_GUEST = "مربي"       # حساب الضيوف / العملاء (حد صلاحيتهم الأعلاف فقط)
+PASS_GUEST = "1234"
+
+MY_PHOTO = "14686.jpg"  # اسم ملف صورتك الشخصية المرفوعة
+
+# دالة برمجية لقراءة الصورة المحلية وتحويلها إلى كود خلفي لضمان ظهورها عبر الـ HTML والـ CSS دون مشاكل
+def get_image_base64(path):
+    if os.path.exists(path):
+        with open(path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode()
+    return None
+
+img_base64 = get_image_base64(MY_PHOTO)
 
 # تنسيق الواجهة بالـ CSS والمظهر التجاري الفخم
 st.markdown(
@@ -82,6 +96,17 @@ st.markdown(
         border: 1px solid #c8e6c9;
         box-shadow: 0px 2px 5px rgba(0,0,0,0.05);
     }
+    .profile-img-style {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #2E7D32;
+        box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+    }
     .mini-left-signature {
         position: fixed;
         left: 15px;
@@ -101,38 +126,47 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ----------------- بوابات نظام الاستئذان والموافقة -----------------
+# ----------------- بوابات نظام الاستئذان والموافقة حسب الدور -----------------
 if "approved" not in st.session_state:
     st.session_state["approved"] = False
+if "user_role" not in st.session_state:
+    st.session_state["user_role"] = None
 
 if not st.session_state["approved"]:
     st.markdown('<div class="main-box" style="max-width: 500px; margin: 100px auto;">', unsafe_allow_html=True)
-    st.markdown("<h2 style='color: #c62828;'>🔒 نظام حماية المطور والمالك</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #555;'>يتطلب تشغيل المنصة إذن وموافقة اختصاصي الإنتاج الحيواني المالك للمشروع.</p>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color: #2E7D32;'>🔒 بوابـة الدخـول الذكيـة</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #555;'>فضلاً أدخل بيانات الحساب الممنوحة لك للولوج للمنظومة.</p>", unsafe_allow_html=True)
     
-    input_user = st.text_input("👤 اسم المستخدم المطور:", placeholder="أدخل اسم المستخدم (تاور)")
-    input_pass = st.text_input("🔑 كلمة المرور السريّة:", type="password", placeholder="أدخل كلمة المرور")
+    input_user = st.text_input("👤 اسم المستخدم:", placeholder="أدخل اسم المستخدم المعين لك")
+    input_pass = st.text_input("🔑 كلمة المرور:", type="password", placeholder="أدخل كلمة المرور")
     
-    if st.button("منح الإذن والموافقة لفتح المنصة 🔓", type="primary", use_container_width=True):
-        if input_user == OWNER_USER and input_pass == OWNER_PASS:
+    if st.button("تسجيل الدخول وفتح المنصة 🔓", type="primary", use_container_width=True):
+        if input_user == USER_ADMIN and input_pass == PASS_ADMIN:
             st.session_state["approved"] = True
-            st.success("تم التحقق بنجاح! جاري فتح النظام...")
+            st.session_state["user_role"] = "admin"  # المالك بكامل الصلاحيات
+            st.success("تم التحقق بنجاح! جاري فتح لوحة المطور الكاملة...")
+            st.rerun()
+        elif input_user == USER_GUEST and input_pass == PASS_GUEST:
+            st.session_state["approved"] = True
+            st.session_state["user_role"] = "guest"  # العميل وصلاحيته محددة فقط في الأعلاف
+            st.success("تم التحقق بنجاح! جاري فتح حقل تركيب الأعلاف...")
             st.rerun()
         else:
-            st.error("❌ بيانات الاعتماد غير صحيحة، لا يمكن تشغيل البرنامج دون إذن المطور.")
+            st.error("❌ بيانات الاعتماد غير صحيحة، يرجى مراجعة إدارة المنصة.")
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
-# ----------------- بعد الحصول على الموافقة تفتح المنصة بالكامل -----------------
+# ----------------- بعد الحصول على الموافقة تفتح المنصة -----------------
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
-# واجهة الشعار والهوية البصرية المدمج بها صورتك الشخصية الحالية بشكل ممتاز ومتناسق
-col_logo, col_title = st.columns([0.28, 0.72])
+# واجهة الشعار والهوية البصرية للمنصة (تم تعديل العرض هنا لضمان ظهور صورتك)
+col_logo, col_title = st.columns([0.35, 0.65])
 with col_logo:
-    if os.path.exists(MY_PHOTO):
-        st.image(MY_PHOTO, use_container_width=True, style="border-radius: 12px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1);")
+    if img_base64:
+        # عرض الصورة باستخدام كود Base64 المباشر لضمان كسر قيود التنسيق وظهورها فوراً
+        st.markdown(f'<img src="data:image/jpeg;base64,{img_base64}" class="profile-img-style">', unsafe_allow_html=True)
     else:
-        st.markdown("<div style='font-size:4rem; text-align:center;'>👨‍🔬</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:5rem; text-align:center;'>👨‍🔬</div>", unsafe_allow_html=True)
 
 with col_title:
     st.markdown("<h2 style='color: #2E7D32; text-align:right; margin-bottom: 0; margin-top:10px;'>منصة تاور الذكية للإنتاج الحيواني 🌾</h2>", unsafe_allow_html=True)
@@ -153,16 +187,21 @@ with open(db_file, "r", encoding="utf-8") as f:
 ingredients = data["ingredients"]
 requirements = data["requirements"]
 
-# ----------------- إنشاء التبويبات العلوية -----------------
-tab_formulation, tab_management, tab_marketing, tab_branding = st.tabs([
-    "⚖️ تركيب الأعلاف والأوزان", 
-    "🚜 إدارة المزرعة والمخازن", 
-    "💰 تسويق الأعلاف والفواتير", 
-    "🏷️ مصمم ديباجة الجوالات والدعاية"
-])
+# التحكم البرمجي في التبويبات المتاحة بحسب رتبة المستخدم المستعلم
+if st.session_state["user_role"] == "admin":
+    tabs_titles = [
+        "⚖️ تركيب الأعلاف والأوزان", 
+        "🚜 إدارة المزرعة والمخازن", 
+        "💰 تسويق الأعلاف والفواتير", 
+        "🏷️ مصمم ديباجة الجوالات والدعاية"
+    ]
+else:
+    tabs_titles = ["⚖️ تركيب الأعلاف والأوزان"]
 
-# ==================== التبويب الأول: تركيب الأعلاف والأوزان ====================
-with tab_formulation:
+tabs = st.tabs(tabs_titles)
+
+# ==================== التبويب الأول: تركيب الأعلاف والأوزان (متاح للجميع) ====================
+with tabs[0]:
     st.markdown('<div class="section-title">⚖️ نظام قياس وتقدير الأوزان والاحتياج اليومي تلقائياً</div>', unsafe_allow_html=True)
     animal_for_weight = st.radio("اختر فئة الحيوان المراد وزنه وحساب عليقته:", ["أبقار (محلي/هجين)", "أغنام", "ماعز", "خيول"], horizontal=True)
 
@@ -216,7 +255,6 @@ with tab_formulation:
             
     current_animal_class = req["class"]
 
-    # حساب دالة البروتين البرمجي التلقائي بناءً على الوزن، العمر، ونوع الإنتاج
     computed_protein = float(req["min_protein"])
     if current_animal_class == "ruminant":
         if animal_age_months < 6:  
@@ -226,12 +264,11 @@ with tab_formulation:
         if "ألبان" in selected_stage: 
             computed_protein += 1.5
 
-    # عرض نظام خانات البروتين المزدوج
     st.write("##### 📊 نظام ضبط وتحديد نسبة البروتين:")
     col_p1, col_p2 = st.columns(2)
     
     with col_p1:
-        st.metric(label="🧬 نسبة البروتين المحسوبة برمجياً وتلقائياً:", value=f"{computed_protein:.1f} %", help="محسوبة مبرمجة مع وزن الحيوان وعمره ونوع إنتاجه")
+        st.metric(label="🧬 نسبة البروتين المحسوبة برمجياً وتلقائياً:", value=f"{computed_protein:.1f} %")
     
     with col_p2:
         manual_override = st.checkbox("🛠️ تفعيل خانة البروتين الاختياري", value=False)
@@ -241,13 +278,7 @@ with tab_formulation:
             user_protein = computed_protein
             st.info("💡 النظام يعتمد الآن على البروتين البرمجي التلقائي بالكامل.")
 
-    base_energy = float(req["min_energy"])
-    if current_animal_class == "poultry":
-        calculated_energy = base_energy
-    else:
-        calculated_energy = base_energy + ((user_protein - computed_protein) * 20)
-
-    st.markdown('<div class="section-title">💰 الخامات العلفية المتاحة وأسعار السوق</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">💰 الخامات العلفية المتاحة لتوليد الخلطة المتزنة</div>', unsafe_allow_html=True)
     selected_ingredients = []
     prices = {}
     ing_keys = list(ingredients.keys())
@@ -273,15 +304,22 @@ with tab_formulation:
             
         with cols[idx % 2]:
             is_default = name in ["الذرة الصفراء", "الذرة البيضاء", "كسب فول الصويا 44%", "كسب فول الصويا 48%", "مركزات دواجن لاحم (5%)", "مركزات دواجن بياض (10%)", "بريمكس دواجن (لاحم/بياض)", "بريمكس مجترات (تسمين/ألبان)", "بريمكس خيول (مركز)", "مضاد سموم فطرية وبيولوجية", "الحجر الجيري (بودرة بلاط)", "فوسفات ثنائي الكالسيوم (DCP)", "ملح الطعام"]
-            c_col1, c_col2 = st.columns([0.65, 0.35])
-            with c_col1:
+            
+            if st.session_state["user_role"] == "admin":
+                c_col1, c_col2 = st.columns([0.65, 0.35])
+                with c_col1:
+                    activated = st.checkbox(name, value=is_default, key=f"chk_{name}")
+                with c_col2:
+                    default_price = 150.0 if any(x in name for x in ["بريمكس", "سموم", "ملح", "DCP"]) else 450.0
+                    price = st.number_input("السعر / طن", min_value=0.0, value=default_price, key=f"prc_{name}", label_visibility="collapsed")
+                if activated:
+                    selected_ingredients.append(name)
+                    prices[name] = price
+            else:
                 activated = st.checkbox(name, value=is_default, key=f"chk_{name}")
-            with c_col2:
-                default_price = 150.0 if any(x in name for x in ["بريمكس", "سموم", "ملح", "DCP"]) else 450.0
-                price = st.number_input("السعر / طن", min_value=0.0, value=default_price, key=f"prc_{name}", label_visibility="collapsed")
-            if activated:
-                selected_ingredients.append(name)
-                prices[name] = price
+                if activated:
+                    selected_ingredients.append(name)
+                    prices[name] = 450.0
 
     st.markdown("---")
     if st.button("🚀 احسب التركيبة الاقتصادية المثلى", type="primary", use_container_width=True, key="calc_btn"):
@@ -299,8 +337,8 @@ with tab_formulation:
                 conc_name = "بريمكس خيول (مركز)"
 
             if current_animal_class == "poultry" and "لاحم" in selected_stage:
-                st.markdown('<div class="section-title">📊 النتائج والتحليل الاقتصادي المقترح للخلطة</div>', unsafe_allow_html=True)
-                st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة لعلائق اللاحم بنجاح كامل ومتضمنة المركز والملح ومضاد السموم الفطرية!")
+                st.markdown('<div class="section-title">📊 النتائج والتحليل المقترح للخلطة</div>', unsafe_allow_html=True)
+                st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة لعلائق اللاحم بنجاح كامل ومتضمنة المركز 5% إجبارياً والملح!")
                 
                 if "بادي" in selected_stage:
                     soy_ratio, corn_ratio, lime_ratio, toxin_ratio = 0.32, (0.599 - salt_ratio), 0.03, 0.001
@@ -340,7 +378,7 @@ with tab_formulation:
                     }
                     
                 if success:
-                    st.markdown('<div class="section-title">📊 النتائج والتحليل الاقتصادي المقترح للخلطة</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="section-title">📊 النتائج والتحليل المقترح للخلطة</div>', unsafe_allow_html=True)
                     st.success("🎉 ممتاز جداً! تم احتساب التوليفة المتزنة بنجاح كامل ومتضمنة المركز 5% والملح التلقائي!")
                 else:
                     st.markdown('<div class="custom-error-box"><span class="error-icon">❌</span>تعذر الحل الرياضي المباشر بالخامات الحالية! يرجى التأكد من تفعيل كسب الصويا والذرة والمركزات لتغطية الاحتياجات العالية.</div>', unsafe_allow_html=True)
@@ -353,80 +391,85 @@ with tab_formulation:
                     for k, v in st.session_state["last_formula"].items():
                         st.markdown(f"▪️ **{k}:** `{v:.2f} %` ➡️ (**{v*10:.1f} كجم** / طن)")
                     st.markdown("---")
-                    total_cost = sum([v/100 * prices.get(k, 450.0) for k, v in st.session_state["last_formula"].items()])
-                    st.session_state["last_cost"] = total_cost
-                    st.metric(label="💰 التكلفة الإجمالية الاقتصادية المحسوبة للطن الواحد:", value=f"${total_cost:.2f}")
+                    
+                    if st.session_state["user_role"] == "admin":
+                        total_cost = sum([v/100 * prices.get(k, 450.0) for k, v in st.session_state["last_formula"].items()])
+                        st.session_state["last_cost"] = total_cost
+                        st.metric(label="💰 التكلفة الإجمالية الاقتصادية المحسوبة للطن الواحد:", value=f"${total_cost:.2f}")
                 with col_res2:
                     st.write("#### 📊 التوزيع النسبي لمكونات العلف:")
                     st.bar_chart(st.session_state["last_formula"])
 
-# ==================== التبويب الثاني: إدارة المزرعة والمخازن ====================
-with tab_management:
-    st.markdown('<div class="section-title">🚜 سجل إدارة القطيع ومخازن الأعلاف في المزرعة</div>', unsafe_allow_html=True)
-    col_m1, col_m2 = st.columns(2)
-    with col_m1:
-        st.write("### 📊 حالة القطيع الحالية")
-        st.number_input("🔢 عدد رؤوس الحيوانات الكلي:", min_value=0, value=50, step=1)
-        st.number_input("🍼 المواليد الجدد هذا الشهر:", min_value=0, value=4, step=1)
-        st.selectbox("💉 حالة التحصين الدورية:", ["ممتازة - تم التحصين بالكامل", "متوسطة - بانتظار جرعة ديدان", "مكتملة"])
-    with col_m2:
-        st.write("### 📦 كميات خامات العلف بالمخزن (طن)")
-        st.slider("🌽 مخزون الذرة الصفراء المتوفر:", 0.0, 50.0, 22.5)
-        st.slider("🌱 مخزون كسب صويا 48% متوفر:", 0.0, 50.0, 11.0)
-        st.slider("🧪 مخزون المركزات والبريمكس:", 0.0, 10.0, 3.5)
-
-# ==================== التبويب الثالث: تسويق الأعلاف والفواتير ====================
-with tab_marketing:
-    st.markdown('<div class="section-title">💰 نظام تسويق وبيع الأعلاف وإصدار فواتير العملاء</div>', unsafe_allow_html=True)
-    customer_name = st.text_input("👤 اسم العميل / المربي المستلم:", "مزرعة الوادي السعيد للإنتاج الحيواني")
-    order_tons = st.number_input("⚖️ كمية الطلبية المطلوبة (بالطن):", min_value=0.5, value=2.0, step=0.5)
-    margin_profit = st.number_input("💵 هامش ربحك الصافي في الطن الواحد ($):", min_value=0.0, value=40.0, step=5.0)
+# ==================== الأقسام التالية محجوبة ومحمية بحظر برميجي ====================
+if st.session_state["user_role"] == "admin":
     
-    if "last_cost" in st.session_state:
-        base_cost = st.session_state["last_cost"]
-        price_per_ton = base_cost + margin_profit
-        total_invoice = price_per_ton * order_tons
+    # ==================== التبويب الثاني: إدارة المزرعة والمخازن ====================
+    with tabs[1]:
+        st.markdown('<div class="section-title">🚜 سجل إدارة القطيع ومخازن الأعلاف في المزرعة</div>', unsafe_allow_html=True)
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            st.write("### 📊 حالة القطيع الحالية")
+            st.number_input("🔢 عدد رؤوس الحيوانات الكلي:", min_value=0, value=50, step=1)
+            st.number_input("🍼 المواليد الجدد هذا الشهر:", min_value=0, value=4, step=1)
+            st.selectbox("💉 حالة التحصين الدورية:", ["ممتازة - تم التحصين بالكامل", "متوسطة"])
+        with col_m2:
+            st.write("### 📦 كميات خامات العلف بالمخزن (طن)")
+            st.slider("🌽 مخزون الذرة الصفراء المتوفر:", 0.0, 50.0, 22.5)
+            st.slider("🌱 مخزون كسب صويا 48% متوفر:", 0.0, 50.0, 11.0)
+            st.slider("🧪 مخزون المركزات والبريمكس:", 0.0, 10.0, 3.5)
+
+    # ==================== التبويب الثالث: تسويق الأعلاف والفواتير ====================
+    with tabs[2]:
+        st.markdown('<div class="section-title">💰 نظام تسويق وبيع الأعلاف وإصدار فواتير العملاء</div>', unsafe_allow_html=True)
+        customer_name = st.text_input("👤 اسم العميل / المربي المستلم:", "مزرعة الوادي السعيد للإنتاج الحيواني")
+        order_tons = st.number_input("⚖️ كمية الطلبية المطلوبة (بالطن):", min_value=0.5, value=2.0, step=0.5)
+        margin_profit = st.number_input("💵 هامش ربحك الصافي في الطن الواحد ($):", min_value=0.0, value=40.0, step=5.0)
         
-        st.markdown("### 🧾 فاتورة بيع علف إلكترونية مقترحة")
-        st.write(f"**الجهة المصنعة:** مكتب م. عبد القادر إسماعيل تاور لاستشارات الأعلاف")
-        st.write(f"**العميل المكرم:** {customer_name}")
-        st.write("---")
-        st.write(f"▪️ تكلفة إنتاج طن العلف الأساسية: `${base_cost:.2f}`")
-        st.write(f"▪️ سعر بيع الطن للعميل (شامل الربح): **`${price_per_ton:.2f}`**")
-        st.write(f"💰 **إجمالي قيمة الفاتورة الكلية: `${total_invoice:.2f}`**")
-    else:
-        st.info("ℹ️ يرجى حساب تركيبة علف أولاً في التبويب الأول لتوليد بيانات الفاتورة هنا تلقائياً.")
+        if "last_cost" in st.session_state:
+            base_cost = st.session_state["last_cost"]
+            price_per_ton = base_cost + margin_profit
+            total_invoice = price_per_ton * order_tons
+            
+            st.markdown("### 🧾 فاتورة بيع علف إلكترونية مقترحة")
+            st.write(f"**الجهة المصنعة:** مكتب م. عبد القادر إسماعيل تاور لاستشارات الأعلاف")
+            st.write(f"**العميل المكرم:** {customer_name}")
+            st.write("---")
+            st.write(f"▪️ تكلفة إنتاج طن العلف الأساسية: `${base_cost:.2f}`")
+            st.write(f"▪️ سعر بيع الطن للعميل (شامل الربح): **`${price_per_ton:.2f}`**")
+            st.write(f"💰 **إجمالي قيمة الفاتورة الكلية: `${total_invoice:.2f}`**")
+        else:
+            st.info("ℹ️ يرجى حساب تركيبة علف أولاً في التبويب الأول لتوليد بيانات الفاتورة هنا تلقائياً.")
 
-# ==================== التبويب الرابع: مصمم ديباجة الجوالات والدعاية ====================
-with tab_branding:
-    st.markdown('<div class="section-title">🏷️ مُصمم ديباجة الدعاية وبطاقة التحليل على جوالات الأعلاف</div>', unsafe_allow_html=True)
-    brand_name = st.text_input("🏢 اسم العمل التجاري (براند الدعاية):", "مجموعة تاور لإنتاج الأعلاف عالية الجودة")
-    phone_number = st.text_input("📞 رقم هاتف المبيعات والدعم الفني:", "+218-XX-XXXXXXX")
-    notes = st.text_area("📝 إرشادات استخدام وتخزين خاصة للزبائن:", "يُحفظ في مكان بارد وجاف بعيداً عن أشعة الشمس المباشرة. يُقدم للحيوانات بانتظام حسب توصيات المطور.")
-    
-    if "last_formula" in st.session_state:
-        st.markdown("### 🖨️ معاينة ديباجة الجوال (جاهزة للطباعة واللصق)")
-        target_p = st.session_state.get("target_protein_printed", 16.0)
+    # ==================== التبويب الرابع: مصمم ديباجة الجوالات والدعاية ====================
+    with tabs[3]:
+        st.markdown('<div class="section-title">🏷️ مُصمم ديباجة الدعاية وبطاقة التحليل على جوالات الأعلاف</div>', unsafe_allow_html=True)
+        brand_name = st.text_input("🏢 اسم العمل التجاري (براند الدعاية):", "مجموعة تاور لإنتاج الأعلاف عالية الجودة")
+        phone_number = st.text_input("📞 رقم هاتف المبيعات والدعم الفني:", "+218-XX-XXXXXXX")
+        notes = st.text_area("📝 إرشادات استخدام وتخزين خاصة للزبائن:", "يُحفظ في مكان بارد وجاف.")
+        
+        if "last_formula" in st.session_state:
+            st.markdown("### 🖨️ معاينة ديباجة الجوال (جاهزة للطباعة واللصق)")
+            target_p = st.session_state.get("target_protein_printed", 16.0)
 
-        st.markdown(f"""
-        <div class="sack-tag">
-            <div class="animal-banner">🐄 🐐 🐏 🐓 🐎</div>
-            <h2 style="color: #1b5e20; text-align: center; margin-top:0;">🌟 {brand_name} 🌟</h2>
-            <p style="text-align: center; font-weight: bold; color: #1565C0; margin-bottom:5px;">بإشراف وتوصية اختصاصي الإنتاج الحيواني</p>
-            <h3 style="text-align: center; color: #c62828; margin-top:0; font-weight: bold;">م. عبد القادر إسماعيل تاور</h3>
-            <p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:5px; border-radius:5px; color:#1b5e20;">🎯 نسبة البروتين المستهدفة في هذه التشغيلة: {target_p:.1f}%</p>
-            <hr style="border-top: 1px solid #1b5e20;">
-            <h4>📊 بطاقة التحليل الفني والتركيب النهائي (لكل 1 طن):</h4>
-            <ul>
-                {"".join([f"<li><b>{k}:</b> {v:.2f}%</li>" for k, v in st.session_state["last_formula"].items()])}
-            </ul>
-            <hr style="border-top: 1px solid #1b5e20;">
-            <p><b>⚠️ إرشادات وتوجيهات الحقل:</b> {notes}</p>
-            <p style="text-align: center; font-weight: bold; color: #c62828; margin-bottom:0;">📞 لطلبات الدعم والاستشارة الفنية: {phone_number}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.info("ℹ️ يرجى تشغيل حساب تركيبة علف في التبويب الأول لتظهر لك بطاقة الدعاية والتحليل الفني للجوال هنا تلقائياً.")
+            st.markdown(f"""
+            <div class="sack-tag">
+                <div class="animal-banner">🐄 🐐 🐏 🐓 🐎</div>
+                <h2 style="color: #1b5e20; text-align: center; margin-top:0;">🌟 {brand_name} 🌟</h2>
+                <p style="text-align: center; font-weight: bold; color: #1565C0; margin-bottom:5px;">بإشراف وتوصية اختصاصي الإنتاج الحيواني</p>
+                <h3 style="text-align: center; color: #c62828; margin-top:0; font-weight: bold;">م. عبد القادر إسماعيل تاور</h3>
+                <p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:5px; border-radius:5px; color:#1b5e20;">🎯 نسبة البروتين المستهدفة in هذه التشغيلة: {target_p:.1f}%</p>
+                <hr style="border-top: 1px solid #1b5e20;">
+                <h4>📊 بطاقة التحليل الفني والتركيب النهائي (لكل 1 طن):</h4>
+                <ul>
+                    {"".join([f"<li><b>{k}:</b> {v:.2f}%</li>" for k, v in st.session_state["last_formula"].items()])}
+                </ul>
+                <hr style="border-top: 1px solid #1b5e20;">
+                <p><b>⚠️ إرشادات وتوجيهات الحقل:</b> {notes}</p>
+                <p style="text-align: center; font-weight: bold; color: #c62828; margin-bottom:0;">📞 لطلبات الدعم والاستشارة الفنية: {phone_number}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.info("ℹ️ يرجى تشغيل حساب تركيبة علف في التبويب الأول لتظهر لك بطاقة الدعاية والتحليل الفني للجوال هنا تلقائياً.")
 
 st.markdown('</div>', unsafe_allow_html=True)
 
