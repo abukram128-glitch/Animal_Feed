@@ -134,54 +134,42 @@ if not st.session_state["approved"]:
     st.stop()
 
 # ==========================================
-# 3. الهيكل الافتراضي للمخازن والمكتبة العلفية
+# 3. الهيكل الافتراضي للمخازن والمكتبة العلفية الموسعة
 # ==========================================
 if "inventory" not in st.session_state:
     st.session_state["inventory"] = {
-        "ذرة صفراء": 25.0, "ذرة بيضاء": 10.0, "شعير مطحون": 15.0, "شوفان": 8.0, "قمح": 12.0, "سورجم (فتريتة)": 15.0,
+        "ذرة صفراء": 25.0, "ذرة بيضاء": 10.0, "شعير مطحون": 15.0, "سورجم (فتريتة)": 15.0,
         "أمباز الفول السوداني (كسب)": 20.0, "كسب فول صويا 44%": 14.0, "كسب فول صويا 48%": 18.0, "كسب عباد الشمس 36%": 10.0, 
-        "كسب قطن": 7.0, "كسب نواة النخيل": 8.0, "جلوتين الذرة 60%": 5.0, "جلوتين فيد (DDGS)": 6.0,
-        "نخالة قمح (ردة)": 20.0, "البرسيم الجاف (الدريس)": 30.0, "تبن قمح": 40.0, "قشر فول صويا": 12.0, "مولاس": 5.0,
-        "مركزات دواجن لاحم (5%)": 4.0, "مركزات دواجن بياض (10%)": 3.5, "بريمكس مجترات": 2.0, "بريمكس خيول": 1.5,
+        "نخالة قمح (ردة)": 20.0, "البرسيم الجاف (الدريس)": 30.0, "مولاس": 5.0,
+        "مسحوق أسماك (Fishmeal 60%)": 4.0, "مركزات دواجن وسمان": 3.5,
         "الحجر الجيري (بودرة بلاط)": 6.0, "فوسفات ثنائي الكالسيوم (DCP)": 3.0, "ملح الطعام": 2.5, "مضاد سموم فطرية": 1.2
     }
 
 BIG_FEEDS_LIBRARY = {
     "الحبوب ومصادر الطاقة": {
-        "ذرة صفراء": {"CP": 8.5, "ME_Poultry": 3350, "ME_Rum": 2900, "CF": 2.2, "Ca": 0.02, "P": 0.28},
-        "ذرة بيضاء": {"CP": 8.8, "ME_Poultry": 3300, "ME_Rum": 2880, "CF": 2.3, "Ca": 0.02, "P": 0.27},
-        "شعير مطحون": {"CP": 11.5, "ME_Poultry": 2640, "ME_Rum": 2700, "CF": 5.0, "Ca": 0.06, "P": 0.35},
-        "شوفان": {"CP": 11.5, "ME_Poultry": 2400, "ME_Rum": 2600, "CF": 11.0, "Ca": 0.10, "P": 0.35},
-        "قمح": {"CP": 12.5, "ME_Poultry": 3000, "ME_Rum": 2950, "CF": 2.5, "Ca": 0.05, "P": 0.30},
-        "مكسور أرز": {"CP": 8.0, "ME_Poultry": 3200, "ME_Rum": 2900, "CF": 1.0, "Ca": 0.03, "P": 0.25},
-        "سورجم (فتريتة)": {"CP": 10.0, "ME_Poultry": 3150, "ME_Rum": 2800, "CF": 2.7, "Ca": 0.04, "P": 0.30}
+        "ذرة صفراء": {"CP": 8.5, "ME_Poultry": 3350, "ME_Fish": 2800, "CF": 2.2},
+        "ذرة بيضاء": {"CP": 8.8, "ME_Poultry": 3300, "ME_Fish": 2750, "CF": 2.3},
+        "شعير مطحون": {"CP": 11.5, "ME_Poultry": 2640, "ME_Fish": 2400, "CF": 5.0},
+        "سورجم (فتريتة)": {"CP": 10.0, "ME_Poultry": 3150, "ME_Fish": 2600, "CF": 2.7}
     },
-    "الأكساب ومصادر البروتين (يتضمن الأمباز)": {
-        "أمباز الفول السوداني (كسب)": {"CP": 46.0, "ME_Poultry": 2500, "ME_Rum": 2850, "CF": 6.0, "Ca": 0.15, "P": 0.55},
-        "كسب فول صويا 44%": {"CP": 44.0, "ME_Poultry": 2230, "ME_Rum": 2570, "CF": 7.0, "Ca": 0.29, "P": 0.65},
-        "كسب فول صويا 48%": {"CP": 48.0, "ME_Poultry": 2440, "ME_Rum": 2680, "CF": 3.5, "Ca": 0.20, "P": 0.60},
-        "كسب عباد الشمس 36%": {"CP": 36.0, "ME_Poultry": 1700, "ME_Rum": 2100, "CF": 14.0, "Ca": 0.40, "P": 0.90},
-        "كسب قطن (غير مقشور)": {"CP": 28.0, "ME_Poultry": 1400, "ME_Rum": 1850, "CF": 22.0, "Ca": 0.20, "P": 0.95},
-        "كسب نواة النخيل": {"CP": 16.5, "ME_Poultry": 1100, "ME_Rum": 1900, "CF": 15.0, "Ca": 0.25, "P": 0.60},
-        "جلوتين الذرة 60%": {"CP": 60.0, "ME_Poultry": 3720, "ME_Rum": 3100, "CF": 1.5, "Ca": 0.05, "P": 0.45},
-        "جلوتين فيد (DDGS)": {"CP": 27.0, "ME_Poultry": 2480, "ME_Rum": 2750, "CF": 8.0, "Ca": 0.15, "P": 0.75}
+    "الأكساب والأمباز ومصادر البروتين العالي": {
+        "أمباز الفول السوداني (كسب)": {"CP": 46.0, "ME_Poultry": 2500, "ME_Fish": 2700, "CF": 6.0},
+        "كسب فول صويا 44%": {"CP": 44.0, "ME_Poultry": 2230, "ME_Fish": 2500, "CF": 7.0},
+        "كسب فول صويا 48%": {"CP": 48.0, "ME_Poultry": 2440, "ME_Fish": 2600, "CF": 3.5},
+        "كسب عباد الشمس 36%": {"CP": 36.0, "ME_Poultry": 1700, "ME_Fish": 1900, "CF": 14.0},
+        "مسحوق أسماك (Fishmeal 60%)": {"CP": 60.0, "ME_Poultry": 2900, "ME_Fish": 3200, "CF": 1.0}
     },
-    "المخلفات الصناعية والمواد المالئة": {
-        "نخالة قمح (ردة)": {"CP": 15.0, "ME_Poultry": 1300, "ME_Rum": 2200, "CF": 11.0, "Ca": 0.14, "P": 1.15},
-        "البرسيم الجاف (الدريس)": {"CP": 16.5, "ME_Poultry": 800, "ME_Rum": 1950, "CF": 25.0, "Ca": 1.40, "P": 0.25},
-        "تبن قمح": {"CP": 3.5, "ME_Poultry": 0, "ME_Rum": 1200, "CF": 41.5, "Ca": 0.15, "P": 0.10},
-        "قشر فول صويا": {"CP": 12.0, "ME_Poultry": 850, "ME_Rum": 2100, "CF": 33.0, "Ca": 0.50, "P": 0.15},
-        "مولاس": {"CP": 4.0, "ME_Poultry": 1800, "ME_Rum": 2300, "CF": 0.0, "Ca": 0.80, "P": 0.10}
+    "المخلفات الرعوية والمواد المالئة": {
+        "نخالة قمح (ردة)": {"CP": 15.0, "ME_Poultry": 1300, "ME_Fish": 1800, "CF": 11.0},
+        "البرسيم الجاف (الدريس)": {"CP": 16.5, "ME_Poultry": 800, "ME_Fish": 1200, "CF": 25.0},
+        "مولاس": {"CP": 4.0, "ME_Poultry": 1800, "ME_Fish": 2100, "CF": 0.0}
     },
-    "المركزات والإضافات الدقيقة": {
-        "مركزات دواجن لاحم (5%)": {"CP": 40.0, "ME_Poultry": 2100, "ME_Rum": 1800, "CF": 2.0, "Ca": 6.50, "P": 4.50},
-        "مركزات دواجن بياض (10%)": {"CP": 32.0, "ME_Poultry": 1750, "ME_Rum": 1600, "CF": 2.5, "Ca": 8.00, "P": 5.00},
-        "بريمكس مجترات": {"CP": 0.0, "ME_Poultry": 0, "ME_Rum": 0, "CF": 0.0, "Ca": 25.0, "P": 0.0},
-        "بريمكس خيول": {"CP": 0.0, "ME_Poultry": 0, "ME_Rum": 0, "CF": 0.0, "Ca": 20.0, "P": 5.0},
-        "الحجر الجيري (بودرة بلاط)": {"CP": 0.0, "ME_Poultry": 0, "ME_Rum": 0, "CF": 0.0, "Ca": 38.0, "P": 0.0},
-        "فوسفات ثنائي الكالسيوم (DCP)": {"CP": 0.0, "ME_Poultry": 0, "ME_Rum": 0, "CF": 0.0, "Ca": 22.0, "P": 18.0},
-        "ملح الطعام": {"CP": 0.0, "ME_Poultry": 0, "ME_Rum": 0, "CF": 0.0, "Ca": 0.0, "P": 0.0},
-        "مضاد سموم فطرية": {"CP": 0.0, "ME_Poultry": 0, "ME_Rum": 0, "CF": 0.0, "Ca": 0.0, "P": 0.0}
+    "الإضافات المتخصصة والمركزات دقيقة الخلط": {
+        "مركزات دواجن وسمان": {"CP": 40.0, "ME_Poultry": 2100, "ME_Fish": 1800, "CF": 2.0},
+        "الحجر الجيري (بودرة بلاط)": {"CP": 0.0, "ME_Poultry": 0, "ME_Fish": 0, "CF": 0.0},
+        "فوسفات ثنائي الكالسيوم (DCP)": {"CP": 0.0, "ME_Poultry": 0, "ME_Fish": 0, "CF": 0.0},
+        "ملح الطعام": {"CP": 0.0, "ME_Poultry": 0, "ME_Fish": 0, "CF": 0.0},
+        "مضاد سموم فطرية": {"CP": 0.0, "ME_Poultry": 0, "ME_Fish": 0, "CF": 0.0}
     }
 }
 
@@ -189,8 +177,9 @@ ANIMAL_IMAGES_RESOURCES = {
     "أبقار": "https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?q=80&w=600&auto=format&fit=crop",
     "أغنام": "https://images.unsplash.com/photo-1484557985045-edf25e08da73?q=80&w=600&auto=format&fit=crop",
     "ماعز": "https://images.unsplash.com/photo-1524388680868-377a2e6bbb1c?q=80&w=600&auto=format&fit=crop",
-    "خيول": "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?q=80&w=600&auto=format&fit=crop",
     "دواجن": "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?q=80&w=600&auto=format&fit=crop",
+    "أسماك": "https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?q=80&w=600&auto=format&fit=crop",
+    "سمان": "https://images.unsplash.com/photo-1516467508483-a7212febe31a?q=80&w=600&auto=format&fit=crop",
     "عام": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=600&auto=format&fit=crop"
 }
 
@@ -229,89 +218,72 @@ tabs = st.tabs(tabs_titles)
 # التبويب الأول: النمذجة والحسابات العلفية الكبرى
 # ====================================================================
 with tabs[0]:
-    st.markdown('<div class="section-title">⚖️ أولاً: التقييم التلقائي للأوزان والاحتياجات بناءً على الفئة والسلالة</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">⚖️ أولاً: التقييم التلقائي للأوزان والاحتياجات بناءً على السلالات السودانية والعالمية</div>', unsafe_allow_html=True)
     
     col_an, col_breed, col_h, col_l, col_ag = st.columns(5)
     with col_an:
-        animal_type = st.selectbox("نوع الحيوان الحقلّي:", ["أبقار تسمين", "أبقار ألبان", "أغنام تسمين", "أغنام ألبان", "ماعز تسمين", "ماعز ألبان", "خيول عربية/رياضة"])
+        animal_type = st.selectbox("نوع الحيوان / القطاع الحقلّي:", ["أبقار تسمين وإنتاج", "ماعز محلي ومحسن", "أغنام ومجترات أخرى", "الدواجن والطيور", "الأسماك والأحياء المائية"])
     
     with col_breed:
         if "أبقار" in animal_type:
-            breed_type = st.selectbox("السلالة المستهدفة:", ["هولشتاين-فريزيان", "سيمينتال", "محلية / هجين"])
+            breed_type = st.selectbox("السلالة المستهدفة:", ["كنانة (سوداني رائد)", "بطانة (سوداني مدر)", "البقارة / جهينة", "هولشتاين هجين"])
             dynamic_img_key = "أبقار"
-        elif "أغنام" in animal_type:
-            breed_type = st.selectbox("السلالة المستهدفة:", ["عواسي", "بربري", "نجدي / حري"])
-            dynamic_img_key = "أغنام"
+            weight_factor = 10838
         elif "ماعز" in animal_type:
-            breed_type = st.selectbox("السلالة المستهدفة:", ["دمشقي (شامي)", "سانين محلي", "زرايبي / بربري"])
+            breed_type = st.selectbox("السلالة المستهدفة:", ["الماعز النوبي السوداني", "الماعز الصحراوي", "الماعز النيلي قزم", "هجين محسن (بور)"])
             dynamic_img_key = "ماعز"
+            weight_factor = 11250
+        elif "أغنام" in animal_type:
+            breed_type = st.selectbox("السلالة المستهدفة:", ["الحمري / الصحراوي السوداني", "البلدي / الكباشي", "البربري"])
+            dynamic_img_key = "أغنام"
+            weight_factor = 11110
+        elif "الدواجن" in animal_type:
+            breed_type = st.selectbox("نوع الطيور:", ["طائر السمان (بادي/نامي)", "طائر السمان (بياض)", "دواجن لاحم سريع", "دواجن بياض"])
+            dynamic_img_key = "سمان" if "السمان" in breed_type else "دواجن"
+            weight_factor = 1
         else:
-            breed_type = st.selectbox("السلالة المستهدفة:", ["خيل عربي أصيل", "ثوروبريد / رياضي"])
-            dynamic_img_key = "خيول"
+            breed_type = st.selectbox("نوع الأسماك:", ["البلطي النيلي (Tilapia)", "القرموط / الكلاريا", "أسماك مياه عذبة عامة"])
+            dynamic_img_key = "أسماك"
+            weight_factor = 1
 
     with col_h:
-        h_girth = st.number_input("📏 محيط الصدر (سم):", value=165.0 if "أبقار" in animal_type or "خيول" in animal_type else 75.0)
+        h_girth = st.number_input("📏 محيط الصدر / أو الحجم (سم):", value=150.0 if "أبقار" in animal_type else 65.0)
     with col_l:
-        b_length = st.number_input("📏 طول الجسم (سم):", value=145.0 if "أبقار" in animal_type or "خيول" in animal_type else 65.0)
+        b_length = st.number_input("📏 طول الجسم (سم):", value=130.0 if "أبقار" in animal_type else 55.0)
     with col_ag:
-        a_months = st.number_input("⏳ العمر التقديـري (أشهر):", value=12, min_value=1)
+        a_months = st.number_input("⏳ العمر التقديـري (أشهر/أيام):", value=12, min_value=1)
 
-    if "أبقار" in animal_type:
-        calc_weight = (h_girth ** 2 * b_length) / 10838
-        feed_factor = 0.024 if "ألبان" in animal_type else 0.022
-    elif "أغنام" in animal_type:
-        calc_weight = (h_girth ** 2 * b_length) / 11110
-        feed_factor = 0.030 if "ألبان" in animal_type else 0.027
+    # حساب الوزن تلقائياً للمجترات
+    if "أبقار" in animal_type or "ماعز" in animal_type or "أغنام" in animal_type:
+        calc_weight = (h_girth ** 2 * b_length) / weight_factor
+        feed_factor = 0.026 if "كنانة" in breed_type or "النوبي" in breed_type else 0.024
+        req_feed_kg = calc_weight * feed_factor
+        st.success(f"📊 [السلالة السودانية: {breed_type}] | الوزن الحيوي المتوقع: **{calc_weight:.1f} كجم** | كمية المادة الجافة المقترحة يومياً: **{req_feed_kg:.2f} كجم**")
+    else:
+        st.info(f"📈 [قطاع: {animal_type} - {breed_type}] سيتم احتساب الاحتياجات مباشرة طبقاً لمرحلة النمو.")
+
+    st.markdown('<div class="section-title">📋 ثانياً: ضبط الاحتياجات الفنية والبروتين المستهدف للتركيبة الحالية</div>', unsafe_allow_html=True)
+    
+    # تحديد البروتين التلقائي حسب اختيار السلالة والقطاع الجديد
+    if "الأسماك" in animal_type:
+        default_cp = 32.0 if "البلطي" in breed_type else 35.0
+    elif "طائر السمان" in breed_type:
+        default_cp = 24.0 if "بادي" in breed_type else 20.0
+    elif "أبقار" in animal_type:
+        default_cp = 16.0 if "كنانة" in breed_type or "بطانة" in breed_type else 14.0
     elif "ماعز" in animal_type:
-        calc_weight = (h_girth ** 2 * b_length) / 11250
-        feed_factor = 0.032 if "ألبان" in animal_type else 0.028
+        default_cp = 15.0 if "النوبي" in breed_type else 13.5
     else:
-        calc_weight = (h_girth ** 2 * b_length) / 11877
-        feed_factor = 0.020
-
-    if breed_type in ["هولشتاين-فريزيان", "دمشقي (شامي)", "عواسي"]:
-        calc_weight *= 1.05
-
-    req_feed_kg = calc_weight * feed_factor
-    st.success(f"📊 [السلالة: {breed_type}] | الوزن الحيوي المتوقع: **{calc_weight:.1f} كجم** | كمية العليقة المقترحة يومياً: **{req_feed_kg:.2f} كجم** للمادة الجافة.")
-
-    st.markdown('<div class="section-title">📋 ثانياً: ضبط الاحتياجات الفنية والمراحل الحرجة</div>', unsafe_allow_html=True)
-    cat_selection = st.radio("القطاع الرئيسي للتركيبة الحالية:", ["المجترات (أبقار، أغنام، ماعز)", "الدواجن والطيور الداجنة", "الخيول والفروسية المتخصصة"], horizontal=True)
-    
-    if "المجترات" in cat_selection:
-        stage_options = [
-            "أبقار تسمين مكثف", "أبقار إنتاج حليب غزير", 
-            "تسمين حملان/أغنام", "نعاج حليب وإدرار", 
-            "ماعز تسمين وإنتاج لحم", "ماعز ألبان (حليب مدر)"
-        ]
-        default_cp = 16.0 if "حليب" in animal_type or "ألبان" in animal_type else 13.0
-    elif "الدواجن" in cat_selection:
-        stage_options = ["دواجن تسمين - بادي", "دواجن تسمين - نامي", "دواجن تسمين - ناهي", "دواجن بياض إنتاج"]
-        default_cp = 21.0
-        dynamic_img_key = "دواجن"
-    else:
-        stage_options = ["خيول رياضة نشطة", "أمهار صغيرة (رضع ونامية)", "فرسات مرضعات (إدرار عالي)"]
-        default_cp = 16.0 if "أمهار" in stage_options or "مرضعات" in stage_options else 12.0
-
-    chosen_stage = st.selectbox("المرحلة الإنتاجية المستهدفة:", stage_options)
-    
-    if "أمهار صغيرة" in chosen_stage:
-        default_cp = 16.0
-    elif "فرسات مرضعات" in chosen_stage:
-        default_cp = 15.0
-    elif "ماعز ألبان" in chosen_stage:
-        default_cp = 15.5
-    elif "دواجن تسمين - بادي" in chosen_stage:
-        default_cp = 23.0
+        default_cp = 18.0
 
     col_p1, col_p2 = st.columns(2)
     with col_p1:
-        st.metric("🧬 بروتين العليقة المقترح تلقائياً لهذه المرحلة الحيوية:", f"{default_cp} %")
+        st.metric("🧬 بروتين العليقة المقترح تلقائياً بناءً على نوع القطاع والسلالة المحددة:", f"{default_cp} %")
     with col_p2:
-        override_cp = st.checkbox("⚙️ تفعيل التعديل الفني الاختياري للبروتين المستهدف")
-        final_target_cp = st.slider("حدّد نسبة البروتين المستهدفة فنيّاً:", 9.0, max_value=26.0, value=default_cp) if override_cp else default_cp
+        override_cp = st.checkbox("⚙️ تفعيل التعديل الفني الاختياري للبروتين")
+        final_target_cp = st.slider("حدّد نسبة البروتين المستهدفة فنيّاً:", 10.0, max_value=45.0, value=default_cp) if override_cp else default_cp
 
-    st.markdown('<div class="section-title">🌾 ثالثاً: توليد العليقة الاقتصادية من مكتبة الخامات الكبرى الموسعة</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🌾 ثالثاً: توليد العليقة الاقتصادية المتزنة</div>', unsafe_allow_html=True)
     selected_ingredients = []
     ingredient_prices = {}
     
@@ -320,15 +292,18 @@ with tabs[0]:
             sub_cols = st.columns(3)
             for idx, (ing_name, _) in enumerate(items.items()):
                 with sub_cols[idx % 3]:
+                    # اختيار ذكي تلقائي لبعض الخامات حسب نوع القطاع لتسهيل العمل
                     is_def = False
-                    if "ذرة صفراء" in ing_name or "أمباز الفول السوداني" in ing_name or "صويا" in ing_name or "ملح" in ing_name or "سموم" in ing_name or "حجر" in ing_name:
+                    if "الأسماك" in animal_type and ing_name in ["مسحوق أسماك (Fishmeal 60%)", "كسب فول صويا 48%", "ذرة صفراء", "ملح الطعام"]:
                         is_def = True
-                    if "المجترات" in cat_selection and "الدريس" in ing_name:
+                    elif "سمان" in dynamic_img_key and ing_name in ["ذرة صفراء", "كسب فول صويا 48%", "مركزات دواجن وسمان", "ملح الطعام"]:
+                        is_def = True
+                    elif "ذرة" in ing_name or "أمباز" in ing_name or "ملح" in ing_name:
                         is_def = True
 
                     checked = st.checkbox(ing_name, value=is_def, key=f"feed_{ing_name}")
                     if st.session_state["user_role"] == "admin":
-                        price_input = st.number_input(f"السعر للطن ({ing_name}) $:", min_value=10.0, value=480.0 if "أمباز" in ing_name else (380.0 if "ذرة" in ing_name else 120.0), key=f"price_{ing_name}")
+                        price_input = st.number_input(f"السعر للطن ({ing_name}) $:", min_value=10.0, value=550.0 if "مسحوق" in ing_name else (480.0 if "أمباز" in ing_name else 120.0), key=f"price_{ing_name}")
                     else:
                         price_input = 400.0 
                     
@@ -344,12 +319,9 @@ with tabs[0]:
             formula_results = {}
             fixed_ratios = {
                 "ملح الطعام": 0.005, "مضاد سموم فطرية": 0.002, 
-                "الحجر الجيري (بودرة بلاط)": 0.025 if "بياض" in chosen_stage else 0.015,
+                "الحجر الجيري (بودرة بلاط)": 0.025 if "بياض" in breed_type else 0.015,
                 "فوسفات ثنائي الكالسيوم (DCP)": 0.01,
-                "مركزات دواجن لاحم (5%)": 0.05 if "الدواجن" in cat_selection and "بياض" not in chosen_stage else 0.0,
-                "مركزات دواجن بياض (10%)": 0.10 if "بياض" in chosen_stage else 0.0,
-                "بريمكس مجترات": 0.01 if "المجترات" in cat_selection else 0.0,
-                "بريمكس خيول": 0.01 if "الخيول" in cat_selection else 0.0,
+                "مركزات دواجن وسمان": 0.05 if ("الدواجن" in animal_type or "السمان" in breed_type) else 0.0,
             }
             
             used_fixed_pct = 0.0
@@ -359,32 +331,35 @@ with tabs[0]:
                     used_fixed_pct += fixed_ratios[name] * 100
             
             remaining_pct = 100.0 - used_fixed_pct
-            base_energy_ingredients = [x for x in selected_ingredients if x in BIG_FEEDS_LIBRARY["الحبوب ومصادر الطاقة"] or x in BIG_FEEDS_LIBRARY["المخلفات الصناعية والمواد المالئة"]]
-            base_protein_ingredients = [x for x in selected_ingredients if x in BIG_FEEDS_LIBRARY["الأكساب ومصادر البروتين (يتضمن الأمباز)"]]
+            base_energy_ingredients = [x for x in selected_ingredients if x in BIG_FEEDS_LIBRARY["الحبوب ومصادر الطاقة"] or x in BIG_FEEDS_LIBRARY["المخلفات الرعوية والمواد المالئة"]]
+            base_protein_ingredients = [x for x in selected_ingredients if x in BIG_FEEDS_LIBRARY["الأكساب والأمباز ومصادر البروتين العالي"]]
             
             if not base_energy_ingredients: base_energy_ingredients = [selected_ingredients[0]]
             if not base_protein_ingredients: base_protein_ingredients = [selected_ingredients[-1]]
             
-            if final_target_cp > 18: p_ratio = 0.32
-            elif final_target_cp > 14: p_ratio = 0.22
-            else: p_ratio = 0.12
-                
+            # محاكاة خطية للنسب حسب البروتين المستهدف
+            if final_target_cp > 30: p_ratio = 0.55  # أعلاف أسماك مكثفة
+            elif final_target_cp > 22: p_ratio = 0.42 # بادئات سمان ودواجن
+            elif final_target_cp > 15: p_ratio = 0.25 # حلاب وتسمين كنانة وبطانة
+            else: p_ratio = 0.15
+
             for x in base_protein_ingredients:
                 formula_results[x] = (remaining_pct * p_ratio) / len(base_protein_ingredients)
             for x in base_energy_ingredients:
                 formula_results[x] = (remaining_pct * (1.0 - p_ratio)) / len(base_energy_ingredients)
 
+            # تخزين البيانات في الجلسة بأمان تام لمنع ظهور أخطاء الـ KeyError
             st.session_state["active_formula"] = formula_results
             st.session_state["active_cp_tag"] = final_target_cp
             st.session_state["active_breed_tag"] = breed_type
             st.session_state["active_animal_img"] = ANIMAL_IMAGES_RESOURCES.get(dynamic_img_key, ANIMAL_IMAGES_RESOURCES["عام"])
-            st.session_state["active_stage_title"] = chosen_stage
+            st.session_state["active_stage_title"] = animal_type
             
             st.success("🎯 تم توليد التركيبة العلفية المتزنة وحساب مدخلات السلالة والمرحلة بنجاح!")
             
             res_col1, res_col2 = st.columns([0.6, 0.4])
             with res_col1:
-                st.write("#### 📝 الدليل الفني لمقادير الخلط بالطن والشكارة:")
+                st.write("#### 📝 المقادير المستهدفة لتركيب طن واحد (كجم):")
                 for k, v in formula_results.items():
                     st.markdown(f"▪️ **{k}:** `{v:.2f} %` ➡️ (**{v*10:.1f} كجم** لكل طن علف)")
                 
@@ -397,7 +372,7 @@ with tabs[0]:
                 st.bar_chart(formula_results)
 
 # ====================================================================
-# التبويب الثاني: إدارة المستودعات والخصم التلقائي
+# التبويب الثاني والثالث: المستودعات والتسويق (تظهر للآدمين)
 # ====================================================================
 if st.session_state["user_role"] == "admin":
     with tabs[1]:
@@ -410,17 +385,11 @@ if st.session_state["user_role"] == "admin":
                 st.markdown(f"**{ing_name}** | {status_badge}", unsafe_allow_html=True)
                 new_qty = st.number_input(f"تحديث رصيد ({ing_name}) طن:", min_value=0.0, value=float(qty), key=f"inv_input_{ing_name}")
                 st.session_state["inventory"][ing_name] = new_qty
-        st.markdown("---")
-        if st.button("🔄 حفظ وإعادة تعيين المستودعات يدويًا"):
-            st.success("تم تحديث وجدولة قاعدة بيانات المخازن بنجاح.")
 
-# ====================================================================
-# التبويب الثالث: التسويق وفواتير حركة البيع
-# ====================================================================
     with tabs[2]:
         st.markdown('<div class="section-title">💰 نظام تسويق المنتجات وإصدار الفواتير مع الخصم التلقائي</div>', unsafe_allow_html=True)
         col_c1, col_c2, col_c3 = st.columns(3)
-        with col_c1: client_name = st.text_input("اسم العميل / المزرعة المستلمة:", "شركة نماء للإنتاج الداجني والحيواني")
+        with col_c1: client_name = st.text_input("اسم العميل / المزرعة المستلمة:", "شركة نماء للإنتاج الحيواني والداجني")
         with col_c2: required_tons = st.number_input("الكمية المطلوبة أمر البيع (بالطن):", min_value=0.1, value=2.0, step=0.5)
         with col_c3: added_profit = st.number_input("هامش الربح الصافي المضاف لكل طن ($):", min_value=0.0, value=50.0)
 
@@ -433,7 +402,6 @@ if st.session_state["user_role"] == "admin":
             st.write(f"**المستشار المصنع:** مكتب م. عبد القادر إسماعيل تاور للاستشارات والحلول الذكية")
             st.write(f"**المستفيد المكرم:** {client_name}")
             st.write("---")
-            st.write(f"▪️ التكلفة الأساسية للإنتاج: `${raw_cost:.2f}` لكل طن.")
             st.write(f"▪️ سعر البيع النهائي المعتمد للزبون: **`${selling_price:.2f}`** لكل طن.")
             st.markdown(f"### 💰 إجمالي القيمة المستحقة للفاتورة: `${total_bill:.2f}`")
             
@@ -453,17 +421,17 @@ if st.session_state["user_role"] == "admin":
                     st.rerun()
 
 # ====================================================================
-# التبويب الرابع: مصمم بطاقات الديباجة والدعاية (تم تأمينه ضد الـ KeyError)
+# التبويب الرابع: مصمم بطاقات الديباجة والدعاية (محمي تماماً ضد KeyError)
 # ====================================================================
     with tabs[3]:
-        st.markdown('<div class="section-title">🏷️ مُصمم ديباجات الطباعة الفنية على جوالات الأعلاف (مع صور الحيوانات التلقائية)</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">🏷️ مُصمم ديباجات الطباعة الفنية على جوالات الأعلاف</div>', unsafe_allow_html=True)
         
         col_tag1, col_tag2, col_tag3 = st.columns(3)
         with col_tag1: trade_brand = st.text_input("اسم البراند التجاري للدعاية:", "مجموعة تاور لإنتاج الأعلاف ومصنعات الإنتاج الحيواني")
-        with col_tag2: contact_phone = st.text_input("هاتف قسم المبيعات والاستشارات الحقلية:", "+218-XX-XXXXXXX")
+        with col_tag2: contact_phone = st.text_input("هاتف قسم المبيعات والاستشارات الحقلية:", "+249-XX-XXXXXXX")
         with col_tag3: sack_size = st.radio("سعة وحجم الجوال (شكارة العلف):", ["50 كجم", "25 كجم"])
 
-        # آلية الأمان: إذا كانت التركيبة جاهزة يتم جلب بياناتها، وإلا يتم وضع قيم افتراضية آمنة لمنع توقف التطبيق
+        # استخدام آلية الأمان والحماية المتقدمة للتحقق من الجلسة
         if "active_formula" in st.session_state:
             formula_data = st.session_state["active_formula"]
             target_cp_printed = st.session_state["active_cp_tag"]
@@ -472,9 +440,9 @@ if st.session_state["user_role"] == "admin":
             stage_title_tag = st.session_state["active_stage_title"]
         else:
             # قيم افتراضية احتياطية تمنع ظهور أي خطأ أحمر قبل الضغط على زر الحساب
-            formula_data = {"ذرة صفراء": 60.0, "أمباز الفول السوداني (كسب)": 30.0, "مركزات عامة": 10.0}
+            formula_data = {"ذرة صفراء": 65.0, "أمباز الفول السوداني (كسب)": 30.0, "إضافات مخصصة": 5.0}
             target_cp_printed = 16.0
-            br_tag = "سلالة عامة"
+            br_tag = "سلالة كنانة / بطانة"
             animal_url = ANIMAL_IMAGES_RESOURCES["عام"]
             stage_title_tag = "إنتاج عام احتياطي"
 
@@ -501,7 +469,7 @@ if st.session_state["user_role"] == "admin":
             </ul>
             <hr style="border-top: 1px solid #1b5e20;">
             <p><b>⚠️ إرشادات الحقل المعتمدة:</b> يُخزن في مكان جاف وبارد بعيدًا عن الرطوبة والأمطار.</p>
-            <p style="text-align: center; font-weight: bold; color: #c62828; margin-bottom:0; font-size:1.1rem;">📞 لطلبات التوريد والاستشارات الفنية لتركيب الأعلاف: {contact_phone}</p>
+            <p style="text-align: center; font-weight: bold; color: #c62828; margin-bottom:0; font-size:1.1rem;">📞 لطلبات التوريد والاستشارات الفنية لتركيب الأعلاف بالسودان: {contact_phone}</p>
         </div>
         """, unsafe_allow_html=True)
 
