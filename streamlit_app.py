@@ -185,13 +185,13 @@ BIG_FEEDS_LIBRARY = {
     }
 }
 
-# مصفوفة روابط صور الحيوانات المخصصة للديباجات بشكل فخم جداً
 ANIMAL_IMAGES_RESOURCES = {
     "أبقار": "https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?q=80&w=600&auto=format&fit=crop",
     "أغنام": "https://images.unsplash.com/photo-1484557985045-edf25e08da73?q=80&w=600&auto=format&fit=crop",
     "ماعز": "https://images.unsplash.com/photo-1524388680868-377a2e6bbb1c?q=80&w=600&auto=format&fit=crop",
     "خيول": "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?q=80&w=600&auto=format&fit=crop",
-    "دواجن": "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?q=80&w=600&auto=format&fit=crop"
+    "دواجن": "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?q=80&w=600&auto=format&fit=crop",
+    "عام": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=600&auto=format&fit=crop"
 }
 
 # ==========================================
@@ -208,7 +208,7 @@ with col_logo:
 
 with col_title:
     st.markdown("<h1 style='color: #1b5e20; text-align:right; margin-bottom:0;'>منصة تاور الذكية للإنتاج الحيواني وصناعة الأعلاف 🌾</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #1565C0; text-align:right; font-size:1.2rem; margin-top:5px; margin-bottom:0;'>لوحة التحكم والمطور الشامل - نظام الديباجات الذكية بالصور المتغيرة</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #1565C0; text-align:right; font-size:1.2rem; margin-top:5px; margin-bottom:0;'>لوحة التحكم والمطور الشامل - نظام معالجة الأخطاء الآمن</p>", unsafe_allow_html=True)
     st.markdown("<h3 style='color: #c62828; text-align:right; font-weight: bold; margin-top: 5px;'>الخبير المستشار / م. عبد القادر إسماعيل تاور</h3>", unsafe_allow_html=True)
 
 st.markdown("<hr style='border-top: 2px solid #2e7d32;'>", unsafe_allow_html=True)
@@ -226,14 +226,14 @@ else:
 tabs = st.tabs(tabs_titles)
 
 # ====================================================================
-# التبويب الأول: النمذجة والحسابات العلفية الكبرى (متاح للجميع)
+# التبويب الأول: النمذجة والحسابات العلفية الكبرى
 # ====================================================================
 with tabs[0]:
     st.markdown('<div class="section-title">⚖️ أولاً: التقييم التلقائي للأوزان والاحتياجات بناءً على الفئة والسلالة</div>', unsafe_allow_html=True)
     
     col_an, col_breed, col_h, col_l, col_ag = st.columns(5)
     with col_an:
-        animal_type = st.selectbox("نوع الحيوان الحقلّي:", ["أبقار تسمين", "أبقار ألبان", "أغنام تسمين", "أغنام ألبan", "ماعز تسمين", "ماعز ألبان", "خيول عربية/رياضة"])
+        animal_type = st.selectbox("نوع الحيوان الحقلّي:", ["أبقار تسمين", "أبقار ألبان", "أغنام تسمين", "أغنام ألبان", "ماعز تسمين", "ماعز ألبان", "خيول عربية/رياضة"])
     
     with col_breed:
         if "أبقار" in animal_type:
@@ -288,7 +288,7 @@ with tabs[0]:
     elif "الدواجن" in cat_selection:
         stage_options = ["دواجن تسمين - بادي", "دواجن تسمين - نامي", "دواجن تسمين - ناهي", "دواجن بياض إنتاج"]
         default_cp = 21.0
-        dynamic_img_key = "دواجن" # تحويل الصورة التلقائية لدواجن فوراً
+        dynamic_img_key = "دواجن"
     else:
         stage_options = ["خيول رياضة نشطة", "أمهار صغيرة (رضع ونامية)", "فرسات مرضعات (إدرار عالي)"]
         default_cp = 16.0 if "أمهار" in stage_options or "مرضعات" in stage_options else 12.0
@@ -374,11 +374,10 @@ with tabs[0]:
             for x in base_energy_ingredients:
                 formula_results[x] = (remaining_pct * (1.0 - p_ratio)) / len(base_energy_ingredients)
 
-            # تخزين البيانات والروابط المخصصة في الـ session
             st.session_state["active_formula"] = formula_results
             st.session_state["active_cp_tag"] = final_target_cp
             st.session_state["active_breed_tag"] = breed_type
-            st.session_state["active_animal_img"] = ANIMAL_IMAGES_RESOURCES.get(dynamic_img_key, ANIMAL_IMAGES_RESOURCES["أبqar"])
+            st.session_state["active_animal_img"] = ANIMAL_IMAGES_RESOURCES.get(dynamic_img_key, ANIMAL_IMAGES_RESOURCES["عام"])
             st.session_state["active_stage_title"] = chosen_stage
             
             st.success("🎯 تم توليد التركيبة العلفية المتزنة وحساب مدخلات السلالة والمرحلة بنجاح!")
@@ -398,7 +397,7 @@ with tabs[0]:
                 st.bar_chart(formula_results)
 
 # ====================================================================
-# التبويب الثاني: إدارة المستودعات والخصم التلقائي (محمي للمطور والمسؤول)
+# التبويب الثاني: إدارة المستودعات والخصم التلقائي
 # ====================================================================
 if st.session_state["user_role"] == "admin":
     with tabs[1]:
@@ -416,7 +415,7 @@ if st.session_state["user_role"] == "admin":
             st.success("تم تحديث وجدولة قاعدة بيانات المخازن بنجاح.")
 
 # ====================================================================
-# التبويب الثالث: التسويق وفواتير حركة البيع (محمي للمطور والمسؤول)
+# التبويب الثالث: التسويق وفواتير حركة البيع
 # ====================================================================
     with tabs[2]:
         st.markdown('<div class="section-title">💰 نظام تسويق المنتجات وإصدار الفواتير مع الخصم التلقائي</div>', unsafe_allow_html=True)
@@ -454,7 +453,7 @@ if st.session_state["user_role"] == "admin":
                     st.rerun()
 
 # ====================================================================
-# التبويب الرابع: مصمم بطاقات الديباجة والدعاية (الصورة المتغيرة حسب نوع الحيوان)
+# التبويب الرابع: مصمم بطاقات الديباجة والدعاية (تم تأمينه ضد الـ KeyError)
 # ====================================================================
     with tabs[3]:
         st.markdown('<div class="section-title">🏷️ مُصمم ديباجات الطباعة الفنية على جوالات الأعلاف (مع صور الحيوانات التلقائية)</div>', unsafe_allow_html=True)
@@ -464,39 +463,47 @@ if st.session_state["user_role"] == "admin":
         with col_tag2: contact_phone = st.text_input("هاتف قسم المبيعات والاستشارات الحقلية:", "+218-XX-XXXXXXX")
         with col_tag3: sack_size = st.radio("سعة وحجم الجوال (شكارة العلف):", ["50 كجم", "25 كجم"])
 
+        # آلية الأمان: إذا كانت التركيبة جاهزة يتم جلب بياناتها، وإلا يتم وضع قيم افتراضية آمنة لمنع توقف التطبيق
         if "active_formula" in st.session_state:
+            formula_data = st.session_state["active_formula"]
             target_cp_printed = st.session_state["active_cp_tag"]
-            br_tag = st.session_state.get("active_breed_tag", "مخصصة")
-            animal_url = st.session_state.get("active_animal_img", ANIMAL_IMAGES_RESOURCES["أبقار"])
-            stage_title_tag = st.session_state.get("active_stage_title", "إنتاج عام")
-            weight_divider = 20 if "50" in sack_size else 40
-            
-            st.markdown("### 🖨️ معاينة ديباجة بطاقة التحليل الفني للجوال (جاهزة للطباعة والتسويق)")
-            
-            st.markdown(f"""
-            <div class="sack-tag">
-                <img src="{animal_url}" class="animal-banner-img">
-                
-                <h2 style="color: #1b5e20; text-align: center; margin-top:0;">🌟 {trade_brand} 🌟</h2>
-                <p style="text-align: center; font-weight: bold; color: #1565C0; margin-bottom:5px;">بإشراف وتوصية اختصاصي الإنتاج الحيواني وصناعة الأعلاف</p>
-                <h3 style="text-align: center; color: #c62828; margin-top:0; font-weight: bold;">م. عبد القادر إسماعيل تاور</h3>
-                
-                <p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:6px; border-radius:5px; color:#1b5e20; font-size:1.1rem;">
-                    🎯 علف مخصص لـ: {stage_title_tag} ({br_tag}) | نسبة البروتين: {target_cp_printed:.1f}%
-                </p>
-                
-                <hr style="border-top: 2px dashed #1b5e20;">
-                <h4>📊 بطاقة المكونات والوزن الفعلي لكل جوال واحد ({sack_size}):</h4>
-                <ul>
-                    {"".join([f"<li><b>{k}:</b> {v:.2f}% (أي ما يعادل دقيقاً <b>{(v*10)/weight_divider:.2f} كجم</b> في الجوال الواحد)</li>" for k, v in st.session_state["active_formula"].items()])}
-                </ul>
-                <hr style="border-top: 1px solid #1b5e20;">
-                <p><b>⚠️ إرشادات الحقل المعتمدة:</b> يُخزن في مكان جاف وبارد بعيدًا عن الرطوبة والأمطار.</p>
-                <p style="text-align: center; font-weight: bold; color: #c62828; margin-bottom:0; font-size:1.1rem;">📞 لطلبات التوريد والاستشارات الفنية لتركيب الأعلاف: {contact_phone}</p>
-            </div>
-            """, unsafe_allow_html=True)
+            br_tag = st.session_state["active_breed_tag"]
+            animal_url = st.session_state["active_animal_img"]
+            stage_title_tag = st.session_state["active_stage_title"]
         else:
-            st.info("ℹ️ يرجى تشغيل وحساب تركيبة علف من التبويب الأول لتظهر لك هنا بطاقة الدعاية والديباجة الفنية للطباعة.")
+            # قيم افتراضية احتياطية تمنع ظهور أي خطأ أحمر قبل الضغط على زر الحساب
+            formula_data = {"ذرة صفراء": 60.0, "أمباز الفول السوداني (كسب)": 30.0, "مركزات عامة": 10.0}
+            target_cp_printed = 16.0
+            br_tag = "سلالة عامة"
+            animal_url = ANIMAL_IMAGES_RESOURCES["عام"]
+            stage_title_tag = "إنتاج عام احتياطي"
+
+        weight_divider = 20 if "50" in sack_size else 40
+        
+        st.markdown("### 🖨️ معاينة ديباجة بطاقة التحليل الفني للجوال (جاهزة للطباعة والتسويق)")
+        
+        st.markdown(f"""
+        <div class="sack-tag">
+            <img src="{animal_url}" class="animal-banner-img">
+            
+            <h2 style="color: #1b5e20; text-align: center; margin-top:0;">🌟 {trade_brand} 🌟</h2>
+            <p style="text-align: center; font-weight: bold; color: #1565C0; margin-bottom:5px;">بإشراف وتوصية اختصاصي الإنتاج الحيواني وصناعة الأعلاف</p>
+            <h3 style="text-align: center; color: #c62828; margin-top:0; font-weight: bold;">م. عبد القادر إسماعيل تاور</h3>
+            
+            <p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:6px; border-radius:5px; color:#1b5e20; font-size:1.1rem;">
+                🎯 علف مخصص لـ: {stage_title_tag} ({br_tag}) | نسبة البروتين المستهدفة: {target_cp_printed:.1f}%
+            </p>
+            
+            <hr style="border-top: 2px dashed #1b5e20;">
+            <h4>📊 بطاقة المكونات والوزن الفعلي لكل جوال واحد ({sack_size}):</h4>
+            <ul>
+                {"".join([f"<li><b>{k}:</b> {v:.2f}% (أي ما يعادل دقيقاً <b>{(v*10)/weight_divider:.2f} كجم</b> في الجوال الواحد)</li>" for k, v in formula_data.items()])}
+            </ul>
+            <hr style="border-top: 1px solid #1b5e20;">
+            <p><b>⚠️ إرشادات الحقل المعتمدة:</b> يُخزن في مكان جاف وبارد بعيدًا عن الرطوبة والأمطار.</p>
+            <p style="text-align: center; font-weight: bold; color: #c62828; margin-bottom:0; font-size:1.1rem;">📞 لطلبات التوريد والاستشارات الفنية لتركيب الأعلاف: {contact_phone}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
