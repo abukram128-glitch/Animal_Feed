@@ -3,6 +3,9 @@ import numpy as np
 import json
 import os
 import base64
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # ==========================================
 # 1. إعدادات المنصة الرسمية والمظهر الفخم
@@ -18,6 +21,14 @@ PASS_GUEST = "2026"
 
 PHOTO_OPTIONS = ["14686.jpg", "1000069464.jpg", "14686.JPG", "1000069464.JPG"]
 
+# ------------------------------------------
+# 🔒 إعدادات خادم البريد الإلكتروني المرجعية المحدثة
+# ------------------------------------------
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SENDER_EMAIL = "abukram128@gmail.com"       # ✅ تم إدراج إيميلك الشخصي
+SENDER_PASSWORD = "TWe3QrW2N:QempT"         # ✅ تم إدراج رمز التطبيق الخاص بك
+
 def get_image_base64(paths):
     for path in paths:
         if os.path.exists(path):
@@ -26,6 +37,40 @@ def get_image_base64(paths):
     return None
 
 img_base64 = get_image_base64(PHOTO_OPTIONS)
+
+def send_code_to_mail(receiver_email):
+    if SENDER_EMAIL == "YOUR_EMAIL@gmail.com" or SENDER_PASSWORD == "xxxx xxxx xxxx xxxx":
+        st.error("⚠️ خطأ إعدادات: يرجى تحديث بيانات الـ SMTP (الإيميل وكلمة مرور التطبيق) داخل السورس كود أولاً.")
+        return False
+        
+    msg = MIMEMultipart()
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = receiver_email
+    msg['Subject'] = "🌾 السورس كود الكامل - منصة تاور الذكية المتكاملة للأعلاف"
+    
+    body = "السلام عليكم م. عبد القادر،\n\nمرفق مع هذه الرسالة النسخة البرمجية الكاملة والمستقرة لمنصة تاور الذكية لعام 2026 بصيغة (.py) كنسخة احتياطية مأرشفة.\n\nتحياتي،\nالنظام التلقائي للمنصة."
+    msg.attach(MIMEText(body, 'plain', 'utf-8'))
+    
+    try:
+        # البحث عن اسم الملف الحالي لقراءته وإرساله ديناميكياً
+        current_file = __file__
+        with open(current_file, "r", encoding="utf-8") as f:
+            code_content = f.read()
+        
+        attachment = MIMEText(code_content, 'plain', 'utf-8')
+        attachment.add_header('Content-Disposition', 'attachment', filename="tower_smart_platform.py")
+        msg.attach(attachment)
+        
+        # الاتصال بخادم جوجل الآمن
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
+        server.quit()
+        return True
+    except Exception as e:
+        st.error(f"❌ فشل الإرسال بسبب: {e}")
+        return False
 
 st.markdown(
     """
@@ -103,13 +148,6 @@ st.markdown(
         padding: 15px;
         border-radius: 8px;
         border-right: 5px solid #2e7d32;
-        margin-bottom: 15px;
-    }
-    .owner-card {
-        background: #fff3e0;
-        padding: 15px;
-        border-radius: 8px;
-        border-right: 5px solid #e65100;
         margin-bottom: 15px;
     }
     .warning-card {
@@ -431,13 +469,11 @@ with tabs[0]:
             
             p_ratio = 0.55 if final_target_cp > 30 else (0.44 if final_target_cp > 22 else (0.28 if final_target_cp > 15 else 0.16))
             
-            # حساب حصص البروتين بالأوزان النسبية لمنع التساوي
             protein_share = remaining_pct * p_ratio
             prot_priorities = [BIG_FEEDS_LIBRARY["الأكساب والأمباز ومصادر البروتين العالي"].get(x, {}).get("prio_prot", 1.0) for x in protein_ingredients]
             total_prot_prio = sum(prot_priorities) if sum(prot_priorities) > 0 else 1.0
             for idx, x in enumerate(protein_ingredients): formula_results[x] = protein_share * (prot_priorities[idx] / total_prot_prio)
                 
-            # حساب حصص الطاقة والمواد المالئة بنسب الخبراء المعتمدة
             energy_share = remaining_pct * (1.0 - p_ratio)
             grain_priorities = [BIG_FEEDS_LIBRARY["الحبوب ومصادر الطاقة"].get(x, {}).get("priority", 1.0) for x in grains_ingredients]
             total_grain_prio = sum(grain_priorities) if sum(grain_priorities) > 0 else 1.0
@@ -452,47 +488,39 @@ with tabs[0]:
             else:
                 for idx, x in enumerate(grains_ingredients): formula_results[x] = energy_share * (grain_priorities[idx] / total_grain_prio)
 
-            # 계산 후 곡물 총합 구하기
             total_grains_pct = sum([formula_results.get(x, 0.0) for x in grains_ingredients])
 
             # =========================================================================
-            # 🧪 محرك الإنزيمات التلقائية والإلزامية وموازنة البيكربونات (م. عبد القادر)
+            # 🧪 محرك الإنزيمات التلقائية والإلزامية وموازنة البيكربونات
             # =========================================================================
-            
-            # 1. إلزامية بيكربونات الصوديوم للمجترات عند زيادة الطاقة تفادياً للحموضة
             if main_sector in ["الأبقار وسلالاتها", "الماعز وسلالاته"]:
                 if total_grains_pct > 45.0 or "بيكربونات الصوديوم (الصودا)" in selected_ingredients:
-                    auto_added_enzymes["بيكربونات الصوديوم (الصودا)"] = 0.75 # 7.5 كجم في الطن إلزامية
+                    auto_added_enzymes["بيكربونات الصوديوم (الصودا)"] = 0.75
                     mandatory_warnings.append("🚨 <b>إضافة إلزامية - بيكربونات الصوديوم:</b> بما أن نسبة الكربوهيدرات السريعة والتخمر (الحبوب) تجاوزت 45% ({:.1f}%)، تم فرض البيكربونات أوتوماتيكياً كمنظم حموضة (Buffer) لحماية الكرش من <b>التحمض Ruminal Acidosis</b> وكساد الهضم.".format(total_grains_pct))
             elif main_sector == "الطيور والسمان" and "بيكربونات الصوديوم (الصودا)" in selected_ingredients:
-                auto_added_enzymes["بيكربونات الصوديوم (الصودا)"] = 0.20 # 2 كجم بالطن للدواجن لدعم القشرة
+                auto_added_enzymes["بيكربونات الصوديوم (الصودا)"] = 0.20
 
-            # 2. إلزامية إنزيم الفايتيز (Phytase) لقطاع الطيور والأسماك
             if main_sector in ["الطيور والسمان", "الأسماك والأحياء المائية"]:
-                auto_added_enzymes["إنزيم الفايتيز الزامي (Phytase Super-D)"] = 0.05 # 500 جرام لكل طن
+                auto_added_enzymes["إنزيم الفايتيز الزامي (Phytase Super-D)"] = 0.05
                 mandatory_warnings.append("🚨 <b>إضافة إلزامية - إنزيم الفايتيز (Phytase):</b> مضاف تلقائياً، العلة هي تحرير <b>الفسفور المرتبط بحمض الفايتيك Phytic Acid</b> في النباتات الذي لا يهضمه الطير طبيعياً، مما يحسن المعامل الهيكلي ويقلل استهلاك ثنائي الكالسيوم.")
 
-            # 3. علة كسب القطن والدواجن (الجوسيبول الحر)
             if "كسب بذور القطن" in formula_results and main_sector == "الطيور والسمان":
                 if formula_results["كسب بذور القطن"] > 5.0:
                     auto_added_enzymes["كبريتات الحديدوز (معادل الجوسيبول)"] = 0.15 
                     mandatory_warnings.append("⚠️ <b>علة فنية معالجة برمجياً:</b> احتواء العليقة على كسب القطن للطيور بنسبة ({:.1f}%) يرفع <b>الجوسيبول الحر السام Toxic Gossypol</b>، تم ضخ كبريتات الحديدوز فورياً لربط الجزيئات السامة وإبطال مفعولها.".format(formula_results["كسب بذور القطن"]))
             
-            # 4. علة الشعير والقمح (الألياف NSP اللزجة وتخمر الأمعاء)
             barley_pct = formula_results.get("شعير مطحون", 0.0)
             wheat_pct = formula_results.get("قمح محلي مصنّع", 0.0)
             if main_sector == "الطيور والسمان" and (barley_pct > 10.0 or wheat_pct > 15.0):
                 auto_added_enzymes["إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)"] = 0.08
                 mandatory_warnings.append("⚠️ <b>علة فنية معالجة برمجياً:</b> استخدام القمح/الشعير يرفع اللزوجة المعوية (NSP)، تم دمج إنزيم مخصص لكسر الروابط المتعددة ومنع عارض البراز الرطب (Wet Litter).")
 
-            # إعادة موازنة الوزن الكلي: الخصم التلقائي الدقيق من خامة الحبوب الكبرى ليبقى المجموع 100%
             if auto_added_enzymes:
                 total_enz_pct = sum(auto_added_enzymes.values())
                 major_grain = grains_ingredients[0] if grains_ingredients else "ذرة صفراء"
                 if major_grain in formula_results: formula_results[major_grain] = max(1.0, formula_results[major_grain] - total_enz_pct)
                 for enz_name, enz_pct in auto_added_enzymes.items(): formula_results[enz_name] = enz_pct
 
-            # حفظ الحالة بأمان في الجلسة لمنع خطأ KeyError
             st.session_state["active_formula"] = formula_results
             st.session_state["active_cp_tag"] = final_target_cp
             st.session_state["active_breed_tag"] = sub_type
@@ -501,7 +529,6 @@ with tabs[0]:
             
             st.success(f"🎯 تم تشغيل محرك التركيب وخوارزمية الإنزيمات الذكية بنجاح في سوق: {user_city}")
             
-            # عرض لوحة الإنزيمات المضافة والعلل المصاحبة لها
             if mandatory_warnings:
                 st.markdown("### 🔬 تقرير فحص العلل والتدخل البرمجي بالإنزيمات:")
                 for warn in mandatory_warnings: st.markdown(f'<div class="warning-card">{warn}</div>', unsafe_allow_html=True)
@@ -511,7 +538,6 @@ with tabs[0]:
                 st.write("#### 📝 المقادير الدقيقة المعتمدة لتركيب طن واحد (كجم):")
                 for k, v in formula_results.items(): st.markdown(f"▪️ **{k}:** `{v:.2f} %` ➡️ (**{v*10:.1f} كجم** / طن)")
                 
-                # حساب التكلفة الافتراضية للإنزيمات إن لم تكن مسعرة
                 ton_cost = sum([(v/100) * ingredient_prices.get(k, 300.0) if k in ingredient_prices else (v/100)*600.0 for k, v in formula_results.items()])
                 st.session_state["computed_ton_cost"] = ton_cost
                 st.metric(f"💰 التكلفة الفعلية لإنتاج الطن في {user_city}: ", f"${ton_cost:.2f} (أو {ton_cost*local_rate:,.1f} {local_sym})")
@@ -525,11 +551,11 @@ if st.session_state["user_role"] == "admin":
         st.markdown('<div class="section-title">📊 لوحة تحكم بورصة تاور المركزية الشاملة (تحديث الأسعار المباشرة)</div>', unsafe_allow_html=True)
         col_edit1, col_edit2 = st.columns(2)
         with col_edit1:
-            st.subheader("🐓 بورصة الماشية والداجن (عمر يوم والبشاير)")
+            st.subheader("🐓 بورصة الماشية والداجن")
             for animal, price in st.session_state["global_livestock_prices"].items():
                 st.session_state["global_livestock_prices"][animal] = st.number_input(f"تحديث سعر: {animal}", min_value=0.0, value=float(price), step=0.1, key=f"livestock_{animal}")
         with col_edit2:
-            st.subheader("🥛 بورصة الألبان واللحوم والأطباق والبيض")
+            st.subheader("🥛 بورصة الألبان واللحوم والأطباق")
             for product, price in st.session_state["global_products_prices"].items():
                 st.session_state["global_products_prices"][product] = st.number_input(f"تحديث سعر: {product}", min_value=0.0, value=float(price), step=0.05, key=f"prod_edit_{product}")
 
@@ -570,6 +596,26 @@ if st.session_state["user_role"] == "admin":
             <p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:6px; color:#1b5e20;">🎯 علف مخصص لـ: {st.session_state['active_stage_title']} | نسبة البروتين: {st.session_state['active_cp_tag']:.1f}%</p>
         </div>
         """, unsafe_allow_html=True)
+
+# ====================================================================
+# 📨 نظام الأرشفة التلقائية وإرسال الكود للإيميل بأسفل التطبيق
+# ====================================================================
+st.markdown("<br><hr style='border-top: 1px dashed #2e7d32;'>", unsafe_allow_html=True)
+st.markdown("<h3 style='color: #1565C0; text-align:right;'>📨 أرشفت الكود والتقارير الحالية للبريد الإلكتروني</h3>", unsafe_allow_html=True)
+
+col_mail, col_btn = st.columns([0.7, 0.3])
+with col_mail:
+    target_email = st.text_input("أدخل البريد الإلكتروني المستلم لحفظ نسخة السورس كود الأساسية:", placeholder="example@gmail.com")
+
+with col_btn:
+    st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
+    if st.button("إرسال نسخة الكود فوراً 🚀", use_container_width=True, type="secondary"):
+        if target_email:
+            with st.spinner("جاري معالجة الملف والاتصال بالخادم..."):
+                if send_code_to_mail(target_email):
+                    st.success(f"📥 تم إرسال السورس كود كملف مرفق (.py) بنجاح إلى: {target_email}")
+        else:
+            st.warning("⚠️ الرجاء كتابة البريد الإلكتروني في الحقل المخصص أولاً.")
 
 st.markdown('</div>', unsafe_allow_html=True)
 
