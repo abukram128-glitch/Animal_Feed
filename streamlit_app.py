@@ -66,14 +66,6 @@ st.markdown(
         margin-top: 15px;
         text-align: right;
     }
-    .sack-tag {
-        border: 3px dashed #1b5e20;
-        padding: 25px;
-        border-radius: 12px;
-        background-color: #f1f8e9;
-        direction: rtl;
-        text-align: right;
-    }
     .profile-img-style {
         width: 150px;
         height: 150px;
@@ -83,14 +75,6 @@ st.markdown(
         box-shadow: 0px 6px 20px rgba(0,0,0,0.25);
         display: block;
         margin: 0 auto;
-    }
-    .animal-banner-img {
-        width: 100%;
-        max-height: 160px;
-        object-fit: cover;
-        border-radius: 8px;
-        margin-bottom: 15px;
-        border: 2px solid #2e7d32;
     }
     .mini-left-signature {
         position: fixed;
@@ -145,26 +129,23 @@ if not st.session_state["approved"]:
     st.stop()
 
 # =====================================================================
-# 3. تثبيت موارد الصور وقاعدة البيانات الشاملة
+# 3. قاعدة البيانات وموارد الصور وإعدادات الحالات الثابتة
 # =====================================================================
 ANIMAL_IMAGES_RESOURCES = {
     "الطيور والسمان": "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?q=80&w=600&auto=format&fit=crop",
     "الأبقار وسلالاتها": "https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?q=80&w=600&auto=format&fit=crop",
     "الماعز وسلالاته": "https://images.unsplash.com/photo-1524388680868-377a2e6bbb1c?q=80&w=600&auto=format&fit=crop",
-    "الخيول والفروسية": "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?q=80&w=600&auto=format&fit=crop",
-    "الأسماك والأحياء المائية": "https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?q=80&w=600&auto=format&fit=crop",
     "عام": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600&auto=format&fit=crop"
 }
 
-# حل جذري لخطأ KeyError: تعريف مفاتيح الحالة بشكل مبكر جداً وثابت
+# منع أخطاء الـ KeyError بشكل قاطع بإنشاء متغيرات الجلسة مسبقاً
 if "active_animal_img" not in st.session_state: st.session_state["active_animal_img"] = ANIMAL_IMAGES_RESOURCES["عام"]
 if "active_formula" not in st.session_state: st.session_state["active_formula"] = {"ذرة صفراء": 100.0}
-if "active_cp_tag" not in st.session_state: st.session_state["active_cp_tag"] = 16.0
-if "active_breed_tag" not in st.session_state: st.session_state["active_breed_tag"] = "سلالة عامة"
-if "active_stage_title" not in st.session_state: st.session_state["active_stage_title"] = "إنتاج عام"
+if "manual_cp_target" not in st.session_state: st.session_state["manual_cp_target"] = 16.0
+if "programmed_cp_actual" not in st.session_state: st.session_state["programmed_cp_actual"] = 16.0
 if "computed_ton_cost" not in st.session_state: st.session_state["computed_ton_cost"] = 250.0
 
-# قاعدة البيانات المحدثة للمكتبة العلفية الكبرى
+# قاعدة بيانات المواد الخام والإضافات المتكاملة
 BIG_FEEDS_LIBRARY = {
     "الحبوب ومصادر الطاقة": {
         "ذرة صفراء": {"CP": 8.5, "base_price": 230.0}, 
@@ -209,17 +190,22 @@ BIG_FEEDS_LIBRARY = {
     }
 }
 
-# إعداد قيم الجلسة لأسعار البورصة للحيوانات والمنتجات
+# استعادة بورصة الثروة الحيوانية والمنتجات الكاملة والسابقة
 if "global_livestock_prices" not in st.session_state:
     st.session_state["global_livestock_prices"] = {
-        "عجول تسمين هولشتاين / محسن ($)": 1350.0, "أبقار كنانة وبطانة محلية ($)": 900.0,
-        "ضأن وستيرلنغ / محلي ($)": 180.0, "ماعز نوبي وصحراوي ($)": 130.0, "كتكوت لاحم عمر يوم ($)": 0.65
+        "عجول تسمين هولشتاين / محسن ($)": 1350.0, 
+        "أبقار كنانة وبطانة محلية ($)": 900.0,
+        "ضأن وستيرلنغ / بلدي محلي ($)": 180.0, 
+        "ماعز نوبي وصحراوي ($)": 130.0, 
+        "كتكوت لاحم عمر يوم ($)": 0.65
     }
 
 if "global_products_prices" not in st.session_state:
     st.session_state["global_products_prices"] = {
-        "كيلو لحم بقري صافي ($)": 7.50, "كيلو لحم ضأن طازج ($)": 9.00,
-        "كيلو لحم دجاج لاحم صافي ($)": 3.80, "طبق بيض مائدة 30 بيضة ($)": 4.20
+        "كيلو لحم بقري صافي ($)": 7.50, 
+        "كيلو لحم ضأن طازج ($)": 9.00,
+        "كيلو لحم دجاج لاحم صافي ($)": 3.80, 
+        "طبق بيض مائدة 30 بيضة ($)": 4.20
     }
 
 EXCHANGE_RATES = {
@@ -229,29 +215,25 @@ EXCHANGE_RATES = {
     "باقي دول العالم": {"rate": 1.0, "sym": "USD"}
 }
 
-# =====================================================================
-# 4. محرك موازنة الأسعار اللوجستي لربط البورصة بأسواق المدن (طبرق نموذجاً)
-# =====================================================================
 def compute_aligned_market_prices(country, state_or_region, city):
     aligned_prices = {}
     logistic_factor = 1.0
     
     if country == "ليبيا":
         logistic_factor = 1.08
-        if city == "طبرق": logistic_factor = 1.14  # حساب تكاليف الشحن البري والمسافات بدقة
+        if city == "طبرق": logistic_factor = 1.14
     elif country == "السودان":
         logistic_factor = 1.15
         if "كردفان" in state_or_region: logistic_factor = 1.25
-    
+        
     for cat, items in BIG_FEEDS_LIBRARY.items():
         for ing, data in items.items():
-            base = data["base_price"]
-            aligned_prices[ing] = base * logistic_factor
+            aligned_prices[ing] = data["base_price"] * logistic_factor
             
     return aligned_prices, logistic_factor
 
 # ==========================================
-# 5. بناء الواجهة الرسومية للمنصة
+# 4. بناء واجهة وتوقيع م. عبد القادر تاور
 # ==========================================
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
@@ -262,22 +244,22 @@ with col_logo:
 
 with col_title:
     st.markdown("<h1 style='color: #1b5e20; text-align:right; margin-bottom:0;'>منصة تاور الذكية المتكاملة للأعلاف والإنتاج الحيواني 🌾</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #1565C0; text-align:right; font-size:1.15rem; margin-top:5px; margin-bottom:0;'>نظام المعالجة الصامتة والمطابقة السعرية اللوجستية لأسواق المدن</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #1565C0; text-align:right; font-size:1.15rem; margin-top:5px; margin-bottom:0;'>إصدار دقة موازنة البروتين المزدوجة وبورصة الأسواق وحساب الأوزان بالشريط</p>", unsafe_allow_html=True)
     st.markdown("<h3 style='color: #c62828; text-align:right; font-weight: bold; margin-top: 5px;'>الخبير المستشار / م. عبد القادر إسماعيل تاور</h3>", unsafe_allow_html=True)
 
 st.markdown("<hr style='border-top: 2px solid #2e7d32;'>", unsafe_allow_html=True)
 
-tabs_titles = ["🔬 النمذجة والحسابات العلفية الكبرى", "🗂️ مكتبة تاور المنظمة الشاملة", "📊 بورصة تاور لأسواق الماشية والمنتجات"]
+tabs_titles = ["🔬 النمذجة والحسابات العلفية الكبرى", "📏 قياس الوزن عبر الشريط للمربين", "🗂️ مكتبة تاور المنظمة الشاملة", "📊 بورصة تاور لأسواق الماشية والمنتجات"]
 if st.session_state["user_role"] == "admin":
     tabs_titles += ["⚙️ إدخالات البورصة المركزية"]
 
 tabs = st.tabs(tabs_titles)
 
 # ---------------------------------------------------------------------
-# التبويب الأول: محرك الحسابات والمعالجة البرمجية الصامتة للمشكلات
+# التبويب الأول: محرك الحسابات (إظهار نسبة البروتين اليدوية والبرمجية)
 # ---------------------------------------------------------------------
 with tabs[0]:
-    st.markdown('<div class="section-title">🌍 أولاً: تحديد الموقع الجغرافي لربط وتطابق الأسعار مع السوق الفعلي</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🌍 أولاً: الموقع الجغرافي والربط اللوجستي</div>', unsafe_allow_html=True)
     col_country, col_state, col_city = st.columns(3)
     with col_country: user_country = st.selectbox("اختر دولة المربي المستهدف:", ["ليبيا", "السودان", "مصر", "باقي دول العالم"])
         
@@ -286,67 +268,51 @@ with tabs[0]:
 
     chosen_state = "عام"
     with col_state:
-        if user_country == "ليبيا": chosen_state = st.selectbox("اختر الإقليم الجغرافي اللوجستي:", ["المنطقة الشرقية", "المنطقة الغربية", "المنطقة الجنوبية"])
-        elif user_country == "السودان": chosen_state = st.selectbox("اختر الولاية السودانية المستهدفة:", ["ولاية الخرطوم", "ولاية الجزيرة", "ولاية القضارف", "ولاية شمال كردفان"])
+        if user_country == "ليبيا": chosen_state = st.selectbox("اختر الإقليم الجغرافي اللوجستي:", ["المنطقة الشرقية", "المنطقة الغربية"])
+        elif user_country == "السودان": chosen_state = st.selectbox("اختر الولاية السودانية المستهدفة:", ["ولاية الخرطوم", "ولاية القضارف", "ولاية شمال كردفان"])
         else: chosen_state = st.selectbox("الإقليم الإداري السوقي:", ["الأسواق الحرة المركزية"])
 
     with col_city:
         if user_country == "ليبيا":
-            if chosen_state == "المنطقة الشرقية": user_city = st.selectbox("اختر المدينة المستهدفة:", ["طبرق", "بنغازي", "البيضاء", "درنة"])
-            else: user_city = st.selectbox("اختر المدينة المستهدفة:", ["طرابلس", "مصراتة", "سبها"])
+            user_city = st.selectbox("اختر المدينة المستهدفة:", ["طبرق", "بنغازي", "طرابلس"])
         elif user_country == "السودان":
-            if chosen_state == "ولاية القضارف": user_city = st.selectbox("اختر المدينة:", ["القضارف المدينة", "الفاو"])
-            else: user_city = st.selectbox("اختر المدينة الفعليّة:", ["الخرطوم", "ود مدني", "الأبيض"])
-        else: user_city = st.text_input("اكتب اسم المدينة يدوياً لرصد السعر الحقيقي:", "طبرق")
+            user_city = st.selectbox("اختر المدينة الفعليّة:", ["الخرطوم", "القضارف المدينة", "الأبيض"])
+        else: user_city = st.text_input("اكتب اسم المدينة رصد السعر:", "طبرق")
 
-    # رصد الأسعار المتطابقة محلياً
     live_prices, current_logistic_factor = compute_aligned_market_prices(user_country, chosen_state, user_city)
+    st.success(f"📊 تم تفعيل محرك مطابقة سوق المدينة: الأسعار مربوطة حالياً بـ ({user_city})")
+
+    st.markdown('<div class="section-title">⚙️ ثانياً: ضبط الهدف وخلط التركيبة صامتاً</div>', unsafe_allow_html=True)
+    col_sec, col_sub = st.columns(2)
+    with col_sec: main_sector = st.selectbox("اختر القطاع الإنتاجي:", ["الطيور والسمان", "الأبقار وسلالاتها", "الماعز وسلالاته"])
+    with col_sub: target_cp_input = st.number_input("حدد نسبة البروتين المستهدفة يدوياً (الهدف %):", min_value=10.0, max_value=45.0, value=21.0)
     
-    st.success(f"📊 تم مزامنة وتطابق أسعار الخامات والبورصة مع أسواق (<b>{user_city}</b>) الحقيقية بالاعتماد على الفروقات اللوجستية الفعليّة حَقلياً.")
+    st.session_state["manual_cp_target"] = target_cp_input
 
-    st.markdown('<div class="section-title">⚖️ ثانياً: قطاع التسمين أو الإنتاج المستهدف</div>', unsafe_allow_html=True)
-    col_sec, col_sub, col_prod = st.columns(3)
-    with col_sec: main_sector = st.selectbox("اختر القطاع الإنتاجي:", ["الطيور والسمان", "الأبقار وسلالاتها", "الماعز وسلالاته", "الخيول والفروسية", "الأسماك والأحياء المائية"])
-    
-    chosen_concentrate = "مركزات دواجن وسمان 5%"
-    default_cp = 21.0
-    with col_sub:
-        if main_sector == "الطيور والسمان": sub_type = st.selectbox("نوع الطيور:", ["دواجن لاحم (Broiler)", "دواجن بياض (Layer)", "طائر السمان (Quail)"])
-        elif main_sector == "الأبقار وسلالاتها": sub_type = st.selectbox("السلالة البقرية:", ["هولشتاين / محسن", "كنانة (سوداني)"]); chosen_concentrate = "مركزات خيول ومجترات"; default_cp = 14.0
-        else: sub_type = st.selectbox("السلالة أو النوع الفرعي:", ["محلي / محسن عالي الأداء"]); chosen_concentrate = "مركزات خيول ومجترات"; default_cp = 13.0
-
-    with col_prod:
-        if main_sector == "الطيور والسمان": prod_stage = st.selectbox("مرحلة التغذية:", ["نامي دواجن 21%", "بادي دواجن 23%", "ناهي دواجن 19%", "بياض إنتاجي"])
-        else: prod_stage = st.selectbox("مرحلة الإنتاج الحالية:", ["تسمين مكثف نامي", "إدرار حليب وغزارة عالية"])
-
-    st.markdown('<div class="section-title">🧬 ثالثاً: ضبط بروتين العليقة واختيار خامات التركيب</div>', unsafe_allow_html=True)
-    final_target_cp = st.slider("حدد نسبة البروتين المستهدفة فنيّاً (%):", 10.0, 45.0, value=default_cp)
-
-    selected_ingredients = []; ingredient_prices = {}
-    
+    # اختيار الخامات
+    selected_ingredients = []; ingredient_prices = {}; ingredient_cp_dict = {}
     for cat_name, items in BIG_FEEDS_LIBRARY.items():
-        with st.expander(f"📥 فئة: {cat_name} (اضغط للاستعراض والاختيار)", expanded=True):
+        with st.expander(f"📥 فئة: {cat_name}", expanded=True):
             sub_cols = st.columns(3)
             for idx, (ing_name, data) in enumerate(items.items()):
                 with sub_cols[idx % 3]:
                     is_def = False
                     if "ذرة صفراء" in ing_name or "صويا" in ing_name or "ملح" in ing_name: is_def = True
-                    if ing_name in [chosen_concentrate, "لايسين خام مصنع (L-Lysine HCL)", "ميثيونين نقّي (DL-Methionine)"]: is_def = True
+                    if "لايسين" in ing_name or "ميثيونين" in ing_name: is_def = True
                     
                     checked = st.checkbox(ing_name, value=is_def, key=f"fcalc_{ing_name}")
                     market_p = live_prices.get(ing_name, 350.0)
-                    st.markdown(f"<small>💵 السعر في {user_city}: <b>${market_p:.1f}</b> ({market_p*local_rate:,.0f} {local_sym})</small>", unsafe_allow_html=True)
-                    
                     if checked:
                         selected_ingredients.append(ing_name)
                         ingredient_prices[ing_name] = market_p
+                        ingredient_cp_dict[ing_name] = data["CP"]
 
-    if st.button("🚀 حساب التوليفة العلفية وتعديل المكونات برمجياً وصامتاً", type="primary", use_container_width=True):
+    if st.button("🚀 حساب التوليفة العلفية وتدقيق نسب البروتين الفعلية", type="primary", use_container_width=True):
         formula_results = {}
         auto_added_enzymes = {}
 
         fixed_ratios = {"ملح الطعام": 0.005, "مضاد سموم فطرية لوجستي متكامل": 0.002, "الحجر الجيري (بودرة بلاط)": 0.015, "فوسفات ثنائي الكالسيوم (DCP)": 0.01}
-        if "الطيور" in main_sector: fixed_ratios[chosen_concentrate] = 0.05
+        if main_sector == "الطيور والسمان": fixed_ratios["مركزات دواجن وسمان 5%"] = 0.05
         
         used_fixed_pct = 0.0
         for name in selected_ingredients:
@@ -362,12 +328,11 @@ with tabs[0]:
         if not grains: grains = ["ذرة صفراء"]
         if not proteins: proteins = ["كسب فول صويا 44%"]
         
-        p_share = remaining_pct * (0.42 if final_target_cp > 20 else 0.26)
+        p_share = remaining_pct * (0.42 if target_cp_input > 20 else 0.26)
         e_share = remaining_pct - p_share
         
         for x in grains: formula_results[x] = e_share / len(grains)
-        total_prot_elements = proteins + aminos
-        for x in total_prot_elements:
+        for x in (proteins + aminos):
             if x in aminos:
                 formula_results[x] = 0.15
                 p_share -= 0.15
@@ -376,50 +341,98 @@ with tabs[0]:
 
         total_grains_pct = sum([formula_results.get(x, 0.0) for x in grains])
 
-        # =========================================================================
-        # 🔬 نظام المعالجة البرمجية الصامتة تماماً للتركيبة العلفية (دون التنبيهات المزعجة)
-        # =========================================================================
+        # المعالجة الصامتة والمصححة تلقائياً في الخلفية
         if main_sector in ["الأبقار وسلالاتها", "الماعز وسلالاته"] and total_grains_pct > 45.0:
             auto_added_enzymes["بيكربونات الصوديوم (الصودا لمنع التحمض)"] = 0.75
-
-        if main_sector in ["الطيور والسمان", "الأسماك والأحياء المائية"]:
+        if main_sector in ["الطيور والسمان"]:
             auto_added_enzymes["إنزيم الفايتيز (Phytase لتحرير الفسفور)"] = 0.05
-
         if "كسب بذور القطن" in formula_results and main_sector == "الطيور والسمان":
             auto_added_enzymes["كبريتات الحديدوز (معادل سمية الجوسيبول)"] = 0.12
-
         if main_sector == "الطيور والسمان" and (formula_results.get("شعير مطحون", 0.0) > 10.0 or formula_results.get("قمح محلي مصنّع", 0.0) > 15.0):
             auto_added_enzymes["إنزيم الـ NSP المعوي (زيلاناز + بيتا جلوكاناز)"] = 0.08
 
-        # خصم أوزان الإضافات تلقائياً من خامة الطاقة الكبرى ليبقى مجموع الطن 100% تماماً
         if auto_added_enzymes:
             tot_enz = sum(auto_added_enzymes.values())
             m_grain = grains[0] if grains else "ذرة صفراء"
             if m_grain in formula_results: formula_results[m_grain] = max(1.0, formula_results[m_grain] - tot_enz)
             for enz_n, enz_p in auto_added_enzymes.items(): formula_results[enz_n] = enz_p
 
-        # حفظ آمن لبيانات الجلسة لمنع ظهور أخطاء KeyError مجدداً
+        # حساب نسبة البروتين الفعلية برمجياً الناتجة عن الخلط والتركيب
+        computed_cp = 0.0
+        for k, v in formula_results.items():
+            cp_of_item = ingredient_cp_dict.get(k, 0.0)
+            computed_cp += (v / 100.0) * cp_of_item
+        
         st.session_state["active_formula"] = formula_results
-        st.session_state["active_animal_img"] = ANIMAL_IMAGES_RESOURCES.get(main_sector, ANIMAL_IMAGES_RESOURCES["عام"])
-        st.session_state["active_cp_tag"] = final_target_cp
-        st.session_state["active_breed_tag"] = sub_type
-        st.session_state["active_stage_title"] = f"{main_sector} - {prod_stage}"
+        st.session_state["programmed_cp_actual"] = computed_cp
+
+        # عرض لوحة مقارنة نسب البروتين (البرمجية مقابل اليدوية)
+        st.markdown("### 🧬 لوحة الرقابة والمطابقة التحليلية للبروتين:")
+        col_cp1, col_cp2 = st.columns(2)
+        with col_cp1:
+            st.metric("🎯 نسبة البروتين المطلوبة (يدوياً):", f"{st.session_state['manual_cp_target']:.2f} %")
+        with col_cp2:
+            st.metric("🖥️ نسبة البروتين المتحققة فعلياً (برمجياً):", f"{st.session_state['programmed_cp_actual']:.2f} %")
 
         res_col1, res_col2 = st.columns([0.6, 0.4])
         with res_col1:
-            st.markdown(f"#### 📝 مقادير خلط الطن الصافية والمعالجة تلقائياً لسوق ({user_city}):")
-            for k, v in formula_results.items(): st.markdown(f"▪️ **{k}:** `{v:.2f} %` ➡️ (**{v*10:.1f} كجم** / الطن)")
+            st.markdown(f"#### 📝 أوزان الخلط النهائية للطن في سوق ({user_city}):")
+            for k, v in formula_results.items(): 
+                st.markdown(f"▪️ **{k}:** `{v:.2f} %` ➡️ (**{v*10:.1f} كجم** / الطن)")
             
             ton_cost = sum([(v/100) * ingredient_prices.get(k, 320.0) for k, v in formula_results.items()])
-            st.session_state["computed_ton_cost"] = ton_cost
-            st.metric("💰 تكلفة إنتاج الطن الفعلية بمطابقة السوق والمدينة الحالية:", f"${ton_cost:.2f} (أو {ton_cost*local_rate:,.1f} {local_sym})")
+            st.metric("💰 التكلفة الحقيقية لإنتاج الطن بالعملة المحلية:", f"{ton_cost*local_rate:,.1f} {local_sym} (${ton_cost:.2f})")
         with res_col2: st.bar_chart(formula_results)
 
 # ---------------------------------------------------------------------
-# التبويب الثاني: استعراض مكتبة تاور المنظمة بالتصنيف المبوب الأحدث
+# التبويب الثاني: طريقة قياس الوزن عبر الشريط مع الرسم التوضيحي للمربين
 # ---------------------------------------------------------------------
 with tabs[1]:
-    st.markdown('<div class="section-title">🗂️ مستودع ومكتبة تاور الرقمية المنظمة للمكونات والإضافات المصنعة</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📐 محاكاة حاسبة الوزن الحي عبر شريط القياس الفني للمربين</div>', unsafe_allow_html=True)
+    
+    st.markdown(
+        """
+        <div style='background-color:#fff3e0; padding:15px; border-radius:8px; border-right:5px solid #ff9800; direction:rtl; text-align:right; margin-bottom:20px;'>
+            <b>💡 إرشادات فنية للمربي (طريقة القياس الصحيحة):</b><br>
+            1. <b>محيط الصدر (Heart Girth):</b> يُلف الشريط حول صدر الحيوان خلف القائمتين الأماميتين مباشرة وبإحكام.<br>
+            2. <b>طول الجسم (Body Length):</b> يُقاس المسافة الأفقيّة من مقدمة عظمة الكتف (مفصل الكتف) حتى نهاية عظمة الدبوس (مؤخرة الحوض).
+        </div>
+        """, unsafe_allow_html=True
+    )
+    
+    col_img_text, col_img_disp = st.columns([0.5, 0.5])
+    with col_img_text:
+        animal_calc_type = st.selectbox("اختر فئة الحيوان المراد تقدير وزنه:", ["أبقار وعجول تسمين", "أغنام وماعز (مجترات صغيرة)"])
+        girth_cm = st.number_input("ادخل قياس محيط الصدر (بالسنتيمتر):", min_value=30.0, max_value=300.0, value=150.0)
+        length_cm = st.number_input("ادخل قياس طول الجسم (بالسنتيمتر):", min_value=30.0, max_value=300.0, value=130.0)
+        
+        if st.button("🧮 احسب الوزن الحي التقريبي للحيوان"):
+            if animal_calc_type == "أبقار وعجول تسمين":
+                # معادلة الوزن القياسية للأبقار: (محيط الصدر × محيط الصدر × طول الجسم) / 10838
+                estimated_weight = (girth_cm ** 2 * length_cm) / 10838.0
+            else:
+                # معادلة الوزن للمجترات الصغيرة: (محيط الصدر × محيط الصدر × طول الجسم) / 11300
+                estimated_weight = (girth_cm ** 2 * length_cm) / 11300.0
+                
+            st.markdown(
+                f"""
+                <div style='background-color:#e8f5e9; padding:20px; border-radius:10px; text-align:center; direction:rtl;'>
+                    <h3 style='color:#2e7d32; margin:0;'>⚖️ الوزن التقديري للحيوان: <b>{estimated_weight:.2f} كجم</b></h3>
+                    <small style='color:#555;'>تعتمد هذه النتائج على دقة وضع الشريط حول منطقة الصدر وطول الهيكل العظمي للحيوان.</small>
+                </div>
+                """, unsafe_allow_html=True
+            )
+            
+    with col_img_disp:
+        st.markdown("<p style='text-align:center; font-weight:bold; color:#1b5e20;'>📷 الدليل التوضيحي لكيفية أخذ القياسات على جسم الحيوان:</p>", unsafe_allow_html=True)
+        # توفير صورة مخصصة لشرح نقاط القياس (محيط الصدر وطول الجسم)
+        st.image("https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?q=80&w=600", caption="تحديد موضع القياس: شريط حول الصدر خلف القوائم، وطول الجسم من الكتف إلى دبوس الحوض.")
+
+# ---------------------------------------------------------------------
+# التبويب الثالث: استعراض مكتبة تاور المنظمة
+# ---------------------------------------------------------------------
+with tabs[2]:
+    st.markdown('<div class="section-title">🗂️ مستودع ومكتبة تاور الرقمية الشاملة</div>', unsafe_allow_html=True)
     for cat_name, items in BIG_FEEDS_LIBRARY.items():
         st.markdown(f'<div class="lib-category-title">📁 فئة: {cat_name}</div>', unsafe_allow_html=True)
         sub_lib_cols = st.columns(3)
@@ -429,50 +442,49 @@ with tabs[1]:
                     f"""
                     <div style='background-color:#f9f9f9; padding:15px; border-radius:8px; border:1px solid #e0e0e0; margin-bottom:10px; direction:rtl; text-align:right;'>
                         <h5 style='color:#2e7d32; margin-top:0;'>🌾 {ing_name}</h5>
-                        <p style='margin-bottom:4px; font-size:0.9rem;'>🧬 نسبة البروتين الكلي المكافئ: <b>{data.get("CP", 0.0)} %</b></p>
-                        <p style='margin-bottom:0; font-size:0.9rem;'>💰 السعر العالمي للطن الأساسي: <b>${data.get("base_price", 0.0)}</b></p>
+                        <p style='margin-bottom:4px; font-size:0.9rem;'>🧬 نسبة البروتين الخام: <b>{data.get("CP", 0.0)} %</b></p>
+                        <p style='margin-bottom:0; font-size:0.9rem;'>💰 السعر العالمي الأساسي: <b>${data.get("base_price", 0.0)}</b></p>
                     </div>
                     """, unsafe_allow_html=True
                 )
 
 # ---------------------------------------------------------------------
-# التبويب الثالث: بورصة تاور لأسواق الماشية والمنتجات (مربوطة بالمعامل اللوجستي الحقيقي)
+# التبويب الرابع: استعادة وعرض بورصة الحيوانات الحية والمنتجات الكاملة والسابقة
 # ---------------------------------------------------------------------
-with tabs[2]:
-    st.markdown(f'<div class="section-title">📊 أسعار بورصة الماشية والمنتجات المتطابقة مع سوق مدينة ({user_city})</div>', unsafe_allow_html=True)
+with tabs[3]:
+    st.markdown(f'<div class="section-title">📊 أسعار بورصة الماشية والمنتجات المتطابقة مع أسواق ({user_city})</div>', unsafe_allow_html=True)
     
-    # ربط أسعار البورصة للحيوانات والمنتجات مباشرة بالمعامل اللوجستي للمدينة لإصابة دقة الأسعار بالسوق
     col_b1, col_b2 = st.columns(2)
     with col_b1:
         st.markdown("### 🐂 أسعار رؤوس الماشية الحية ومرحلة التربية:")
         for animal, price in st.session_state["global_livestock_prices"].items():
             adjusted_p = price * current_logistic_factor
-            st.markdown(f"▪️ {animal}: **${adjusted_p:.2f}** | الفعلي بالعملة المحلية: <span style='color:#e65100; font-weight:bold;'>{adjusted_p * local_rate:,.2f} {local_sym}</span>")
+            st.markdown(f"▪️ {animal}: **${adjusted_p:.2f}** | بالسعر المحلي الفعلي: <span style='color:#e65100; font-weight:bold;'>{adjusted_p * local_rate:,.2f} {local_sym}</span>")
             
     with col_b2:
         st.markdown("### 🥛 أسعار المنتجات الصافية والألبان والبيض:")
         for product, price in st.session_state["global_products_prices"].items():
             adjusted_p = price * current_logistic_factor
-            st.markdown(f"▪️ {product}: **${adjusted_p:.2f}** | الفعلي بالعملة المحلية: <span style='color:#2e7d32; font-weight:bold;'>{adjusted_p * local_rate:,.2f} {local_sym}</span>")
+            st.markdown(f"▪️ {product}: **${adjusted_p:.2f}** | بالسعر المحلي الفعلي: <span style='color:#2e7d32; font-weight:bold;'>{adjusted_p * local_rate:,.2f} {local_sym}</span>")
 
-# لوحة تحكم التعديل الأساسية للمالك فقط
+# لوحة تحكم تعديل أسعار البورصة الأساسية للمسؤول
 if st.session_state["user_role"] == "admin":
-    with tabs[3]:
-        st.markdown('<div class="section-title">⚙️ لوحة الإدارة: تعديل أسعار البورصة العالمية المرجعية للشبكة</div>', unsafe_allow_html=True)
+    with tabs[4]:
+        st.markdown('<div class="section-title">⚙️ لوحة الإدارة البورصوية المركزية للبرنامج</div>', unsafe_allow_html=True)
         col_ed1, col_ed2 = st.columns(2)
         with col_ed1:
-            st.subheader("تحديث أسعار الماشية والداجن الأساسية ($):")
+            st.subheader("تحديث أسعار الماشية والداجن ($):")
             for animal, price in st.session_state["global_livestock_prices"].items():
                 st.session_state["global_livestock_prices"][animal] = st.number_input(f"تحديث {animal}", min_value=0.0, value=float(price), key=f"edit_live_{animal}")
         with col_ed2:
-            st.subheader("تحديث أسعار المنتجات والألبان الأساسية ($):")
+            st.subheader("تحديث أسعار المنتجات المزرعية ($):")
             for product, price in st.session_state["global_products_prices"].items():
                 st.session_state["global_products_prices"][product] = st.number_input(f"تحديث {product}", min_value=0.0, value=float(price), key=f"edit_prod_{product}")
 
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
-# 6. التوقيع الدائم بأسفل الشاشة
+# 5. التوقيع الدائم بأسفل الشاشة لـ م. عبد القادر
 # ==========================================
 st.markdown(
     f"""
