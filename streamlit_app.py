@@ -22,12 +22,12 @@ PASS_GUEST = "2026"
 PHOTO_OPTIONS = ["14686.jpg", "1000069464.jpg", "14686.JPG", "1000069464.JPG"]
 
 # ------------------------------------------
-# 🔒 إعدادات خادم البريد الإلكتروني المرجعية المحدثة
+# 🔒 إعدادات خادم البريد الإلكتروني المرجعية المحدثة بالرمز الجديد
 # ------------------------------------------
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
-SENDER_EMAIL = "abukram128@gmail.com"       # ✅ تم إدراج إيميلك الشخصي
-SENDER_PASSWORD = "TWe3QrW2N:QempT"         # ✅ تم إدراج رمز التطبيق الخاص بك
+SENDER_EMAIL = "abukram128@gmail.com"       # ✅ إيميلك الشخصي
+SENDER_PASSWORD = "oynz rdli tsdy ekdq"     # ✅ تم إدراج رمز التطبيق الجديد الصحيح بنجاح
 
 def get_image_base64(paths):
     for path in paths:
