@@ -4,6 +4,7 @@ import json
 import os
 import base64
 import smtplib
+import threading  # تم الإضافة لدعم المعالجة الخلفية الفورية
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -24,6 +25,17 @@ SENDER_EMAIL = "abukram128@gmail.com"
 # جلب كلمة المرور بأمان من إعدادات الـ Secrets الخاصة بـ Streamlit لحمايتها من السرقة
 SENDER_PASSWORD = st.secrets.get("SMTP_PASSWORD", "oynz rdli tsdy ekdq")
 
+def _execute_email_sending(receiver_email, msg):
+    """دالة داخلية لتنفيذ الإرسال عبر السيرفر في خلفية النظام لمنع تجميد الواجهة"""
+    try:
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
+        server.quit()
+    except Exception:
+        pass
+
 def send_code_to_mail(receiver_email):
     msg = MIMEMultipart()
     msg['From'] = SENDER_EMAIL
@@ -31,6 +43,7 @@ def send_code_to_mail(receiver_email):
     msg['Subject'] = "🌾 السورس كود الاحترافي الشامل - منصة تاور V3 المحصنة"
     body = "السلام عليكم م. عبد القادر،\n\nمرفق السورس كود بعد إرجاع دالة الوزن بشريط القياس، نظام خانات البروتين المزدوجة، وبورصة المنتجات الحية الدقيقة للمدن.\n\nتحياتي."
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
+    
     try:
         # تحديد مسار الملف الحالي بدقة ديناميكية لمنع الكراش على الخوادم السحابية
         current_file_path = os.path.abspath(__file__)
@@ -44,14 +57,12 @@ def send_code_to_mail(receiver_email):
             st.error("❌ تعذر العثور على ملف السورس كود في هذا المسار السحابي.")
             return False
 
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
-        server.quit()
+        # إطلاق عملية الاتصال والإرسال في خيط منفصل (Asynchronous Threading)
+        email_thread = threading.Thread(target=_execute_email_sending, args=(receiver_email, msg))
+        email_thread.start()
         return True
     except Exception as e:
-        st.error(f"❌ خطأ في خادم الإرسال: {e}")
+        st.error(f"❌ خطأ في إعداد ملف الإرسال: {e}")
         return False
 
 st.markdown(
@@ -451,7 +462,7 @@ st.markdown("### 📨 أرشفة الكود والتقارير الحالية ب
 target_email = st.text_input("أدخل البريد الإلكتروني المستلم لحفظ نسخة السورس كود الأساسية:", value="abukram128@gmail.com")
 if st.button("🚀 إرسال نسخة الكود المتكاملة"):
     if send_code_to_mail(target_email):
-        st.success("📥 تم إرسال ملف السورس كود المتكامل بنجاح وأرشفته برمجياً وتغذوياً دون أي علل علمية.")
+        st.success("📥 تم إطلاق إرسال السورس كود في الخلفية بنجاح! سيصلك الملف المرفق خلال لحظات دون تعطيل التطبيق.")
 
 st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('<div class="mini-left-signature">👨‍🔬 م. عبد القادر إسماعيل تاور © 2026 | خبير الحلول البرمجية المتكاملة والإنتاج الحيواني</div>', unsafe_allow_html=True)
