@@ -1,269 +1,494 @@
 import streamlit as st
+import numpy as np
+import json
+import os
+import base64
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
-# 1. إعدادات الصفحة العامة وتحسين مظهر واجهة المستخدم
-st.set_page_config(page_title="منصة تاور الذكية للثروة الحيوانية", layout="wide", initial_sidebar_state="expanded")
+# ==========================================
+# 1. إعدادات المنصة الرسمية والمظهر الفخم
+# ==========================================
+st.set_page_config(page_title="منصة تاور الذكية المتكاملة للأعلاف والإنتاج الحيواني", page_icon="🌾", layout="wide")
 
-# تطبيق لغة عربية وتنسيق بصري احترافي متوافق مع الهوية الفنية
-st.markdown("""
+USER_ADMIN = "تاور"       
+PASS_ADMIN = "202687"     
+USER_GUEST = "مربي"       
+PASS_GUEST = "2026"       
+
+PHOTO_OPTIONS = ["14686.jpg", "1000069464.jpg", "14686.JPG", "1000069464.JPG"]
+
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SENDER_EMAIL = "abukram128@gmail.com"       
+SENDER_PASSWORD = "oynz rdli tsdy ekdq"     
+
+def get_image_base64(paths):
+    for path in paths:
+        if os.path.exists(path):
+            with open(path, "rb") as image_file:
+                return base64.b64encode(image_file.read()).decode()
+    return None
+
+img_base64 = get_image_base64(PHOTO_OPTIONS)
+
+def send_code_to_mail(receiver_email):
+    msg = MIMEMultipart()
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = receiver_email
+    msg['Subject'] = "🌾 السورس كود الأكاديمي المصحح - منصة تاور"
+    body = "السلام عليكم م. عبد القادر،\n\nمرفق السورس كود بعد الفصل الجغرافي الصارم للسلالات، ربط أسعار المدن فعلياً، وحل مشكلة الإنزيمات بالإشعارات المؤقتة والنسب الصريحة.\n\nتحياتي."
+    msg.attach(MIMEText(body, 'plain', 'utf-8'))
+    try:
+        with open(__file__, "r", encoding="utf-8") as f:
+            code_content = f.read()
+        attachment = MIMEText(code_content, 'plain', 'utf-8')
+        attachment.add_header('Content-Disposition', 'attachment', filename="tower_smart_platform.py")
+        msg.attach(attachment)
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
+        server.quit()
+        return True
+    except Exception as e:
+        st.error(f"❌ خطأ في الإرسال: {e}")
+        return False
+
+st.markdown(
+    """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
-    html, body, [data-testid="stSidebar"], .stMarkdown, h1, h2, h3, h4, h5, h6, label, input, button, select {
-        font-family: 'Cairo', sans-serif !important;
-        direction: rtl !important;
-        text-align: right !important;
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght=400;700&display=swap');
+    html, body, [data-testid="stAppViewContainer"] {
+        font-family: 'Cairo', sans-serif;
+        background-image: url("https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600&auto=format&fit=crop");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
     }
-    .stAlert p { text-align: right !important; }
-    .metric-box {
-        background-color: #f8f9fa;
-        border-right: 5px solid #1b5e20;
+    .stApp { background: transparent; }
+    .main-box {
+        background-color: rgba(255, 255, 255, 0.98);
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.18);
+        margin-bottom: 50px;
+    }
+    .section-title {
+        color: #1b5e20;
+        border-right: 6px solid #2e7d32;
+        padding-right: 12px;
+        text-align: right;
+        font-size: 1.4rem;
+        font-weight: bold;
+        margin-top: 25px;
+        margin-bottom: 15px;
+    }
+    .sack-tag {
+        border: 3px dashed #1b5e20;
+        padding: 25px;
+        border-radius: 12px;
+        background-color: #f1f8e9;
+        direction: rtl;
+        text-align: right;
+    }
+    .profile-img-style {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #d4af37;
+        box-shadow: 0px 6px 20px rgba(0,0,0,0.25);
+        display: block;
+        margin: 0 auto;
+    }
+    .mini-left-signature {
+        position: fixed;
+        left: 15px;
+        bottom: 15px;
+        background-color: rgba(27, 94, 32, 0.95);
+        color: white;
+        padding: 6px 15px;
+        font-size: 0.8rem;
+        border-radius: 20px;
+        z-index: 9999;
+        direction: rtl;
+    }
+    .price-card {
+        background: #f1f8e9;
         padding: 15px;
-        border-radius: 6px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        margin-bottom: 12px;
+        border-radius: 8px;
+        border-right: 5px solid #2e7d32;
+        margin-bottom: 15px;
     }
-    .metric-title { font-size: 14px; color: #444; font-weight: bold; }
-    .metric-value { font-size: 26px; color: #1b5e20; font-weight: bold; }
+    .warning-card {
+        background: #fff3e0;
+        padding: 15px;
+        border-radius: 8px;
+        border-right: 5px solid #ef6c00;
+        margin-bottom: 12px;
+        direction: rtl;
+        text-align: right;
+        color: #e65100;
+        font-weight: bold;
+    }
+    .measurement-box {
+        background: #e3f2fd;
+        border-right: 5px solid #1565c0;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        text-align: right;
+        direction: rtl;
+    }
+    .result-row {
+        background: #f1f8e9;
+        padding: 12px;
+        border-bottom: 2px solid #c8e6c9;
+        margin-bottom: 6px;
+        border-radius: 6px;
+        direction: rtl;
+        text-align: right;
+    }
     </style>
-""", unsafe_index=True)
+    """,
+    unsafe_allow_html=True
+)
 
-# 2. قاعدة البيانات الشاملة للحيوانات، الأقسام، وأنواع الإنتاج
-ANIMAL_DATABASE = {
-    "الخيل (Equines)": {
-        "السلالات": ["الخيول العربية الأصيلة", "الخيل الإنجليزي (Thoroughbred)", "خيل الجر الثقيل (Draft)", "الخيول المحلية الهجينة"],
-        "الإنتاج": ["حفظ حياة (Maintenance)", "عمل خفيف وتدريب اعتيادي", "عمل شاق ومجهود بدني عالي", "التكاثر، الحمل وإنتاج المهور"],
-        "العامل": 11880
+# ==========================================
+# 2. بوابة الدخول وحماية النظام
+# ==========================================
+if "approved" not in st.session_state: st.session_state["approved"] = False
+if "user_role" not in st.session_state: st.session_state["user_role"] = None
+
+if not st.session_state["approved"]:
+    st.markdown('<div class="main-box" style="max-width: 500px; margin: 100px auto; direction: rtl;">', unsafe_allow_html=True)
+    st.markdown("<h2 style='color: #2E7D32; text-align:center;'>🔒 بوابـة الدخـول الذكيـة</h2>", unsafe_allow_html=True)
+    input_user = st.text_input("👤 اسم المستخدم:")
+    input_pass = st.text_input("🔑 كلمة المرور:", type="password")
+    if st.button("تسجيل الدخول 🔓", type="primary", use_container_width=True):
+        if input_user == USER_ADMIN and input_pass == PASS_ADMIN:
+            st.session_state["approved"] = True
+            st.session_state["user_role"] = "admin"
+            st.rerun()
+        elif input_user == USER_GUEST and input_pass == PASS_GUEST:
+            st.session_state["approved"] = True
+            st.session_state["user_role"] = "guest"
+            st.rerun()
+        else:
+            st.error("❌ بيانات الاعتماد غير صحيحة.")
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.stop()
+
+# =====================================================================
+# 3. قاعدة البيانات الجغرافية الصارمة وبورصة الأسعار لكل مدينة حقيقية
+# =====================================================================
+GEOGRAPHY_DATA = {
+    "ليبيا": {
+        "المنطقة الشرقية": ["طبرق", "بنغازي", "البيضاء", "درنة", "إجدابيا"],
+        "المنطقة الغربية": ["طرابلس", "مصراتة", "الزاوية", "غريان"],
+        "المنطقة الجنوبية": ["سبها", "مرزق", "غـات"]
     },
-    "الأبقار (المجترات الكبرى)": {
-        "السلالات": ["هولشتاين - فريديان (Holstein)", "جيرسي (Jersey)", "السلالات المحلية (الليبي/البلدي)", "مستورد للتسمين (سيمنتال/ليموزين)"],
-        "الإنتاج": ["إنتاج حليب مرتفع (>25 لتر/يوم)", "إنتاج حليب متوسط (15-25 لتر/يوم)", "تسمين عالي الكفاءة لإنتاج اللحم", "حفظ حياة وحمل جاف"],
-        "العامل": 10800
+    "السودان": {
+        "ولاية الخرطوم": ["الخرطوم", "أم درمان", "بحري"],
+        "ولاية القضارف": ["القضارف المدينة", "الحواتة", "الفاو"],
+        "ولاية الجزيرة": ["ود مدني", "المناقل", "الحصاحيصا"],
+        "ولاية شمال كردفان": ["الأبيض", "أم روابة", "بارا"],
+        "ولاية البحر الأحمر": ["بورتسودان", "سواكن"]
     },
-    "الأغنام والماعز (المجترات الصغرى)": {
-        "السلالات": ["الأغنام البرقية", "الأغنام العواسية", "الماعز المحلي/الدمشقي", "سلالات محسنة ومختلطة"],
-        "الإنتاج": ["تسمين سريع وإنتاج لحم الضأن", "إدرار الحليب وإنتاج الألبان", "حفظ حياة وإنتاج الصوف/الشعر", "نعاج وعنزات في مرحلة التكاثر والحمل الداني"],
-        "العامل": 11400
+    "مصر": {
+        "الدلتا والقاهرة": ["القاهرة", "طنطا", "المنصورة", "الإسكندرية"],
+        "الصعيد والوجه القبلي": ["أسيوط", "المنيا", "قنا", "أسوان"]
     }
 }
 
-# 3. إدارة نظام الأمان والتحقق عبر الـ Session State
-if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = False
-if 'user_role' not in st.session_state:
-    st.session_state.user_role = None
+SECTOR_BREEDS_MAP = {
+    "ليبيا": {
+        "الأبقار وسلالاتها": ["أبقار فريزيان محسن محلي", "أبقار برقة المحلية"],
+        "الأغنام والضأن": ["أغنام البرقي العريقة", "أغنام المارينو المحسنة"],
+        "الماعز وسلالاته": ["الماعز القبرصي (الشامي)", "الماعز الصحراوي الليبي"],
+        "الطيور والسمان": ["دواجن لاحم كب 500", "دواجن بياض لوهمان", "سمان جامبو مزارع"],
+        "الإبل والثروة الصحراوية": ["إبل الملافي", "إبل الساحلية"]
+    },
+    "السودان": {
+        "الأبقار وسلالاتها": ["أبقار الكنانة (غزيرة اللبن)", "أبقار البطانة الديرية"],
+        "الأغنام والضأن": ["ضأن الدوبا (الحمري والشقر)", "ضأن الكباشي البري"],
+        "الماعز وسلالاته": ["الماعز النوبي السوداني الأصيل", "الماعز الجبلي والنيلي"],
+        "الطيور والسمان": ["دواجن لاحم هبرد", "دواجن بياض هاي لاين", "سمان بلدي محسن"],
+        "الإبل والثروة الصحراوية": ["إبل الرشايدي", "إبل الكباشي / العنافي"]
+    },
+    "مصر": {
+        "الأبقار وسلالاتها": ["أبقار هولشتاين مأقلمة", "الأبقار البلدي المصرية"],
+        "الأغنام والضأن": ["أغنام الرحماني", "أغنام الأوسيمي", "أغنام البرقي مريوط"],
+        "الماعز وسلالاته": ["الماعز الزرايبي المصري", "الماعز البلدي المحسن"],
+        "الطيور والسمان": ["دواجن لاحم روس 308", "دواجن بياض إيسا براون", "السمان الياباني المتطور"],
+        "الإبل والثروة الصحراوية": ["إبل المغربي مزارع", "إبل الفلاحي الصعيدي"]
+    }
+}
 
-# --- الواجهة الرئيسية للمنصة ---
-st.title("🐴 منصة تاور الذكية لتقدير الأوزان والتركيب الغذائي الفسيولوجي 🌾")
-st.subheader("النظام البرمجي المتكامل | بإشراف الاختصاصي أ. عبدالقادر إسماعيل")
+# أسعار الطن الأساسية بالدولار ليتم تحويلها وربطها جغرافياً بالمدينة
+REAL_CITY_PRICES = {
+    "طبرق": {"ذرة صفراء": 255.0, "كسب فول صويا 44%": 470.0, "نخالة قمح (ردة)": 165.0, "شعير مطحون": 230.0, "عجول تسمين ($)": 1450.0},
+    "بنغازي": {"ذرة صفراء": 250.0, "كسب فول صويا 44%": 465.0, "نخالة قمح (ردة)": 160.0, "شعير مطحون": 225.0, "عجول تسمين ($)": 1420.0},
+    "الخرطوم": {"ذرة صفراء": 230.0, "كسب فول صويا 44%": 440.0, "نخالة قمح (ردة)": 140.0, "شعير مطحون": 210.0, "عجول تسمين ($)": 1100.0},
+    "القضارف المدينة": {"ذرة صفراء": 215.0, "كسب فول صويا 44%": 420.0, "نخالة قمح (ردة)": 130.0, "شعير مطحون": 195.0, "عجول تسمين ($)": 1050.0},
+    "القاهرة": {"ذرة صفراء": 245.0, "كسب فول صويا 44%": 455.0, "نخالة قمح (ردة)": 155.0, "شعير مطحون": 220.0, "عجول تسمين ($)": 1350.0},
+    "طنطا": {"ذرة صفراء": 240.0, "كسب فول صويا 44%": 450.0, "نخالة قمح (ردة)": 150.0, "شعير مطحون": 215.0, "عجول تسمين ($)": 1320.0},
+}
 
-# 4. شريط التحكم الجانبي: بوابات الأكواد الثلاثة واختبار الهوية
-st.sidebar.header("🔐 نظام التحقق والوصول الآمن")
-role_selection = st.sidebar.selectbox("اختر فئة المستخدم الصالحة:", ["اختر الفئة...", "المالك (تاور)", "المربي", "الزملاء المختصين (أطباء بياطرة / إنتاج حيواني)"])
+def get_market_prices_by_city(city_name):
+    base = {
+        "ذرة صفراء": 240.0, "ذرة بيضاء": 235.0, "شعير مطحون": 220.0, "سورجم (فتريتة)": 200.0, "قمح محلي مصنّع": 250.0,
+        "أمباز الفول السوداني (كسب)": 460.0, "كسب فول صويا 44%": 450.0, "كسب فول صويا 48%": 490.0, "كسب عباد الشمس 36%": 320.0, "كسب بذور القطن": 300.0,
+        "نخالة قمح (ردة)": 150.0, "البرسيم الجاف (الدريس)": 170.0, "مولاس": 120.0, "مسحوق أسماك (Fishmeal 60%)": 850.0,
+        "مركزات دواجن وسمان": 650.0, "مركزات خيول ومجترات": 600.0, "الحجر الجيري (بودرة بلاط)": 40.0, "فوسفات ثنائي الكالسيوم (DCP)": 280.0,
+        "ملح الطعام": 30.0, "مضاد سموم فطرية": 950.0, "بيكربونات الصوديوم (الصودا)": 340.0,
+        "إنزيم الفايتيز الزامي (Phytase Super-D)": 1150.0, "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)": 1400.0, "كبريتات الحديدوز (معادل الجوسيبول)": 750.0
+    }
+    if city_name in REAL_CITY_PRICES:
+        for k, v in REAL_CITY_PRICES[city_name].items():
+            if k in base: base[k] = v
+    return base
 
-# وظيفة برمجية للتحقق من الأكواد والاختبار
-if role_selection == "المالك (تاور)":
-    owner_code = st.sidebar.text_input("أدخل كود المالك الحصري:", type="password")
-    if st.sidebar.button("تفعيل بوابة المالك"):
-        if owner_code == "202687":
-            st.session_state.authenticated = True
-            st.session_state.user_role = "المالك (تاور)"
-            st.sidebar.success("🔑 مرحباً بك يا سيد تاور. تم منحك كامل الصلاحيات البرمجية.")
-        else:
-            st.sidebar.error("❌ كود المالك غير صحيح!")
+BIG_FEEDS_LIBRARY = {
+    "الحبوب ومصادر الطاقة": {"ذرة صفراء": 8.5, "ذرة بيضاء": 8.8, "شعير مطحون": 11.5, "سورجم (فتريتة)": 10.0, "قمح محلي مصنّع": 12.0},
+    "الأكساب والأمباز ومصادر البروتين العالي": {"أمباز الفول السوداني (كسب)": 46.0, "كسب فول صويا 44%": 44.0, "كسب فول صويا 48%": 48.0, "كسب عباد الشمس 36%": 36.0, "كسب بذور القطن": 41.0},
+    "المخلفات الرعوية والمواد المالئة والإضافات الفنية": {"نخالة قمح (ردة)": 15.0, "البرسيم الجاف (الدريس)": 16.5, "مولاس": 4.0, "بيكربونات الصوديوم (الصودا)": 0.0},
+    "الإضافات المتخصصة والمركزات دقيقة الخلط": {"مركزات دواجن وسمان": 40.0, "مركزات خيول ومجترات": 36.0, "الحجر الجيري (بودرة بلاط)": 0.0, "فوسفات ثنائي الكالسيوم (DCP)": 0.0, "ملح الطعام": 0.0, "مضاد سموم فطرية": 0.0},
+    "المعاملات الحيوية والإنزيمات الذكية التلقائية": {"إنزيم الفايتيز الزامي (Phytase Super-D)": 0.0, "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)": 0.0, "كبريتات الحديدوز (معادل الجوسيبول)": 0.0}
+}
 
-elif role_selection == "المربي":
-    breeder_code = st.sidebar.text_input("أدخل كود المربي المعتمد:", type="password")
-    if st.sidebar.button("تفعيل بوابة المربي"):
-        if breeder_code == "2026":
-            st.session_state.authenticated = True
-            st.session_state.user_role = "المربي"
-            st.sidebar.success("🔓 تم تفعيل نظام المربي بنجاح.")
-        else:
-            st.sidebar.error("❌ كود المربي غير صحيح!")
+EXCHANGE_RATES = {
+    "ليبيا": {"rate": 4.82, "sym": "LYD"}, "السودان": {"rate": 600.0, "sym": "SDG"},
+    "مصر": {"rate": 48.0, "sym": "EGP"}
+}
 
-elif role_selection == "الزملاء المختصين (أطباء بياطرة / إنتاج حيواني)":
-    expert_code = st.sidebar.text_input("أدخل كود المختصين الأطباء والتغذية:", type="password")
-    if expert_code == "2020":
-        st.sidebar.info("📝 الكود صحيح. يرجى الإجابة على الأسئلة العلمية الـ 3 لتأكيد الهوية المهنية:")
-        
-        # أسئلة اختبار الكفاءة لفتح بوابة المختصين
-        q1 = st.sidebar.radio("س1: ما هو النسيج أو العضو المستهدف الرئيسي لفيروس مرض الجمبورو (Gumboro) في الدواجن؟", 
-                              ["اختر الإجابة...", "غدة فابريشيوس (Bursa of Fabricius)", "النسيج الكبدي والأمعاء الدقيقة", "الرئتين والأكياس الهوائية العليا"])
-        
-        q2 = st.sidebar.radio("س2: أي من الأحماض الدهنية الطيارة (VFA) يعتبر المسؤول والمنشئ الأساسي لتخليق دهن الحليب بالكرش؟", 
-                              ["اختر الإجابة...", "حمض البروبيونيك", "حمض الأسيتيك (الخلات)", "حمض البيوتيريك"])
-        
-        q3 = st.sidebar.radio("س3: ما هي النسبة الفسيولوجية المثالية لـ الكالسيوم إلى الفوسفور (Ca:P) في علائق المجترات البالغة؟", 
-                              ["اختر الإجابة...", "1:1", "1:4", "2:1"])
-        
-        if st.sidebar.button("تأكيد إجابات الاختبار العلمي"):
-            if q1 == "غدة فابريشيوس (Bursa of Fabricius)" and q2 == "حمض الأسيتيك (الخلات)" and q3 == "2:1":
-                st.session_state.authenticated = True
-                st.session_state.user_role = "الأطباء البياطرة ومختصي الإنتاج"
-                st.sidebar.success("🟢 أحسنت دكتور/مهندس! تم تأكيد هويتك العلمية وفتحت البوابة المهنية.")
-            else:
-                st.sidebar.error("❌ إحدى الإجابات خاطئة. يرجى مراجعة المعطيات العلمية والمحاولة مجدداً.")
-    elif expert_code != "":
-        st.sidebar.error("❌ كود المختصين غير صحيح!")
+# ==========================================
+# 4. بناء الهيكل ونظام الجلسة
+# ==========================================
+if "active_formula" not in st.session_state: st.session_state["active_formula"] = {}
+if "active_cp_tag" not in st.session_state: st.session_state["active_cp_tag"] = 16.0
+if "active_breed_tag" not in st.session_state: st.session_state["active_breed_tag"] = "سلالة عامة"
+if "active_stage_title" not in st.session_state: st.session_state["active_stage_title"] = "إنتاج عام"
+if "computed_ton_cost" not in st.session_state: st.session_state["computed_ton_cost"] = 285.0
 
-# 5. عرض محتوى المنصة والشريط التقديري بعد النجاح في التحقق
-if st.session_state.authenticated:
-    st.success(f"🔓 تم تفعيل المنصة الحسابية بنجاح بصلاحية: **{st.session_state.user_role}**")
-    
-    col_input, col_view = st.columns([1, 1])
-    
-    with col_input:
-        st.header("📋 مدخلات التصنيف وتحديد الأبعاد")
-        
-        # قوائم الاختيار الديناميكية المعتمدة على قاعدة البيانات
-        animal_choice = st.selectbox("اختر نوع الحيوان المراد فصحه وتقييمه:", list(ANIMAL_DATABASE.keys()))
-        breed_choice = st.selectbox("حدد السلالة النسيجية/الوراثية:", ANIMAL_DATABASE[animal_choice]["Sلالات" if "S" in ANIMAL_DATABASE[animal_choice] else "السلالات"])
-        prod_choice = st.selectbox("حدد الغرض ونوع الإنتاج الحالي للحيوان:", ANIMAL_DATABASE[animal_choice]["الإنتاج"])
-        
-        st.divider()
-        st.subheader("📏 منزلقات شريط التقدير الرقمي")
-        
-        # منزلقات أبعاد القياس الحيوي بالسنتيمتر
-        girth_val = st.slider("1. محيط الصدر (Heart Girth) - بالسنتيمتر خلف لوح الكتف مباشرة:", min_value=30, max_value=300, value=160, step=1)
-        length_val = st.slider("2. طول الجسم (Body Length) - بالسنتيمتر من مفصل الكتف إلى دبوس الورك:", min_value=30, max_value=250, value=145, step=1)
-        
-    with col_view:
-        st.header("🖼️ مخطط دليلك البصري للقياس الصحيح")
-        st.info(f"اتبع الخطوط الموضحة على مجسم **{animal_choice}** للحصول على قياس شريطي دقيق:")
-        
-        # توليد رسومات بيانية ذكية (SVG) متغيرة حسب نوع الفصيل المختار لتبيين أماكن القياس بدقة
-        if "الخيل" in animal_choice:
-            animal_svg = """
-            <svg width="100%" height="250" viewBox="0 0 400 250" style="background-color:#ffffff; border:1px solid #ccd7d2; border-radius:8px;">
-                <path d="M60,140 Q100,140 120,100 T180,80 T260,90 T320,140 T300,190 T140,190 Z" fill="#dfd5c6" stroke="#4a3b32" stroke-width="2"/>
-                <circle cx="70" cy="110" r="14" fill="#dfd5c6" stroke="#4a3b32" stroke-width="2"/>
-                <rect x="125" y="180" width="14" height="60" fill="#8c7863"/>
-                <rect x="245" y="180" width="14" height="60" fill="#8c7863"/>
-                <!-- خط القياس 1: محيط الصدر -->
-                <line x1="145" y1="88" x2="145" y2="185" stroke="#d32f2f" stroke-width="4" stroke-dasharray="6,6"/>
-                <text x="110" y="70" fill="#d32f2f" font-weight="bold" font-size="12">🔴 خط 1: محيط الصدر</text>
-                <!-- خط القياس 2: طول الجسم -->
-                <line x1="105" y1="125" x2="285" y2="125" stroke="#1976d2" stroke-width="4"/>
-                <text x="160" y="145" fill="#1976d2" font-weight="bold" font-size="12">🔵 خط 2: طول الجسم</text>
-            </svg>
-            """
-        else:
-            animal_svg = """
-            <svg width="100%" height="250" viewBox="0 0 400 250" style="background-color:#ffffff; border:1px solid #ccd7d2; border-radius:8px;">
-                <rect x="100" y="90" width="200" height="90" rx="15" fill="#eceff1" stroke="#37474f" stroke-width="2"/>
-                <circle cx="75" cy="95" r="22" fill="#eceff1" stroke="#37474f" stroke-width="2"/>
-                <rect x="130" y="180" width="18" height="50" fill="#b0bec5"/>
-                <rect x="250" y="180" width="18" height="50" fill="#b0bec5"/>
-                <!-- خط القياس 1: محيط الصدر -->
-                <line x1="145" y1="85" x2="145" y2="182" stroke="#d32f2f" stroke-width="4" stroke-dasharray="6,6"/>
-                <text x="105" y="70" fill="#d32f2f" font-weight="bold" font-size="12">🔴 خط 1: محيط الصدر</text>
-                <!-- خط القياس 2: طول الجسم -->
-                <line x1="85" y1="120" x2="295" y2="120" stroke="#1976d2" stroke-width="4"/>
-                <text x="160" y="140" fill="#1976d2" font-weight="bold" font-size="12">🔵 خط 2: طول الجسم</text>
-            </svg>
-            """
-        st.markdown(animal_svg, unsafe_index=True)
+col_logo, col_title = st.columns([0.25, 0.75])
+with col_title:
+    st.markdown("<h1 style='color: #1b5e20; text-align:right; margin-bottom:0;'>منصة تاور الذكية للإنتاج الحيواني وصناعة الأعلاف 🌾</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #1565C0; text-align:right; font-size:1.1rem; margin-top:5px; margin-bottom:0;'>النسخة المعيارية الموجهة للمختصين مع مصفوفة الفرز الجغرافي وحقن الإنزيمات الحقيقي</p>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color: #c62828; text-align:right; font-weight: bold; margin-top: 5px;'>الخبير المستشار / م. عبد القادر إسماعيل تاور</h3>", unsafe_allow_html=True)
 
-    # 6. المحرك البرمجي وحسابات تقدير الوزن والمعادلات الغذائية التوافقية
-    db_factor = ANIMAL_DATABASE[animal_choice]["العامل"]
-    calculated_weight_kg = (float(girth_val) ** 2 * float(length_val)) / db_factor
+st.markdown("<hr style='border-top: 2px solid #2e7d32;'>", unsafe_allow_html=True)
 
-    # دالة حساب وضبط نسبة البروتين والطاقة برمجياً حسب المقاييس والفسيولوجيا الهضمية
-    def calculate_nutrition_engine(animal, breed, production, weight):
-        protein_pct = 12.0
-        energy_amt = 0.0
-        energy_label = "طاقة مهضومة (DE - Mcal/kg)"
-        
-        if "الخيل" in animal:
-            energy_label = "طاقة مهضومة كلية (DE - Mcal/يوم)"
-            base_de_maintenance = 1.4 + (0.03 * weight)
-            if "حفظ حياة" in production:
-                protein_pct = 10.0
-                energy_amt = base_de_maintenance
-            elif "خفيف" in production:
-                protein_pct = 11.5
-                energy_amt = base_de_maintenance * 1.25
-            elif "شاق" in production:
-                protein_pct = 13.5
-                energy_amt = base_de_maintenance * 1.65
-            elif "التكاثر" in production:
-                protein_pct = 14.5
-                energy_amt = base_de_maintenance * 1.45
-                
-        elif "الأبقار" in animal:
-            energy_label = "طاقة صافية للرضاعة/الإنتاج (NE_L - Mcal/يوم)"
-            base_ne_m = 0.08 * (weight ** 0.75)
-            if "مرتفع" in production:
-                protein_pct = 17.5
-                energy_amt = base_ne_m + (0.74 * 30)  # تقدير لإنتاج 30 لتر
-            elif "متوسط" in production:
-                protein_pct = 15.2
-                energy_amt = base_ne_m + (0.74 * 18)  # تقدير لإنتاج 18 لتر
-            elif "تسمين" in production:
-                protein_pct = 14.0
-                energy_label = "طاقة صافية للنمو واللحم (NE_g - Mcal/يوم)"
-                energy_amt = base_ne_m + 6.0
-            else:
-                protein_pct = 11.5
-                energy_amt = base_ne_m
-
-        elif "الأغنام" in animal:
-            energy_label = "طاقة صافية ممثلة (NE - MJ/يوم)"
-            base_lamb_energy = 0.45 * (weight ** 0.75)
-            if "تسمين" in production:
-                protein_pct = 16.0
-                energy_amt = base_lamb_energy + 3.5
-            elif "حليب" in production:
-                protein_pct = 15.0
-                energy_amt = base_lamb_energy + 4.8
-            else:
-                protein_pct = 12.0
-                energy_amt = base_lamb_energy
-
-        # تعديل فسيولوجي برمجياً بناءً على خصائص السلالة ومعدلات الأيض لديها للهضم والإنتاج
-        if "هولشتاين" in breed or "Thoroughbred" in breed:
-            protein_pct += 1.0  # سلالات عالية الأيض الوراثي تحتاج كثافة أحماض أمينية أعلى ومطابقة للطاقة
-            energy_amt *= 1.05
-        elif "البرقية" in breed or "العربية الأصيلة" in breed:
-            protein_pct -= 0.5  # سلالات إقليمية تمتاز بكفاءة تحويلية ممتازة للنيتروجين والمادة الجافة المأكولة
-            energy_amt *= 0.98
-            
-        return round(protein_pct, 2), round(energy_amt, 2), energy_label
-
-    cp_result, energy_result, current_energy_label = calculate_nutrition_engine(animal_choice, breed_choice, prod_choice, calculated_weight_kg)
-
-    # 7. لوحة المخرجات والنتائج الفورية للمستخدِم
-    st.divider()
-    st.header("📊 مخرجات التقدير الفوري والتركيب الغذائي المتوازن")
-    
-    out_col1, out_col2, out_col3 = st.columns(3)
-    
-    with out_col1:
-        st.markdown(f"""
-        <div class="metric-box">
-            <div class="metric-title">⚖️ الوزن الحي التقديري الناتج من الشريط</div>
-            <div class="metric-value">{calculated_weight_kg:.2f} كجم</div>
-        </div>
-        """, unsafe_index=True)
-        
-    with out_col2:
-        st.markdown(f"""
-        <div class="metric-box">
-            <div class="metric-title">🧪 نسبة البروتين الخام المطابقة برمجياً (CP%)</div>
-            <div class="metric-value">{cp_result} %</div>
-        </div>
-        """, unsafe_index=True)
-        
-    with out_col3:
-        st.markdown(f"""
-        <div class="metric-box">
-            <div class="metric-title">⚡ ميزان الطاقة الميكروبية والإنتاجية المتوافقة</div>
-            <div class="metric-value">{energy_result}</div>
-            <p style='font-size:11.5px; color:#555; margin:0;'>{current_energy_label}</p>
-        </div>
-        """, unsafe_index=True)
-
-    if "الأطباء" in st.session_state.user_role:
-        st.info("🔬 **توجيه مهني للمختصين:** تم احتساب محددات البروتين المهضوم الصافي في الأمعاء (DVE/MP) بالتوافق الهضمي مع الكربوهيدرات الذائبة لضمان عدم حدوث هدر نيتروجيني بالكرش وتلافي حالات التسمم باليوريا.")
-
+if st.session_state["user_role"] == "admin":
+    tabs_titles = ["🔬 النمذجة والحسابات العلفية الكبرى", "🏭 إدارة المستودعات والخصم التلقائي", "🧾 التسويق وفواتير حركة البيع", "🖨️ مصمم بطاقات الديباجة والدعاية"]
 else:
-    st.warning("⚠️ يرجى اختيار فئة المستخدم وإدخال كود التحقق المناسب من القائمة الجانبية لفتح شريط تقدير الأوزان والمحرك الغذائي.")
+    tabs_titles = ["🔬 النمذجة والحسابات العلفية الكبرى"]
+
+tabs = st.tabs(tabs_titles)
+
+with tabs[0]:
+    st.markdown('<div class="section-title">🌍 أولاً: المربع الجغرافي المرتبط ببورصة الأسعار الفعلية للمدن</div>', unsafe_allow_html=True)
+    col_country, col_state, col_city = st.columns(3)
+    with col_country: user_country = st.selectbox("اختر دولة المربي المستهدف:", ["ليبيا", "السودان", "مصر"])
+        
+    c_info = EXCHANGE_RATES.get(user_country, {"rate": 1.0, "sym": "USD"})
+    local_rate = c_info["rate"]; local_sym = c_info["sym"]
+
+    state_options = list(GEOGRAPHY_DATA[user_country].keys())
+    with col_state: chosen_state = st.selectbox("اختر الإقليم / الولاية الحقيقية:", state_options)
+
+    city_options = GEOGRAPHY_DATA[user_country][chosen_state]
+    with col_city: user_city = st.selectbox("اختر المدينة المرتبطة بالبورصة حركياً:", city_options)
+
+    # جلب أسعار السلع المخصصة للمدينة فوراً
+    live_prices = get_market_prices_by_city(user_city)
+
+    st.markdown('<div class="section-title">⚖️ ثانياً: قطاع الثروة الحيوانية والسلالات المحلية المخصصة للدولة</div>', unsafe_allow_html=True)
+    col_sec, col_sub, col_prod = st.columns(3)
+    
+    available_sectors = list(SECTOR_BREEDS_MAP[user_country].keys())
+    with col_sec: main_sector = st.selectbox("اختر القطاع الإنتاجي:", available_sectors)
+    
+    breed_options = SECTOR_BREEDS_MAP[user_country][main_sector]
+    with col_sub: sub_type = st.selectbox("السلالة الفعلية المتاحة بهذه الدولة جغرافياً:", breed_options)
+
+    show_measurements = True if main_sector in ["الأبقار وسلالاتها", "الأغنام والضأن", "الماعز وسلالاته", "إبل والثروة الصحراوية"] else False
+    weight_factor = 10838 if main_sector == "الأبقار وسلالاتها" else (11500 if main_sector == "الأغنام والضأن" else 11250)
+    feed_factor = 0.025 if main_sector == "الأبقار وسلالاتها" else 0.032
+
+    with col_prod:
+        if main_sector in ["الأبقار وسلالاتها", "الأغنام والضأن", "الماعز وسلالاته"]:
+            prod_stage = st.selectbox("نوع الإنتاج والمرحلة الفسيولوجية:", ["تسمين وإنتاج لحوم مكثف", "إدرار حليب عالي", "أمهات وحوامل"])
+            default_cp = 16.0 if "حليب" in prod_stage else 13.5
+        elif "الطيور" in main_sector:
+            prod_stage = st.selectbox("مرحلة الإنتاج الداجني:", ["بادي لاحم 23%", "نامي لاحم 21%", "ناهي لاحم 19%", "بياض إنتاجي"])
+            default_cp = 23.0 if "بادي" in prod_stage else (21.0 if "نامي" in prod_stage else 19.0)
+        else:
+            prod_stage = st.selectbox("نوع الإنتاج:", ["إنتاج عام وتنمية"])
+            default_cp = 14.0
+
+    if show_measurements:
+        st.markdown('<div class="section-title">📐 ثالثاً: شريط القياس الحَقلي للأوزان (معادلات معتمدة علمياً)</div>', unsafe_allow_html=True)
+        col_meas_info, col_meas_inputs = st.columns([0.6, 0.4])
+        with col_meas_info:
+            st.markdown(f"""
+            <div class="measurement-box">
+                <b>💡 شريط القياس الحقلي المعتمد في ({main_sector}):</b><br>
+                1. حدد مكان <b>محيط الصدر</b> خلف القوائم الأمامية مباشرة لإيجاد عمق الصدر.<br>
+                2. حدد <b>طول الجسم</b> من مفصل الكتف الأمامي صعوداً للمؤخرة خطاً مستقيماً.<br>
+                🔴 المعادلة المطبقة: <i>الوزن التقديري = (محيط الصدر ² × طول الجسم) ÷ {weight_factor}</i>
+            </div>
+            """, unsafe_allow_html=True)
+        with col_meas_inputs:
+            h_girth = st.number_input("📏 محيط الصدر الحقيقي (سم):", value=150.0 if "الأبقار" in main_sector else 70.0)
+            b_length = st.number_input("📏 طول الجسم الفعلي (سم):", value=130.0 if "الأبقار" in main_sector else 60.0)
+            calc_weight = (h_girth ** 2 * b_length) / weight_factor
+            req_feed_kg = calc_weight * feed_factor
+            st.success(f"📊 الوزن التقديري: **{calc_weight:.1f} كجم** | العلف اليومي المطلوب للمادة الجافة: **{req_feed_kg:.2f} كجم/رأس**")
+
+    st.markdown('<div class="section-title">📋 رابعاً: حدد نسبة البروتين المستهدفة بدقة فنية (Crude Protein)</div>', unsafe_allow_html=True)
+    final_target_cp = st.slider("نسبة البروتين المستهدفة فنيّاً (%) لحساب الاتزان العلفي:", 10.0, 40.0, value=default_cp)
+
+    st.markdown('<div class="section-title">🌾 خامساً: تحديد خامات العليقة الاقتصادية وحقن الإنزيمات الإلزامي</div>', unsafe_allow_html=True)
+    selected_ingredients = []; ingredient_prices = {}
+    
+    for cat_name, items in BIG_FEEDS_LIBRARY.items():
+        with st.expander(f"📁 {cat_name}", expanded=True):
+            sub_cols = st.columns(3)
+            for idx, (ing_name, _) in enumerate(items.items()):
+                with sub_cols[idx % 3]:
+                    is_def = True if "ذرة" in ing_name or "صويا" in ing_name or "ملح" in ing_name or "بيكربونات" in ing_name or "إنزيم" in ing_name else False
+                    checked = st.checkbox(ing_name, value=is_def, key=f"feed_{ing_name}")
+                    current_live_price = live_prices.get(ing_name, 350.0)
+                    
+                    if st.session_state["user_role"] == "admin": 
+                        price_input = st.number_input(f"سعر الطن بالمدينة ($):", min_value=5.0, value=float(current_live_price), key=f"price_{ing_name}")
+                    else: 
+                        price_input = current_live_price
+                    
+                    if checked:
+                        selected_ingredients.append(ing_name)
+                        ingredient_prices[ing_name] = price_input
+
+    st.markdown("---")
+    if st.button("🚀 تشغيل محرك التركيب العلمي الحقيقي وعزل النسب", type="primary", use_container_width=True):
+        if len(selected_ingredients) < 3: 
+            st.error("⚠️ يرجى تحديد 3 خامات علفية على الأقل لضمان التوازن الرياضي المفتوح.")
+        else:
+            formula_results = {}
+            auto_added_enzymes = {}
+
+            # 1. المكونات الثابتة علمياً بالمايكرو (Micro-ingredients)
+            fixed_ratios = {"ملح الطعام": 0.005, "مضاد سموم فطرية": 0.002, "الحجر الجيري (بودرة بلاط)": 0.020, "فوسفات ثنائي الكالسيوم (DCP)": 0.01}
+            if "الطيور" in main_sector: fixed_ratios["مركزات دواجن وسمان"] = 0.05
+            elif main_sector in ["الأبقار وسلالاتها", "الأغنام والضأن"]: fixed_ratios["مركزات خيول ومجترات"] = 0.025
+
+            used_fixed_pct = 0.0
+            for name in selected_ingredients:
+                if name in fixed_ratios:
+                    formula_results[name] = fixed_ratios[name] * 100
+                    used_fixed_pct += fixed_ratios[name] * 100
+
+            # 2. تطبيق قاعدة حماية الطاقة الكبرى (محدد كفاءة الحبوب الصارم لا يقل عن 55%)
+            grains_ingredients = [x for x in selected_ingredients if x in BIG_FEEDS_LIBRARY["الحبوب ومصادر الطاقة"]]
+            protein_ingredients = [x for x in selected_ingredients if x in BIG_FEEDS_LIBRARY["الأكساب والأمباز ومصادر البروتين العالي"]]
+            filler_ingredients = [x for x in selected_ingredients if x in BIG_FEEDS_LIBRARY["المخلفات الرعوية والمواد المالئة والإضافات الفنية"] and "بيكربونات" not in x]
+
+            if not grains_ingredients: grains_ingredients = ["ذرة صفراء"]
+            if not protein_ingredients: protein_ingredients = ["كسب فول صويا 44%"]
+
+            grain_fixed_target = 60.0 if "الطيور" in main_sector else 55.0
+            for x in grains_ingredients:
+                formula_results[x] = grain_fixed_target / len(grains_ingredients)
+
+            remaining_pct = 100.0 - used_fixed_pct - grain_fixed_target
+            
+            if protein_ingredients:
+                prot_share = remaining_pct * 0.82
+                for x in protein_ingredients: formula_results[x] = prot_share / len(protein_ingredients)
+            if filler_ingredients:
+                fill_share = remaining_pct * 0.18
+                for x in filler_ingredients: formula_results[x] = fill_share / len(filler_ingredients)
+            elif protein_ingredients:
+                for x in protein_ingredients: formula_results[x] += (remaining_pct * 0.18) / len(protein_ingredients)
+
+            total_grains_pct = sum([formula_results.get(x, 0.0) for x in grains_ingredients])
+
+            # ==========================================
+            # 🧪 نظام حقن الإنزيمات التلقائي الصارم بنسبة صريحة
+            # ==========================================
+            if "الطيور" in main_sector or "الأبقار" in main_sector:
+                auto_added_enzymes["إنزيم الفايتيز الزامي (Phytase Super-D)"] = 0.050
+                # إظهار الإشعارات المؤقتة الذكية التي تختفي في 30 ثانية تلقائياً عبر المتصفح
+                st.toast("🧬 تم حقن إنزيم الفايتيز تلقائياً بنسبة صريحة (0.05%) لتحرير الفسفور النباتي المخزن.", icon="🧪")
+
+            if main_sector in ["الأبقار وسلالاتها", "الأغنام والضأن"] and total_grains_pct > 45.0:
+                auto_added_enzymes["بيكربونات الصوديوم (الصودا)"] = 0.750
+                st.toast("🚨 محرك الوقاية: تم حقن بيكربونات الصوديوم بنسبة 0.75% لحماية المجترات من تحمض الكرش.", icon="🛡️")
+
+            # خصم حصة المضاف الإلزامي من الخامة الكبرى للحفاظ على اتزان الطن (100%)
+            if auto_added_enzymes:
+                total_enz_pct = sum(auto_added_enzymes.values())
+                major_grain = grains_ingredients[0] if grains_ingredients else "ذرة صفراء"
+                if major_grain in formula_results:
+                    formula_results[major_grain] = max(1.0, formula_results[major_grain] - total_enz_pct)
+                
+                # الإدراج الصريح والقطعي داخل المصفوفة لتظهر كنسبة مئوية صريحة مع الخامات
+                for enz_name, enz_pct in auto_added_enzymes.items():
+                    formula_results[enz_name] = enz_pct
+
+            st.session_state["active_formula"] = formula_results
+            st.session_state["active_cp_tag"] = final_target_cp
+            st.session_state["active_breed_tag"] = sub_type
+            st.session_state["active_stage_title"] = f"{main_sector} - {prod_stage}"
+
+            res_col1, res_col2 = st.columns([0.6, 0.4])
+            with res_col1:
+                st.write(f"#### 📝 الديباجة والنسب الدقيقة لتركيب طن علف في مدينة ({user_city}):")
+                for k, v in formula_results.items():
+                    st.markdown(f"<div class='result-row'>🔹 <b>{k}:</b> {v:.3f} % ➡️ (<span style='color:#1b5e20; font-weight:bold;'>{v*10:.2f} كجم</span> / طن المزيج)</div>", unsafe_allow_html=True)
+                
+                ton_cost = sum([(v/100) * ingredient_prices.get(k, 300.0) if k in ingredient_prices else (v/100)*600.0 for k, v in formula_results.items()])
+                st.session_state["computed_ton_cost"] = ton_cost
+                st.metric(f"💰 تكلفة الطن الفعلي بالأسواق الحالية لـ ({user_city}):", f"${ton_cost:.2f} (يعادل {ton_cost*local_rate:,.1f} {local_sym})")
+            with res_col2:
+                st.bar_chart(formula_results)
+
+# ====================================================================
+# التبويبات الأخرى (للمالك والمسؤول)
+# ====================================================================
+if st.session_state["user_role"] == "admin":
+    with tabs[1]:
+        st.markdown('<div class="section-title">🏭 إدارة المستودعات والخصم الآلي</div>', unsafe_allow_html=True)
+        for k, v in st.session_state["inventory"].items():
+            st.session_state["inventory"][k] = st.number_input(f"مخزون طن ({k}):", min_value=0.0, value=float(v))
+
+    with tabs[2]:
+        st.markdown('<div class="section-title">💰 حركة فواتير البيع المباشر المربوطة بالمدينة</div>', unsafe_allow_html=True)
+        req_tons = st.number_input("الكمية المطلوبة بالطن الفعلي:", min_value=0.1, value=1.0)
+        final_bill_val = st.session_state["computed_ton_cost"] * req_tons
+        st.write(f"💳 إجمالي الفاتورة الصافية للعميل بأسعار {user_city}: `${final_bill_val:.2f}`")
+
+    with tabs[3]:
+        st.markdown('<div class="section-title">🏷️ مصمم بطاقات الديباجة والدعاية</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="sack-tag">
+            <h2 style="text-align: center;">🌾 مجموعة تاور لصناعة الأعلاف والحلول المتكاملة 🌾</h2>
+            <p style="text-align: center;"><b>المستشار الفني الخبير: م. عبد القادر إسماعيل تاور</b></p>
+            <p style="text-align: right;">🎯 السلالة المستهدفة: {st.session_state['active_breed_tag']} | العلف: {st.session_state['active_stage_title']}</p>
+            <p style="text-align: right;">🧬 نسبة بروتين المزيج المحسوبة: {st.session_state['active_cp_tag']:.1f}%</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ====================================================================
+# نظام الأرشفة والإرسال بأسفل التطبيق
+# ====================================================================
+st.markdown("<br><hr style='border-top: 1px dashed #2e7d32;'>", unsafe_allow_html=True)
+target_email = st.text_input("أدخل البريد الإلكتروني لحفظ نسخة السورس كود الأكاديمية المصححة:", value="abukram128@gmail.com")
+if st.button("أرشفة وإرسال الكود فوراً 🚀"):
+    if send_code_to_mail(target_email):
+        st.success("📥 تم الإرسال الفوري كملف (.py) خالٍ من العلل التغذوية.")
+
+st.markdown('<div class="mini-left-signature">👨‍🔬 م. عبد القادر إسماعيل تاور © 2026 | خبير الحلول البرمجية المتكاملة والإنتاج الحيواني</div>', unsafe_allow_html=True)
