@@ -9,6 +9,14 @@ import base64
 # ==========================================
 st.set_page_config(page_title="منصة تاور الذكية المتكاملة للأعلاف والإنتاج الحيواني", page_icon="🌾", layout="wide")
 
+# منع أخطاء الـ KeyError وتوقف التطبيق بتثبيت متغيرات الجلسة أولاً وقبل أي شيء
+if "approved" not in st.session_state: st.session_state["approved"] = False
+if "user_role" not in st.session_state: st.session_state["user_role"] = None
+if "active_formula" not in st.session_state: st.session_state["active_formula"] = {"ذرة صفراء": 100.0}
+if "manual_cp_target" not in st.session_state: st.session_state["manual_cp_target"] = 16.0
+if "programmed_cp_actual" not in st.session_state: st.session_state["programmed_cp_actual"] = 16.0
+if "computed_ton_cost" not in st.session_state: st.session_state["computed_ton_cost"] = 250.0
+
 # بيانات التحكم والوصول والأمان
 USER_ADMIN = "تاور"       
 PASS_ADMIN = "202687"     
@@ -21,8 +29,11 @@ PHOTO_OPTIONS = ["14686.jpg", "1000069464.jpg", "14686.JPG", "1000069464.JPG"]
 def get_image_base64(paths):
     for path in paths:
         if os.path.exists(path):
-            with open(path, "rb") as image_file:
-                return base64.b64encode(image_file.read()).decode()
+            try:
+                with open(path, "rb") as image_file:
+                    return base64.b64encode(image_file.read()).decode()
+            except:
+                pass
     return None
 
 img_base64 = get_image_base64(PHOTO_OPTIONS)
@@ -97,9 +108,6 @@ st.markdown(
 # ==========================================
 # 2. بوابة الدخول وحماية النظام
 # ==========================================
-if "approved" not in st.session_state: st.session_state["approved"] = False
-if "user_role" not in st.session_state: st.session_state["user_role"] = None
-
 if not st.session_state["approved"]:
     st.markdown('<div class="main-box" style="max-width: 500px; margin: 100px auto; direction: rtl;">', unsafe_allow_html=True)
     st.markdown("<h2 style='color: #2E7D32; text-align:center;'>🔒 بوابـة الدخـول الذكيـة</h2>", unsafe_allow_html=True)
@@ -117,18 +125,4 @@ if not st.session_state["approved"]:
             st.session_state["user_role"] = "guest"
             st.rerun()
         else:
-            st.error("❌ بيانات الاعتماد غير صحيحة.")
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.stop()
-
-# =====================================================================
-# 3. إعداد موارد الصور وقاعدة البيانات الشاملة للمكتبة والبورصة
-# =====================================================================
-ANIMAL_IMAGES_RESOURCES = {
-    "الطيور والسمان": "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?q=80&w=600&auto=format&fit=crop",
-    "الأبقار وسلالاتها": "https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?q=80&w=600&auto=format&fit=crop",
-    "الماعز وسلالاته": "https://images.unsplash.com/photo-1524388680868-377a2e6bbb1c?q=80&w=600&auto=format&fit=crop",
-    "عام": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600&auto=format&fit=crop"
-}
-
-#
+            st.error("❌ بيانات الاعتماد غير
