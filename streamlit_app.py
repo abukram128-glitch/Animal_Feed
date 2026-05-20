@@ -362,7 +362,7 @@ with tabs[0]:
             for k, v in formula_results.items():
                 st.markdown(f"<div class='result-row'>🔹 <b>{k}:</b> {v:.2f} % ➡️ ({v*10:.1f} كجم / طن)</div>", unsafe_allow_html=True)
             
-            # احتساب التكلفة بشكل آمن ومرن يغطي المواد التلقائية والمدخلة
+            # معالجة جلب الأسعار بشكل شامل وآمن لمنع إسقاط تكلفة أي مادة مضافة برمجياً
             ton_cost = sum([(v/100) * ingredient_prices.get(k, feed_prices.get(k, 300.0)) for k, v in formula_results.items()])
             st.session_state["computed_ton_cost"] = ton_cost
             st.metric(f"💰 تكلفة طن العلف في بورصة أسواق ({user_city}):", f"${ton_cost:.2f} ( يعادل {ton_cost*c_info['rate']:,.1f} {c_info['sym']} )")
