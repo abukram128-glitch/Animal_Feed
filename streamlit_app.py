@@ -139,11 +139,10 @@ ANIMAL_IMAGES_RESOURCES = {
 }
 
 # منع أخطاء الـ KeyError بشكل قاطع بإنشاء متغيرات الجلسة مسبقاً
-if "active_animal_img" not in st.session_state: st.session_state["active_animal_img"] = ANIMAL_IMAGES_RESOURCES["عام"]
-if "active_formula" not in st.session_state: st.session_state["active_formula"] = {"ذرة صفراء": 100.0}
-if "manual_cp_target" not in st.session_state: st.session_state["manual_cp_target"] = 16.0
-if "programmed_cp_actual" not in st.session_state: st.session_state["programmed_cp_actual"] = 16.0
-if "computed_ton_cost" not in st.session_state: st.session_state["computed_ton_cost"] = 250.0
+if "active_formula" not in st.session_state: st.session_state["active_formula"] = None
+if "manual_cp_target" not in st.session_state: st.session_state["manual_cp_target"] = 21.0
+if "programmed_cp_actual" not in st.session_state: st.session_state["programmed_cp_actual"] = 0.0
+if "computed_ton_cost" not in st.session_state: st.session_state["computed_ton_cost"] = 0.0
 
 # قاعدة بيانات المواد الخام والإضافات المتكاملة
 BIG_FEEDS_LIBRARY = {
@@ -190,7 +189,6 @@ BIG_FEEDS_LIBRARY = {
     }
 }
 
-# استعادة بورصة الثروة الحيوانية والمنتجات الكاملة والسابقة
 if "global_livestock_prices" not in st.session_state:
     st.session_state["global_livestock_prices"] = {
         "عجول تسمين هولشتاين / محسن ($)": 1350.0, 
@@ -256,7 +254,7 @@ if st.session_state["user_role"] == "admin":
 tabs = st.tabs(tabs_titles)
 
 # ---------------------------------------------------------------------
-# التبويب الأول: محرك الحسابات (إظهار نسبة البروتين اليدوية والبرمجية)
+# التبويب الأول: محرك الحسابات
 # ---------------------------------------------------------------------
 with tabs[0]:
     st.markdown('<div class="section-title">🌍 أولاً: الموقع الجغرافي والربط اللوجستي</div>', unsafe_allow_html=True)
@@ -285,7 +283,7 @@ with tabs[0]:
     st.markdown('<div class="section-title">⚙️ ثانياً: ضبط الهدف وخلط التركيبة صامتاً</div>', unsafe_allow_html=True)
     col_sec, col_sub = st.columns(2)
     with col_sec: main_sector = st.selectbox("اختر القطاع الإنتاجي:", ["الطيور والسمان", "الأبقار وسلالاتها", "الماعز وسلالاته"])
-    with col_sub: target_cp_input = st.number_input("حدد نسبة البروتين المستهدفة يدوياً (الهدف %):", min_value=10.0, max_value=45.0, value=21.0)
+    with col_sub: target_cp_input = st.number_input("حدد نسبة البروتين المستهدفة يدوياً (الهدف %):", min_value=10.0, max_value=45.0, value=float(st.session_state["manual_cp_target"]))
     
     st.session_state["manual_cp_target"] = target_cp_input
 
@@ -341,7 +339,6 @@ with tabs[0]:
 
         total_grains_pct = sum([formula_results.get(x, 0.0) for x in grains])
 
-        # المعالجة الصامتة والمصححة تلقائياً في الخلفية
         if main_sector in ["الأبقار وسلالاتها", "الماعز وسلالاته"] and total_grains_pct > 45.0:
             auto_added_enzymes["بيكربونات الصوديوم (الصودا لمنع التحمض)"] = 0.75
         if main_sector in ["الطيور والسمان"]:
@@ -357,16 +354,20 @@ with tabs[0]:
             if m_grain in formula_results: formula_results[m_grain] = max(1.0, formula_results[m_grain] - tot_enz)
             for enz_n, enz_p in auto_added_enzymes.items(): formula_results[enz_n] = enz_p
 
-        # حساب نسبة البروتين الفعلية برمجياً الناتجة عن الخلط والتركيب
         computed_cp = 0.0
         for k, v in formula_results.items():
             cp_of_item = ingredient_cp_dict.get(k, 0.0)
             computed_cp += (v / 100.0) * cp_of_item
         
+        ton_cost = sum([(v/100) * ingredient_prices.get(k, 320.0) for k, v in formula_results.items()])
+        
+        # حفظ النتائج في Session State للحفاظ على ثبات العرض
         st.session_state["active_formula"] = formula_results
         st.session_state["programmed_cp_actual"] = computed_cp
+        st.session_state["computed_ton_cost"] = ton_cost
 
-        # عرض لوحة مقارنة نسب البروتين (البرمجية مقابل اليدوية)
+    # عرض النتائج خارج نطاق البوتون لضمان استقرار الواجهة وسلاستها
+    if st.session_state["active_formula"] is not None:
         st.markdown("### 🧬 لوحة الرقابة والمطابقة التحليلية للبروتين:")
         col_cp1, col_cp2 = st.columns(2)
         with col_cp1:
@@ -377,15 +378,16 @@ with tabs[0]:
         res_col1, res_col2 = st.columns([0.6, 0.4])
         with res_col1:
             st.markdown(f"#### 📝 أوزان الخلط النهائية للطن في سوق ({user_city}):")
-            for k, v in formula_results.items(): 
+            for k, v in st.session_state["active_formula"].items(): 
                 st.markdown(f"▪️ **{k}:** `{v:.2f} %` ➡️ (**{v*10:.1f} كجم** / الطن)")
             
-            ton_cost = sum([(v/100) * ingredient_prices.get(k, 320.0) for k, v in formula_results.items()])
-            st.metric("💰 التكلفة الحقيقية لإنتاج الطن بالعملة المحلية:", f"{ton_cost*local_rate:,.1f} {local_sym} (${ton_cost:.2f})")
-        with res_col2: st.bar_chart(formula_results)
+            curr_ton_cost = st.session_state["computed_ton_cost"]
+            st.metric("💰 التكلفة الحقيقية لإنتاج الطن بالعملة المحلية:", f"{curr_ton_cost*local_rate:,.1f} {local_sym} (${curr_ton_cost:.2f})")
+        with res_col2: 
+            st.bar_chart(st.session_state["active_formula"])
 
 # ---------------------------------------------------------------------
-# التبويب الثاني: طريقة قياس الوزن عبر الشريط مع الرسم التوضيحي للمربين
+# التبويب الثاني: طريقة قياس الوزن عبر الشريط
 # ---------------------------------------------------------------------
 with tabs[1]:
     st.markdown('<div class="section-title">📐 محاكاة حاسبة الوزن الحي عبر شريط القياس الفني للمربين</div>', unsafe_allow_html=True)
@@ -408,10 +410,8 @@ with tabs[1]:
         
         if st.button("🧮 احسب الوزن الحي التقريبي للحيوان"):
             if animal_calc_type == "أبقار وعجول تسمين":
-                # معادلة الوزن القياسية للأبقار: (محيط الصدر × محيط الصدر × طول الجسم) / 10838
                 estimated_weight = (girth_cm ** 2 * length_cm) / 10838.0
             else:
-                # معادلة الوزن للمجترات الصغيرة: (محيط الصدر × محيط الصدر × طول الجسم) / 11300
                 estimated_weight = (girth_cm ** 2 * length_cm) / 11300.0
                 
             st.markdown(
@@ -425,7 +425,6 @@ with tabs[1]:
             
     with col_img_disp:
         st.markdown("<p style='text-align:center; font-weight:bold; color:#1b5e20;'>📷 الدليل التوضيحي لكيفية أخذ القياسات على جسم الحيوان:</p>", unsafe_allow_html=True)
-        # توفير صورة مخصصة لشرح نقاط القياس (محيط الصدر وطول الجسم)
         st.image("https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?q=80&w=600", caption="تحديد موضع القياس: شريط حول الصدر خلف القوائم، وطول الجسم من الكتف إلى دبوس الحوض.")
 
 # ---------------------------------------------------------------------
@@ -449,7 +448,7 @@ with tabs[2]:
                 )
 
 # ---------------------------------------------------------------------
-# التبويب الرابع: استعادة وعرض بورصة الحيوانات الحية والمنتجات الكاملة والسابقة
+# التبويب الرابع: بورصة الحيوانات والمنتجات
 # ---------------------------------------------------------------------
 with tabs[3]:
     st.markdown(f'<div class="section-title">📊 أسعار بورصة الماشية والمنتجات المتطابقة مع أسواق ({user_city})</div>', unsafe_allow_html=True)
