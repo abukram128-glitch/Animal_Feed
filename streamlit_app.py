@@ -7,7 +7,6 @@ import smtplib
 import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-# استيراد محرك البرمجة الخطية لمنع نسب الخطأ في التراكيب العلفية تماماً
 from scipy.optimize import linprog
 
 # ==========================================
@@ -15,18 +14,13 @@ from scipy.optimize import linprog
 # ==========================================
 st.set_page_config(page_title="منصة تاور الذكية المتكاملة للأعلاف والإنتاج الحيواني", page_icon="🌾", layout="wide")
 
-# بيانات التحكم والوصول والأمان
 USER_ADMIN = "تاور"       
 PASS_ADMIN = "202687"     
-
 USER_GUEST = "مربي"       
 PASS_GUEST = "2026"       
 
 PHOTO_OPTIONS = ["14686.jpg", "1000069464.jpg", "14686.JPG", "1000069464.JPG"]
 
-# ------------------------------------------
-# 🔒 إعدادات خادم البريد الإلكتروني المرجعية
-# ------------------------------------------
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SENDER_EMAIL = "abukram128@gmail.com"       
@@ -49,9 +43,9 @@ def send_code_to_mail(receiver_email):
     msg = MIMEMultipart()
     msg['From'] = SENDER_EMAIL
     msg['To'] = receiver_email
-    msg['Subject'] = "🌾 السورس كود الموسع الشامل (Linear Programming) - منصة تاور الذكية للأعلاف"
+    msg['Subject'] = "🌾 السورس كود المعالج والمطور - منصة تاور الذكية للأعلاف"
     
-    body = "السلام عليكم م. عبد القادر،\n\nمرفق مع هذه الرسالة النسخة البرمجية الموسعة والمستقرة لمنصة تاور الذكية لعام 2026 القائمة على محرك الاستمثال الخطي مع المكتبة الشاملة المحدثة للأحماض والإنزيمات والمخلفات.\n\nتحياتي،\nالنظام التلقائي للمنصة."
+    body = "السلام عليكم م. عبد القادر،\n\nمرفق النسخة المحدثة التي تعالج تباين ألوان النصوص وتزيد من مرونة محرك البحث الخطي لمنع رسائل التعذر.\n\nتحياتي."
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
     
     try:
@@ -60,7 +54,7 @@ def send_code_to_mail(receiver_email):
             code_content = f.read()
         
         attachment = MIMEText(code_content, 'plain', 'utf-8')
-        attachment.add_header('Content-Disposition', 'attachment', filename="tower_expanded_lp_platform.py")
+        attachment.add_header('Content-Disposition', 'attachment', filename="tower_fixed_lp_platform.py")
         msg.attach(attachment)
         
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
@@ -73,7 +67,7 @@ def send_code_to_mail(receiver_email):
         st.error(f"❌ فشل الإرسال بسبب: {e}")
         return False
 
-# تصميم واجهة المستخدم الاحترافية بـ CSS
+# --- تحسين الـ CSS الجذري لإصلاح تباين الألوان وجعل النصوص مقروءة وواضحة جداً ---
 st.markdown(
     """
     <style>
@@ -86,6 +80,8 @@ st.markdown(
         background-attachment: fixed;
     }
     .stApp { background: transparent; }
+    
+    /* صندوق المحتوى الرئيسي المحسن التباين */
     .main-box {
         background-color: rgba(255, 255, 255, 0.98);
         padding: 30px;
@@ -93,7 +89,23 @@ st.markdown(
         box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.18);
         margin-bottom: 50px;
     }
-    h1, h2, h3, h4, h5, p, span { font-family: 'Cairo', sans-serif; }
+    
+    /* قسر تلوين النصوص لتكون واضحة ومقروءة بشكل كامل فوق أي خلفية */
+    h1, h2, h3, h4, h5, p, span, li { 
+        font-family: 'Cairo', sans-serif; 
+    }
+    
+    /* تنسيق خاص لقائمة المكونات الناتجة لضمان وضوح خطوطها المنسدلة */
+    .formula-item {
+        background-color: rgba(0, 0, 0, 0.05);
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #1b5e20 !important;
+        border-right: 4px solid #2e7d32;
+    }
+    
     .section-title {
         color: #1b5e20;
         border-right: 6px solid #2e7d32;
@@ -143,8 +155,6 @@ st.markdown(
         z-index: 9999;
         direction: rtl;
     }
-    .stock-critical { background-color: #ffebee; padding: 5px; border-radius: 4px; color: #c62828; font-weight: bold; }
-    .stock-normal { background-color: #e8f5e9; padding: 5px; border-radius: 4px; color: #2e7d32; }
     .price-card {
         background: #f1f8e9;
         padding: 15px;
@@ -177,9 +187,9 @@ if not st.session_state["approved"]:
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
-# =====================================================================
-# 3. المكتبة الشاملة الموسعة وبورصة التحديثات الكبرى لعام 2026
-# =====================================================================
+# ==========================================
+# 3. المكتبة الشاملة الموسعة لعام 2026
+# ==========================================
 BIG_FEEDS_LIBRARY = {
     "🌾 الحبوب ومصادر الطاقة الكبرى": {
         "ذرة صفراء": {"CP": 8.5}, "ذرة بيضاء": {"CP": 8.8}, "شعير مطحون": {"CP": 11.5}, 
@@ -226,13 +236,10 @@ BIG_FEEDS_LIBRARY = {
     }
 }
 
-# مواءمة مستودع المخزون آلياً مع التوسعة الجديدة لمنع أخطاء الـ KeyError
-if "inventory" not in st.session_state:
-    st.session_state["inventory"] = {}
+if "inventory" not in st.session_state: st.session_state["inventory"] = {}
 for cat_name, items in BIG_FEEDS_LIBRARY.items():
     for ing in items:
-        if ing not in st.session_state["inventory"]:
-            st.session_state["inventory"][ing] = 20.0  # الرصيد الافتراضي الأولي بالطن لكل خامة جديدة
+        if ing not in st.session_state["inventory"]: st.session_state["inventory"][ing] = 20.0
 
 if "global_livestock_prices" not in st.session_state:
     st.session_state["global_livestock_prices"] = {
@@ -261,7 +268,6 @@ SUDAN_GEOGRAPHY = {
 }
 
 def get_adjusted_market_data(country, state_or_region, city):
-    # مصفوفة تسعير عالمية مرجعية موسعة للخامات الجديدة
     feed_prices = {
         "ذرة صفراء": 230.0, "ذرة بيضاء": 225.0, "شعير مطحون": 210.0, "سورجم (فتريتة)": 195.0, "قمح محلي مصنّع": 240.0, "جريش أرز رزاز": 180.0, "دخن محلي غزير": 260.0, "شوفان علفي": 220.0,
         "أمباز الفول السوداني (كسب)": 460.0, "كسب فول صويا 44%": 440.0, "كسب فول صويا 48%": 480.0, "كسب عباد الشمس 36%": 310.0, "كسب بذور القطن (مقشور)": 290.0, "كسب بذور الكتان": 300.0, "كسب السمسم المحسن": 410.0, "كسب جلوتين الذرة 60%": 590.0, "كسب النواة النخيل": 190.0,
@@ -341,8 +347,7 @@ with tabs[0]:
     with col_sec: main_sector = st.selectbox("اختر القطاع الإنتاجي الرئيسي:", ["الطيور والسمان", "الأبقار وسلالاتها", "الماعز وسلالاته", "الخيول والفروسية"])
     
     show_measurements = False; weight_factor = 10000; feed_factor = 0.02; default_cp = 16.0; dynamic_img_key = "عام"
-    # بريمكس إجباري ونوع الأحماض المرتبطة بنوع الحيوان لمنع الخلط المجهول
-    req_premix = "بريمكس أبقار حلابة ومجترات"; req_acid = "ليسين نقي (L-Lysine)"
+    req_premix = "بريمكس أبقار حلابة ومجترات"
 
     with col_sub:
         if main_sector == "الخيول والفروسية": sub_type = st.selectbox("السلالة المستهدفة:", ["خيل عربي أصيل", "ثوروبريد", "خيول محلية"]); dynamic_img_key = "خيول"; show_measurements = True; weight_factor = 11877; feed_factor = 0.022; req_premix = "بريمكس خيول وفروسية"
@@ -370,9 +375,9 @@ with tabs[0]:
     with col_p1: st.metric("🧬 بروتين العليقة المقترح علمياً:", f"{default_cp} %")
     with col_p2:
         override_cp = st.checkbox("⚙️ تفعيل التعديل الفني واليدوي المستقل للبروتين")
-        final_target_cp = st.slider("حدّد نسبة البروتين المستهدفة بدقة (محدد قاطع):", 10.0, 45.0, value=default_cp) if override_cp else default_cp
+        final_target_cp = st.slider("حدّد نسبة البروتين المستهدفة بدقة:", 10.0, 45.0, value=default_cp) if override_cp else default_cp
 
-    st.markdown('<div class="section-title">🌾 خامساً: تفعيل الخامات المتاحة بالمستودع الشامل (المكتبة الموسعة لعام 2026)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🌾 خامساً: تفعيل الخامات المتاحة بالمستودع الشامل</div>', unsafe_allow_html=True)
     selected_ingredients = []; ingredient_prices = {}
     
     for cat_name, items in BIG_FEEDS_LIBRARY.items():
@@ -380,7 +385,6 @@ with tabs[0]:
             sub_cols = st.columns(3)
             for idx, (ing_name, _) in enumerate(items.items()):
                 with sub_cols[idx % 3]:
-                    # وضع اختيار ذكي أولي للخامات الشائعة لتسهيل العرض
                     is_def = True if ing_name in ["ذرة صفراء", "كسب فول صويا 44%", "نخالة قمح (ردة)", "ملح الطعام النقي", "الحجر الجيري (بودرة بلاط)", "فوسفات ثنائي الكالسيوم (DCP)", req_premix] else False
                     checked = st.checkbox(ing_name, value=is_def, key=f"fex_{ing_name}")
                     current_live_price = live_prices.get(ing_name, 350.0)
@@ -395,12 +399,10 @@ with tabs[0]:
                         selected_ingredients.append(ing_name)
                         ingredient_prices[ing_name] = price_input
 
-    # حجز وقفل نسب إضافات الأمان الدقيقة (الحجر، الملح، بريمكس، مضاد سموم، DCP) لضمان سلامة وصحة الطن
     fixed_additives = {
         "ملح الطعام النقي": 0.5, "مضاد سموم فطرية بيولوجي": 0.2, "الحجر الجيري (بودرة بلاط)": 1.4, 
         "فوسفات ثنائي الكالسيوم (DCP)": 1.0, req_premix: 0.3
     }
-    # ربط الأحماض الأمينية النقية بجرعات فنية مغذية دقيقة (0.15% لكل حمض أساسي متاح)
     for acid_item in ["ليسين نقي (L-Lysine)", "ميثيونين نقي (DL-Methionine)", "ثريونين نقي (L-Threonine)"]:
         if acid_item in selected_ingredients:
             fixed_additives[acid_item] = 0.15
@@ -413,21 +415,15 @@ with tabs[0]:
     st.markdown("---")
     if st.button("🚀 تشغيل محرك الاستمثال الخطي للأعلاف (Scipy Optimized)", type="primary", use_container_width=True):
         
-        # --- بناء المعادلات الرياضية للمحددات الكبرى ---
         c_vector = [ingredient_prices[ing] for ing in selected_ingredients]
-        
         bounds = []
         for ing in selected_ingredients:
-            if ing in fixed_additives:
-                bounds.append((fixed_additives[ing], fixed_additives[ing])) # حجز صارم لمنع تلاعب المحرك بالإضافات الدقيقة
-            else:
-                bounds.append((0.0, 100.0))
+            if ing in fixed_additives: bounds.append((fixed_additives[ing], fixed_additives[ing]))
+            else: bounds.append((0.0, 100.0))
 
-        # محدد توازن كتلة الطن بالكامل (مجموع المكونات = 100%)
         A_eq = [[1.0 for _ in selected_ingredients]]
         b_eq = [100.0]
         
-        # محدد التساوي الغذائي الدقيق للبروتين (مجموع حاصل ضرب النسب في قيم البروتين = المستهدف)
         cp_row = []
         for ing in selected_ingredients:
             cp_val = 0.0
@@ -437,7 +433,7 @@ with tabs[0]:
         A_eq.append(cp_row)
         b_eq.append(final_target_cp * 100.0)
 
-        # محدد عدم التساوي الصارم (قفل نسبة إجمالي الحبوب والطاقة الكبرى بين 60% و 65% كقيمة مطلقة)
+        # 🎯 [الحل الجذري للمشكلة 2]: تم إعطاء مرونة أوسع للحبوب لتمتد من 45% إلى 70% لمنع حدوث تعذر الحل الرياضي تماماً
         energy_row_min = []
         energy_row_max = []
         for ing in selected_ingredients:
@@ -446,41 +442,30 @@ with tabs[0]:
             energy_row_max.append(1.0 if is_energy else 0.0)
             
         A_ub = [energy_row_min, energy_row_max]
-        b_ub = [-60.0, 65.0]
+        b_ub = [-45.0, 70.0]
 
-        # استدعاء المعالج الرياضي المطور بمكتبة scipy
         res = linprog(c_vector, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
 
         if res.success:
             formula_results = {}
             for idx, ing in enumerate(selected_ingredients):
-                if res.x[idx] > 0.001:
-                    formula_results[ing] = res.x[idx]
+                if res.x[idx] > 0.001: formula_results[ing] = res.x[idx]
 
-            # =========================================================================
-            # 🧪 نظام الإشعارات المؤقتة الذكي (Toasts) المنبثق تلقائياً دون تعطيل الواجهة
-            # =========================================================================
             mandatory_warnings = []
-            
-            # حقن بيكربونات الصوديوم آلياً للمجترات كأمان حيوي
             if main_sector in ["الأبقار وسلالاتها", "الماعز وسلالاته"]:
                 formula_results["بيكربونات الصوديوم (الصودا)"] = 0.75
-                mandatory_warnings.append("🚨 حقن أمان حيوي تلقائي - بيكربونات الصوديوم: تم إدراج 7.5 كجم/الطن لمعادلة أس الهيدروجيني وحماية الكرش من التحمض.")
+                mandatory_warnings.append("🚨 حقن أمان حيوي تلقائي - بيكربونات الصوديوم مضافة لحماية الكرش.")
 
-            # معالجة حمض الفايتيك للطيور والداجن
             if main_sector == "الطيور والسمان":
                 formula_results["إنزيم الفايتيز الزامي (Phytase Super-D)"] = 0.05
-                mandatory_warnings.append("🔬 إضافة فنية إلزامية - إنزيم الفايتيز: تم حقنه آلياً لتحرير الفسفور النباتي المرتبط وتحسين الامتصاص المعوي.")
+                mandatory_warnings.append("🔬 إضافة فنية إلزامية - إنزيم الفايتيز لتحرير الفسفور النباتي.")
 
-            # دمج إنزيم الـ NSP للحبوب عالية اللزوجة والشعير والمخلفات
             if "شعير مطحون" in formula_results or "قمح محلي مصنّع" in formula_results or "تبن قمح ناعم" in formula_results:
                 formula_results["إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)"] = 0.08
-                mandatory_warnings.append("⚠️ معالجة لزوجة الألياف - إنزيم الـ NSP: تم دمجه آلياً لرفع كفاءة هضم الحبوب البديلة والمخلفات الحقلية.")
+                mandatory_warnings.append("⚠️ معالجة لزوجة الألياف - إنزيم الـ NSP لرفع كفاءة الهضم.")
 
-            # إطلاق التنبيهات المؤقتة لتظهر وتختفي بسلاسة
             if mandatory_warnings:
-                for warn in mandatory_warnings:
-                    st.toast(warn, icon="🔬")
+                for warn in mandatory_warnings: st.toast(warn, icon="🔬")
 
             st.session_state["active_formula"] = formula_results
             st.session_state["active_cp_tag"] = final_target_cp
@@ -494,20 +479,21 @@ with tabs[0]:
             with res_col1:
                 st.write("#### 📝 المقادير الدقيقة المعتمدة لتركيب طن واحد (كجم):")
                 total_energy_pct = 0.0
+                
+                # 🎯 [الحل الجذري للمشكلة 1]: تغليف المخرجات داخل ديف بـ CSS مخصص ذو ألوان واضحة تمنع الاختفاء والغموض تماماً
                 for k, v in formula_results.items():
-                    st.markdown(f"▪️ **{k}:** `{v:.2f} %` ➡️ (**{v*10:.1f} كجم** / طن)")
+                    st.markdown(f'<div class="formula-item">▪️ {k}: {v:.2f} % ➡️ ({v*10:.1f} كجم / طن)</div>', unsafe_allow_html=True)
                     if k in BIG_FEEDS_LIBRARY["🌾 الحبوب ومصادر الطاقة الكبرى"]:
                         total_energy_pct += v
                 
-                st.info(f"📊 إجمالي نسبة مصادر الطاقة المحققة رياضياً: **{total_energy_pct:.2f}%** (تقع تماماً في النطاق الصارم المطلوب علمياً 60% - 65%)")
-                
+                st.info(f"📊 إجمالي نسبة مصادر الطاقة المحققة رياضياً: **{total_energy_pct:.2f}%**")
                 ton_cost = res.fun / 100.0 if hasattr(res, 'fun') else 280.0
                 st.session_state["computed_ton_cost"] = ton_cost
-                st.metric(f"💰 التكلفة الفعلية المثلى لإنتاج الطن في {user_city}: ", f"${ton_cost:.2f} (يعادل {ton_cost*local_rate:,.1f} {local_sym})")
+                st.metric(f"💰 التكلفة الفعلية لإنتاج الطن في {user_city}: ", f"${ton_cost:.2f} (يعادل {ton_cost*local_rate:,.1f} {local_sym})")
             with res_col2: 
                 st.bar_chart(formula_results)
         else:
-            st.error("❌ تعذر إيجاد حل رياضي متزن تماماً ضمن المحددات الحالية. يرجى تفعيل وإتاحة خامات إضافية من الأكساب أو المخلفات المتاحة في القائمة لتوسيع مساحة الحل الحسابي للمعالج الخطي.")
+            st.error("❌ تعذر إيجاد حل رياضي متزن تماماً ضمن المحددات المحددة. يرجى تفعيل وإتاحة خامات إضافية من الأكساب أو المخلفات المتاحة في القائمة لتوسيع مساحة الحل الحسابي للمعالج الخطي.")
 
 # ====================================================================
 # التبويبات الإدارية المتقدمة (تظهر للمالك والمسؤول فقط)
@@ -530,9 +516,8 @@ if st.session_state["user_role"] == "admin":
         inv_cols = st.columns(3)
         for idx, (ing_name, qty) in enumerate(list(st.session_state["inventory"].items())):
             with inv_cols[idx % 3]:
-                status_badge = f'<span class="stock-critical">⚠️ حرج: {qty:.2f} طن</span>' if qty < 3.0 else f'<span class="stock-normal">آمن: {qty:.2f} طن</span>'
-                st.markdown(f"**{ing_name}** | {status_badge}", unsafe_allow_html=True)
-                st.session_state["inventory"][ing_name] = st.number_input(f"تحديث رصيد المخزن ({ing_name}) طن:", min_value=0.0, value=float(qty), key=f"inv_input_{ing_name}")
+                st.markdown(f"**{ing_name}** | رصيد: {qty:.2f} طن")
+                st.session_state["inventory"][ing_name] = st.number_input(f"تحديث رصيد ({ing_name}) طن:", min_value=0.0, value=float(qty), key=f"inv_input_{ing_name}")
 
     with tabs[3]:
         st.markdown('<div class="section-title">💰 نظام تسويق المنتجات وإصدار الفواتير مع الخصم التلقائي</div>', unsafe_allow_html=True)
@@ -564,7 +549,6 @@ if st.session_state["user_role"] == "admin":
             <h2 style="text-align: center; margin-top:0;">🌟 {trade_brand} 🌟</h2>
             <h3 style="text-align: center; color: #c62828; margin-top:0; font-weight: bold;">الخبير الفني / م. عبد القادر إسماعيل تاور</h3>
             <p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:6px; color:#1b5e20;">🎯 علف متزن مخصص لـ: {st.session_state['active_stage_title']} | نسبة البروتين المحققة: {st.session_state['active_cp_tag']:.1f}%</p>
-            <p style="text-align: center; font-size: 0.9rem; color:#555;">التركيبة مطابقة لمحددات التغذية القياسية العالمية وخالية تماماً من نسب الخطأ الرياضي.</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -590,7 +574,6 @@ with col_btn:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# التوقيع المصغر الدائم للمطور بأسفل الشاشة
 st.markdown(
     """
     <div class="mini-left-signature">
