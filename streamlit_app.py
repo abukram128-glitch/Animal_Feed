@@ -52,7 +52,6 @@ def send_code_to_mail(receiver_email):
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
     
     try:
-        # البحث عن اسم الملف الحالي لقراءته وإرساله ديناميكياً
         current_file = __file__
         with open(current_file, "r", encoding="utf-8") as f:
             code_content = f.read()
@@ -61,7 +60,6 @@ def send_code_to_mail(receiver_email):
         attachment.add_header('Content-Disposition', 'attachment', filename="tower_smart_platform.py")
         msg.attach(attachment)
         
-        # الاتصال بخادم جوجل الآمن
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
@@ -198,15 +196,22 @@ if not st.session_state["approved"]:
 # =====================================================================
 # 3. الهيكل الافتراضي للمخازن وبورصة تاور العالمية الشاملة ($)
 # =====================================================================
+# مكتبة الخامات الموسعة لتشمل الأحماض والإنزيمات المضافة حديثاً للمخزن
+INITIAL_INVENTORY = {
+    "ذرة صفراء": 25.0, "ذرة بيضاء": 10.0, "شعير مطحون": 15.0, "سورجم (فتريتة)": 15.0, "قمح محلي مصنّع": 12.0,
+    "أمباز الفول السوداني (كسب)": 20.0, "كسب فول صويا 44%": 14.0, "كسب فول صويا 48%": 18.0, "كسب عباد الشمس 36%": 10.0, "كسب بذور القطن": 8.0,
+    "نخالة قمح (ردة)": 20.0, "البرسيم الجاف (الدريس)": 30.0, "مولاس": 5.0,
+    "مسحوق أسماك (Fishmeal 60%)": 4.0, "مركزات دواجن وسمان": 3.5, "مركزات خيول ومجترات": 3.5,
+    "الحجر الجيري (بودرة بلاط)": 6.0, "فوسفات ثنائي الكالسيوم (DCP)": 3.0, "ملح الطعام": 2.5, "مضاد سموم فطرية": 1.2,
+    "بيكربونات الصوديوم (الصودا)": 5.0,
+    # الإنزيمات المضافة للمكتبة والمخزن
+    "إنزيم الفايتيز الزامي (Phytase Super-D)": 1.0, "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)": 1.0, "بروتييز (Protease)": 0.8,
+    # الأحماض الأمينية المضافة للمكتبة والمخزن
+    "ليسين نقي (L-Lysine)": 1.5, "ميثيونين نقي (DL-Methionine)": 1.5, "ثريونين (L-Threonine)": 1.2
+}
+
 if "inventory" not in st.session_state:
-    st.session_state["inventory"] = {
-        "ذرة صفراء": 25.0, "ذرة بيضاء": 10.0, "شعير مطحون": 15.0, "سورجم (فتريتة)": 15.0, "قمح محلي مصنّع": 12.0,
-        "أمباز الفول السوداني (كسب)": 20.0, "كسب فول صويا 44%": 14.0, "كسب فول صويا 48%": 18.0, "كسب عباد الشمس 36%": 10.0, "كسب بذور القطن": 8.0,
-        "نخالة قمح (ردة)": 20.0, "البرسيم الجاف (الدريس)": 30.0, "مولاس": 5.0,
-        "مسحوق أسماك (Fishmeal 60%)": 4.0, "مركزات دواجن وسمان": 3.5, "مركزات خيول ومجترات": 3.5,
-        "الحجر الجيري (بودرة بلاط)": 6.0, "فوسفات ثنائي الكالسيوم (DCP)": 3.0, "ملح الطعام": 2.5, "مضاد سموم فطرية": 1.2,
-        "بيكربونات الصوديوم (الصودا)": 5.0
-    }
+    st.session_state["inventory"] = INITIAL_INVENTORY
 
 if "global_livestock_prices" not in st.session_state:
     st.session_state["global_livestock_prices"] = {
@@ -237,6 +242,28 @@ EXCHANGE_RATES = {
     "باقي دول العالم / البورصة المفتوحة": {"rate": 1.0, "sym": "USD"}
 }
 
+# هيكل بيانات كامل وشامل لكل ولايات ومدن السودان الـ 18 بدون استثناء
+SUDAN_GEOGRAPHY = {
+    "ولاية الخرطوم": ["الخرطوم", "أم درمان", "بحري", "شرق النيل", "جبل أولياء"],
+    "ولاية الجزيرة": ["ود مدني", "الحصاحيصا", "المناقل", "الكاملين", "رفاعة", "أبو عِشَر"],
+    "ولاية القضارف": ["القضارف المدينة", "الفاو", "الحواتة", "المفازة", "دوكة"],
+    "ولاية كسلا": ["كسلا", "حلفا الجديدة", "خشم القربة", "أروما"],
+    "ولاية سنار": ["سنار", "سنجة", "السوكي", "الدندر", "أبو حجار"],
+    "ولاية النيل الأزرق": ["الدمازين", "الروصيرص", "باو", "قيسان", "الكرمك"],
+    "ولاية النيل الأبيض": ["ربك", "كextended ستي", "الدويم", "القطينة", "تندلتي"],
+    "ولاية شمال كردفان": ["الأبيض", "بارا", "أم روابة", "الرهد"],
+    "ولاية جنوب كردفان": ["كادوقلي", "الدلنج", "العباسية", "تلودي"],
+    "ولاية غرب كردفان": ["الفولة", "النهود", "بابنوسة", "غبيش"],
+    "ولاية شمال دارفور": ["الفاشر", "كبكابية", "مليط", "kutum"],
+    "ولاية جنوب دارفور": ["نيالا", "عد الفرسان", "كاس", "رهيد البردي"],
+    "ولاية غرب دارفور": ["الجنينة", "كلبس", "فوربرنقا"],
+    "ولاية وسط دارفور": ["زالنجي", "روكرو", "وادي صالح"],
+    "ولاية شرق دارفور": ["الضعين", "عسلاية", "أبو كارنكا"],
+    "ولاية البحر الأحمر": ["بورتسودان", "سواكن", "طوكر", "هيا"],
+    "ولاية نهر النيل": ["الدامر", "عطبرة", "شندي", "المتمة", "بربر", "أبو حمد"],
+    "ولاية الشمالية": ["دنقلا", "مروي", "كريمة", "حلفا", "الدبة"]
+}
+
 def get_adjusted_market_data(country, state_or_region, city):
     feed_prices = {
         "ذرة صفراء": 230.0, "ذرة بيضاء": 225.0, "شعير مطحون": 210.0, "سورجم (فتريتة)": 195.0, "قمح محلي مصنّع": 240.0,
@@ -244,13 +271,16 @@ def get_adjusted_market_data(country, state_or_region, city):
         "نخالة قمح (ردة)": 150.0, "البرسيم الجاف (الدريس)": 170.0, "مولاس": 120.0,
         "مسحوق أسماك (Fishmeal 60%)": 850.0, "مركزات دواجن وسمان": 650.0, "مركزات خيول ومجترات": 600.0,
         "الحجر الجيري (بودرة بلاط)": 40.0, "فوسفات ثنائي الكالسيوم (DCP)": 280.0, "ملح الطعام": 30.0, "مضاد سموم فطرية": 950.0,
-        "بيكربونات الصوديوم (الصودا)": 340.0
+        "بيكربونات الصوديوم (الصودا)": 340.0,
+        # أسعار تقديرية للطن للإنزيمات والأحماض المضافة حديثاً بالدولار
+        "إنزيم الفايتيز الزامي (Phytase Super-D)": 1500.0, "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)": 1800.0, "بروتييز (Protease)": 2000.0,
+        "ليسين نقي (L-Lysine)": 2200.0, "ميثيونين نقي (DL-Methionine)": 2800.0, "ثريونين (L-Threonine)": 2400.0
     }
     
     multiplier = 1.0
     if country == "السودان":
         multiplier = 1.15
-        if "كردفان" in state_or_region or state_or_region == "إقليم النيل الأزرق":
+        if "كردفان" in state_or_region or state_or_region == "ولاية النيل الأزرق":
             multiplier = 1.20
             feed_prices["سورجم (فتريتة)"] *= 0.85
             feed_prices["أمباز الفول السوداني (كسب)"] *= 0.85
@@ -266,6 +296,7 @@ def get_adjusted_market_data(country, state_or_region, city):
     for k in feed_prices: feed_prices[k] *= multiplier
     return feed_prices
 
+# إضافة الإنزيمات والأحماض الأمينية رسمياً إلى مكتبة المنصة الشاملة مع تحديد أولوياتها وقيم بروتينها التقديرية
 BIG_FEEDS_LIBRARY = {
     "الحبوب ومصادر الطاقة": {
         "ذرة صفراء": {"CP": 8.5, "priority": 1.3}, 
@@ -289,6 +320,16 @@ BIG_FEEDS_LIBRARY = {
     },
     "الإضافات المتخصصة والمركزات دقيقة الخلط": {
         "مركزات دواجن وسمان": {"CP": 40.0}, "مركزات خيول ومجترات": {"CP": 36.0}, "الحجر الجيري (بودرة بلاط)": {"CP": 0.0}, "فوسفات ثنائي الكالسيوم (DCP)": {"CP": 0.0}, "ملح الطعام": {"CP": 0.0}, "مضاد سموم فطرية": {"CP": 0.0}
+    },
+    "🔬 الإنزيمات والمحفزات الحيوية المضافة حديثاً": {
+        "إنزيم الفايتيز الزامي (Phytase Super-D)": {"CP": 0.0},
+        "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)": {"CP": 0.0},
+        "بروتييز (Protease)": {"CP": 0.0}
+    },
+    "🧬 الأحماض الأمينية النقيّة والمعدّلات": {
+        "ليسين نقي (L-Lysine)": {"CP": 94.0},
+        "ميثيونين نقي (DL-Methionine)": {"CP": 58.0},
+        "ثريونين (L-Threonine)": {"CP": 72.0}
     }
 }
 
@@ -321,7 +362,7 @@ with col_logo:
 
 with col_title:
     st.markdown("<h1 style='color: #1b5e20; text-align:right; margin-bottom:0;'>منصة تاور الذكية للإنتاج الحيواني وصناعة الأعلاف 🌾</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #1565C0; text-align:right; font-size:1.2rem; margin-top:5px; margin-bottom:0;'>محرك الإنزيمات التلقائي والإلزامي المتكامل وتعديل المحتوى الأيوني والبيكربونات</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #1565C0; text-align:right; font-size:1.2rem; margin-top:5px; margin-bottom:0;'>محرك الإنزيمات التلقائي والإلزامي المتكامل وتعديل المحتوى الأيوني والبيكربونات للأحماض والولايات</p>", unsafe_allow_html=True)
     st.markdown("<h3 style='color: #c62828; text-align:right; font-weight: bold; margin-top: 5px;'>الخبير المستشار / م. عبد القادر إسماعيل تاور</h3>", unsafe_allow_html=True)
 
 st.markdown("<hr style='border-top: 2px solid #2e7d32;'>", unsafe_allow_html=True)
@@ -344,21 +385,13 @@ with tabs[0]:
     chosen_state = "عام"
     with col_state:
         if user_country == "السودان":
-            chosen_state = st.selectbox("اختر الولاية السودانية المحدثة:", ["ولاية الخرطوم", "ولاية الجزيرة", "ولاية القضارف", "ولاية شمال كردفان", "ولاية جنوب كردفان", "ولاية غرب كردفان", "إقليم النيل الأزرق", "ولاية البحر الأحمر", "ولاية نهر النيل"])
+            chosen_state = st.selectbox("اختر الولاية السودانية (تضم الـ 18 ولاية بالكامل):", list(SUDAN_GEOGRAPHY.keys()))
         elif user_country == "ليبيا": chosen_state = st.selectbox("اختر الإقليم الجغرافي:", ["المنطقة الشرقية", "المنطقة الغربية", "المنطقة الجنوبية"])
         else: chosen_state = st.selectbox("الإقليم الإداري:", ["المركز الرئيسي العالمي", "الأسواق المفتوحة"])
 
     with col_city:
         if user_country == "السودان":
-            if chosen_state == "ولاية الخرطوم": user_city = st.selectbox("اختر المدينة:", ["الخرطوم", "أم درمان", "بحري"])
-            elif chosen_state == "ولاية الجزيرة": user_city = st.selectbox("اختر المدينة:", ["ود مدني", "الحصاحيصا", "المناقل"])
-            elif chosen_state == "ولاية القضارف": user_city = st.selectbox("اختر المدينة:", ["القضارف المدينة", "الفاو"])
-            elif chosen_state == "ولاية شمال كردفان": user_city = st.selectbox("اختر المدينة:", ["الأبيض", "بارا", "أم روابة"])
-            elif chosen_state == "ولاية جنوب كردفان": user_city = st.selectbox("اختر المدينة:", ["كادوقلي", "الدلنج"])
-            elif chosen_state == "ولاية غرب كردفان": user_city = st.selectbox("اختر المدينة:", ["الفوله", "النهود", "بابنوسة"])
-            elif chosen_state == "إقليم النيل الأزرق": user_city = st.selectbox("اختر المدينة:", ["الدمازين", "الروصيرص"])
-            elif chosen_state == "ولاية البحر الأحمر": user_city = st.selectbox("اختر المدينة:", ["بورتسودان", "سواكن"])
-            else: user_city = st.selectbox("اختر المدينة:", ["شندي", "عطبرة"])
+            user_city = st.selectbox("اختر المدينة / المركز التابع للولاية:", SUDAN_GEOGRAPHY[chosen_state])
         elif user_country == "ليبيا":
             if chosen_state == "المنطقة الشرقية": user_city = st.selectbox("اختر المدينة الليبية:", ["طبرق", "بنغازي", "البيضاء", "درنة"])
             elif chosen_state == "المنطقة الغربية": user_city = st.selectbox("اختر المدينة الليبية:", ["طرابلس", "مصراتة", "الزاوية"])
@@ -430,7 +463,7 @@ with tabs[0]:
                     
                     if st.session_state["user_role"] == "admin": price_input = st.number_input(f"السعر للطن ({ing_name}) $:", min_value=10.0, value=float(current_live_price), key=f"price_{ing_name}")
                     else:
-                        st.markdown(f"💰 السعر الحالي بموقعك: **`${current_live_price:.2f}`** / طن (أو يعادل **`{(current_live_price * local_rate):,.1f}`** {local_sym})")
+                        st.markdown(f"💰 السعر بموقعك: **`${current_live_price:.2f}`** / طن (يعادل **`{(current_live_price * local_rate):,.1f}`** {local_sym})")
                         price_input = current_live_price
                     
                     if checked:
@@ -449,10 +482,21 @@ with tabs[0]:
             mandatory_warnings = []
             auto_added_enzymes = {}
 
+            # نسب خلط قياسية للإضافات الدقيقة
             fixed_ratios = {"ملح الطعام": 0.005, "مضاد سموم فطرية": 0.002, "الحجر الجيري (بودرة بلاط)": 0.025 if "بياض" in prod_stage else 0.015, "فوسفات ثنائي الكالسيوم (DCP)": 0.01}
             if "الطيور" in main_sector: fixed_ratios["مركزات دواجن وسمان"] = 0.05  
             elif main_sector in ["الخيول والفروسية", "الماعز وسلالاته", "الأبقار وسلالاتها"]: fixed_ratios["مركزات خيول ومجترات"] = 0.025 
             elif "الأسماك" in main_sector: fixed_ratios["مسحوق أسماك (Fishmeal 60%)"] = 0.08 
+
+            # حجز نسب الأحماض الأمينية المختارة برمجياً بنسب قياسية دقيقة للطن لضمان عدم الإفراط
+            for acid in ["ليسين نقي (L-Lysine)", "ميثيونين نقي (DL-Methionine)", "ثريونين (L-Threonine)"]:
+                if acid in selected_ingredients:
+                    fixed_ratios[acid] = 0.002 # يعادل 2 كجم لكل طن علف قياسياً
+
+            # حجز نسب الإنزيمات في حال تم اختيارها يدوياً من المستخدم
+            for enz in ["إنزيم الفايتيز الزامي (Phytase Super-D)", "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)", "بروتييز (Protease)"]:
+                if enz in selected_ingredients:
+                    fixed_ratios[enz] = 0.001 # يعادل 1 كجم لكل طن يدوياً
 
             used_fixed_pct = 0.0
             for name in selected_ingredients:
@@ -491,29 +535,29 @@ with tabs[0]:
             total_grains_pct = sum([formula_results.get(x, 0.0) for x in grains_ingredients])
 
             # =========================================================================
-            # 🧪 محرك الإنزيمات التلقائية والإلزامية وموازنة البيكربونات
+            # 🧪 محرك الإنزيمات التلقائية والإلزامية وموازنة البيكربونات والأحماض
             # =========================================================================
             if main_sector in ["الأبقار وسلالاتها", "الماعز وسلالاته"]:
                 if total_grains_pct > 45.0 or "بيكربونات الصوديوم (الصودا)" in selected_ingredients:
                     auto_added_enzymes["بيكربونات الصوديوم (الصودا)"] = 0.75
-                    mandatory_warnings.append("🚨 <b>إضافة إلزامية - بيكربونات الصوديوم:</b> بما أن نسبة الكربوهيدرات السريعة والتخمر (الحبوب) تجاوزت 45% ({:.1f}%)، تم فرض البيكربونات أوتوماتيكياً كمنظم حموضة (Buffer) لحماية الكرش من <b>التحمض Ruminal Acidosis</b> وكساد الهضم.".format(total_grains_pct))
+                    mandatory_warnings.append("🚨 <b>إضافة إلزامية - بيكربونات الصوديوم:</b> بما أن نسبة الحبوب تجاوزت 45% ({:.1f}%)، تم فرض البيكربونات أوتوماتيكياً كمنظم حموضة لحماية الكرش من <b>التحمض Ruminal Acidosis</b>.".format(total_grains_pct))
             elif main_sector == "الطيور والسمان" and "بيكربونات الصوديوم (الصودا)" in selected_ingredients:
                 auto_added_enzymes["بيكربونات الصوديوم (الصودا)"] = 0.20
 
-            if main_sector in ["الطيور والسمان", "الأسماك والأحياء المائية"]:
+            if main_sector in ["الطيور والسمان", "الأسماك والأحياء المائية"] and "إنزيم الفايتيز الزامي (Phytase Super-D)" not in selected_ingredients:
                 auto_added_enzymes["إنزيم الفايتيز الزامي (Phytase Super-D)"] = 0.05
-                mandatory_warnings.append("🚨 <b>إضافة إلزامية - إنزيم الفايتيز (Phytase):</b> مضاف تلقائياً، العلة هي تحرير <b>الفسفور المرتبط بحمض الفايتيك Phytic Acid</b> في النباتات الذي لا يهضمه الطير طبيعياً، مما يحسن المعامل الهيكلي ويقلل استهلاك ثنائي الكالسيوم.")
+                mandatory_warnings.append("🚨 <b>إضافة إلزامية - إنزيم الفايتيز (Phytase):</b> مضاف تلقائياً لتحرير <b>الفسفور المرتبط بحمض الفايتيك Phytic Acid</b> في النباتات الذي لا يهضمه الطير طبيعياً.")
 
             if "كسب بذور القطن" in formula_results and main_sector == "الطيور والسمان":
                 if formula_results["كسب بذور القطن"] > 5.0:
                     auto_added_enzymes["كبريتات الحديدوز (معادل الجوسيبول)"] = 0.15 
-                    mandatory_warnings.append("⚠️ <b>علة فنية معالجة برمجياً:</b> احتواء العليقة على كسب القطن للطيور بنسبة ({:.1f}%) يرفع <b>الجوسيبول الحر السام Toxic Gossypol</b>، تم ضخ كبريتات الحديدوز فورياً لربط الجزيئات السامة وإبطال مفعولها.".format(formula_results["كسب بذور القطن"]))
+                    mandatory_warnings.append("⚠️ <b>علة فنية معالجة برمجياً:</b> احتواء العليقة على كسب القطن للطيور بنسبة ({:.1f}%) يرفع <b>الجوسيبول الحر السام Toxic Gossypol</b>، تم ضخ كبريتات الحديدوز فورياً لإبطال مفعوله.".format(formula_results["كسب بذور القطن"]))
             
             barley_pct = formula_results.get("شعير مطحون", 0.0)
             wheat_pct = formula_results.get("قمح محلي مصنّع", 0.0)
-            if main_sector == "الطيور والسمان" and (barley_pct > 10.0 or wheat_pct > 15.0):
+            if main_sector == "الطيور والسمان" and (barley_pct > 10.0 or wheat_pct > 15.0) and "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)" not in selected_ingredients:
                 auto_added_enzymes["إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)"] = 0.08
-                mandatory_warnings.append("⚠️ <b>علة فنية معالجة برمجياً:</b> استخدام القمح/الشعير يرفع اللزوجة المعوية (NSP)، تم دمج إنزيم مخصص لكسر الروابط المتعددة ومنع عارض البراز الرطب (Wet Litter).")
+                mandatory_warnings.append("⚠️ <b>علة فنية معالجة برمجياً:</b> استخدام القمح/الشعير يرفع اللزوجة المعوية (NSP)، تم دمج إنزيم مخصص لكسر الروابط المتعددة.")
 
             if auto_added_enzymes:
                 total_enz_pct = sum(auto_added_enzymes.values())
@@ -527,7 +571,7 @@ with tabs[0]:
             st.session_state["active_animal_img"] = ANIMAL_IMAGES_RESOURCES.get(dynamic_img_key, ANIMAL_IMAGES_RESOURCES["عام"])
             st.session_state["active_stage_title"] = f"{main_sector} - {prod_stage}"
             
-            st.success(f"🎯 تم تشغيل محرك التركيب وخوارزمية الإنزيمات الذكية بنجاح في سوق: {user_city}")
+            st.success(f"🎯 تم تشغيل محرك التركيب وخوارزمية الإنزيمات والأحماض الذكية بنجاح في سوق: {user_city}")
             
             if mandatory_warnings:
                 st.markdown("### 🔬 تقرير فحص العلل والتدخل البرمجي بالإنزيمات:")
@@ -564,7 +608,7 @@ if st.session_state["user_role"] == "admin":
         inv_cols = st.columns(3)
         for idx, (ing_name, qty) in enumerate(st.session_state["inventory"].items()):
             with inv_cols[idx % 3]:
-                status_badge = f'<span class="stock-critical">⚠️ حرج: {qty:.2f} طن</span>' if qty < 5.0 else f'<span class="stock-normal">آمن: {qty:.2f} طن</span>'
+                status_badge = f'<span class="stock-critical">⚠️ حرج: {qty:.2f} طن</span>' if qty < 3.0 else f'<span class="stock-normal">آمن: {qty:.2f} طن</span>'
                 st.markdown(f"**{ing_name}** | {status_badge}", unsafe_allow_html=True)
                 st.session_state["inventory"][ing_name] = st.number_input(f"تحديث رصيد ({ing_name}) طن:", min_value=0.0, value=float(qty), key=f"inv_input_{ing_name}")
 
