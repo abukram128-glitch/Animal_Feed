@@ -39,7 +39,7 @@ def get_image_base64(paths):
 
 img_base64 = get_image_base64(PHOTO_OPTIONS)
 
-# 💡 حل عبقري: توليد الباركود عبر API جوجل الرسمي لضمان عدم توقف السيرفر نهائياً
+# 💡 توليد الباركود عبر API جوجل الرسمي لضمان عدم توقف السيرفر نهائياً وبدون مكتبات خارجية
 def get_google_qr_url(url):
     return f"https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl={url}&choe=UTF-8"
 
@@ -323,7 +323,6 @@ with tabs[0]:
             mandatory_warnings.append("⚠️ <b>معادل سمية الجوسيبول:</b> تم دمج كبريتات الحديدوز برمجياً لربط صبغة الجوسيبول الحرة السامة في كسب القطن.")
 
         if "أمباز الفول السوداني (كسب)" in formula_results:
-            # حماية إضافية من السموم للأمباز
             auto_added_enzymes["مضاد سموم بيولوجي سائل"] = 0.10
             mandatory_warnings.append("🧫 <b>مكافحة الأفلاتوكسين:</b> تم تفعيل مضاد سموم إضافي واسع الطيف لحماية الكبد من رطوبة وسوء تخزين الأمباز.")
 
@@ -385,7 +384,7 @@ if st.session_state["user_role"] == "admin":
         <div class="sack-tag">
             <h2 style="text-align: center; color: #1b5e20; margin-top:0; font-weight: bold; font-size:1.4rem;">🌾 مجموعة تاور لإنتاج الأعلاف ومصنعات الإنتاج الحيواني 🌾</h2>
             <h3 style="text-align: center; color: #c62828; margin-top:0; font-weight: bold; font-size:1.1rem;">بيانات المالك: الخبير المستشار م. عبد القادر إسماعيل تاور</h3>
-            <p style="text-align: center; font-size:1rem; color: #1565C0; margin-bottom:5px;">📌 عليقة لـ: {st.session_state['active_stage_title']}</p>
+            <p style="text-align: center; font-size: 1rem; color: #1565C0; margin-bottom:5px;">📌 عليقة لـ: {st.session_state['active_stage_title']}</p>
             <p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:6px; color:#1b5e20; border-radius:6px;">🧬 نسبة البروتين المستهدفة: {st.session_state['active_cp_tag']:.1f}%</p>
             <hr style="border-top: 2px dashed #1b5e20; margin:15px 0;">
             <p style="text-align: center; font-size: 0.85rem; color:#444; margin-bottom:8px;">📸 وجه كاميرا الجوال للباركود للدخول الفوري المباشر إلى منصة تصنيع الأعلاف المورّدة:</p>
@@ -396,4 +395,4 @@ if st.session_state["user_role"] == "admin":
         """, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
-st.markdown('<div class="mini-left-signature">👨‍🔬 م. عبد القادر إسماعيل تاور © 2026 | خبير الحلول الذكية للثروة الحيوانية والبرمجيات المتكامل</div>', unsafe_allow_html=True)
+st.markdown('<div class="mini-left-signature">👨‍🔬 م. عبد القادر إسماعيل تاور © 2026 | خبير الحلول الذكية للثروة الحيوانية والبرمجيات المتكاملة</div>', unsafe_allow_html=True)
