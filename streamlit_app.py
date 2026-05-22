@@ -12,7 +12,7 @@ from scipy.optimize import linprog
 # ==========================================
 # 1. إعدادات المنصة الرسمية والمظهر الفخم
 # ==========================================
-st.set_page_config(page_title="منصة تاور الذكية المتكاملة للأعلاف والإنتاج الحيواني", page_icon="🌾", layout="wide")
+st.set_page_config(page_title="منصة تاور الذكية المتكاملة للأعلاف والإنتاجتاج الحيواني", page_icon="🌾", layout="wide")
 
 USER_ADMIN = "تاور"       
 PASS_ADMIN = "202687"     
@@ -43,9 +43,9 @@ def send_code_to_mail(receiver_email):
     msg = MIMEMultipart()
     msg['From'] = SENDER_EMAIL
     msg['To'] = receiver_email
-    msg['Subject'] = "🌾 السورس كود المعالج والمطور - منصة تاور الذكية للأعلاف"
+    msg['Subject'] = "🌾 السورس كود المطور علمياً - منصة تاور الذكية"
     
-    body = "السلام عليكم م. عبد القادر،\n\nمرفق النسخة المحدثة التي تعالج تباين ألوان النصوص وتزيد من مرونة محرك البحث الخطي لمنع رسائل التعذر.\n\nتحياتي."
+    body = "السلام عليكم م. عبد القادر،\n\nمرفق النسخة المحدثة التي تمنع هبوط نسبة الحبوب عن الحدود العلمية التغذوية (60% - 75%).\n\nتحياتي."
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
     
     try:
@@ -54,7 +54,7 @@ def send_code_to_mail(receiver_email):
             code_content = f.read()
         
         attachment = MIMEText(code_content, 'plain', 'utf-8')
-        attachment.add_header('Content-Disposition', 'attachment', filename="tower_fixed_lp_platform.py")
+        attachment.add_header('Content-Disposition', 'attachment', filename="tower_fixed_nutrition_lp.py")
         msg.attach(attachment)
         
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
@@ -67,7 +67,7 @@ def send_code_to_mail(receiver_email):
         st.error(f"❌ فشل الإرسال بسبب: {e}")
         return False
 
-# --- تحسين الـ CSS الجذري لإصلاح تباين الألوان وجعل النصوص مقروءة وواضحة جداً ---
+# --- تحسين الـ CSS المخصص لضمان التباين الكامل وقابلية القراءة ---
 st.markdown(
     """
     <style>
@@ -81,7 +81,6 @@ st.markdown(
     }
     .stApp { background: transparent; }
     
-    /* صندوق المحتوى الرئيسي المحسن التباين */
     .main-box {
         background-color: rgba(255, 255, 255, 0.98);
         padding: 30px;
@@ -90,20 +89,19 @@ st.markdown(
         margin-bottom: 50px;
     }
     
-    /* قسر تلوين النصوص لتكون واضحة ومقروءة بشكل كامل فوق أي خلفية */
     h1, h2, h3, h4, h5, p, span, li { 
         font-family: 'Cairo', sans-serif; 
     }
     
-    /* تنسيق خاص لقائمة المكونات الناتجة لضمان وضوح خطوطها المنسدلة */
     .formula-item {
-        background-color: rgba(0, 0, 0, 0.05);
-        padding: 8px 12px;
-        border-radius: 6px;
-        margin-bottom: 5px;
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 10px 15px;
+        border-radius: 8px;
+        margin-bottom: 6px;
         font-weight: bold;
         color: #1b5e20 !important;
-        border-right: 4px solid #2e7d32;
+        border-right: 5px solid #2e7d32;
+        box-shadow: 0px 2px 5px rgba(0,0,0,0.05);
     }
     
     .section-title {
@@ -433,16 +431,22 @@ with tabs[0]:
         A_eq.append(cp_row)
         b_eq.append(final_target_cp * 100.0)
 
-        # 🎯 [الحل الجذري للمشكلة 2]: تم إعطاء مرونة أوسع للحبوب لتمتد من 45% إلى 70% لمنع حدوث تعذر الحل الرياضي تماماً
+        # 🎯 [تعديل علمي حاسم]: رفع القيد الأدنى للحبوب إلى 60% لضمان اتزان الطاقة وسقف أعلى 75%
+        # مع تقييد النخالة بحد أقصى 15% لحماية العليقة من ارتفاع الألياف
         energy_row_min = []
         energy_row_max = []
+        fiber_row_max = []
+        
         for ing in selected_ingredients:
             is_energy = ing in BIG_FEEDS_LIBRARY["🌾 الحبوب ومصادر الطاقة الكبرى"]
+            is_fiber = ing == "نخالة قمح (ردة)"
+            
             energy_row_min.append(-1.0 if is_energy else 0.0)
             energy_row_max.append(1.0 if is_energy else 0.0)
+            fiber_row_max.append(1.0 if is_fiber else 0.0)
             
-        A_ub = [energy_row_min, energy_row_max]
-        b_ub = [-45.0, 70.0]
+        A_ub = [energy_row_min, energy_row_max, fiber_row_max]
+        b_ub = [-60.0, 75.0, 15.0]
 
         res = linprog(c_vector, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
 
@@ -473,14 +477,13 @@ with tabs[0]:
             st.session_state["active_animal_img"] = ANIMAL_IMAGES_RESOURCES.get(dynamic_img_key, ANIMAL_IMAGES_RESOURCES["عام"])
             st.session_state["active_stage_title"] = f"{main_sector} - {prod_stage}"
             
-            st.success("🎯 تم الاستمثال الخطي الرياضي بنجاح تام! نسبة الخطأ الصياغية والغذائية = 0.00%")
+            st.success("🎯 تم الاستمثال الخطي الرياضي بنجاح تام وفقاً للأسس العلمية لعلوم التغذية!")
             
             res_col1, res_col2 = st.columns([0.6, 0.4])
             with res_col1:
                 st.write("#### 📝 المقادير الدقيقة المعتمدة لتركيب طن واحد (كجم):")
                 total_energy_pct = 0.0
                 
-                # 🎯 [الحل الجذري للمشكلة 1]: تغليف المخرجات داخل ديف بـ CSS مخصص ذو ألوان واضحة تمنع الاختفاء والغموض تماماً
                 for k, v in formula_results.items():
                     st.markdown(f'<div class="formula-item">▪️ {k}: {v:.2f} % ➡️ ({v*10:.1f} كجم / طن)</div>', unsafe_allow_html=True)
                     if k in BIG_FEEDS_LIBRARY["🌾 الحبوب ومصادر الطاقة الكبرى"]:
@@ -493,7 +496,7 @@ with tabs[0]:
             with res_col2: 
                 st.bar_chart(formula_results)
         else:
-            st.error("❌ تعذر إيجاد حل رياضي متزن تماماً ضمن المحددات المحددة. يرجى تفعيل وإتاحة خامات إضافية من الأكساب أو المخلفات المتاحة في القائمة لتوسيع مساحة الحل الحسابي للمعالج الخطي.")
+            st.error("❌ تعذر إيجاد حل رياضي متزن تماماً ضمن المحددات الحالية. يرجى تفعيل وإتاحة خامات إضافية من الأكساب أو المخلفات في القائمة لتوسيع مساحة الحل الحسابي للمعالج الخطي.")
 
 # ====================================================================
 # التبويبات الإدارية المتقدمة (تظهر للمالك والمسؤول فقط)
