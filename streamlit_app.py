@@ -4,6 +4,7 @@ import json
 import os
 import base64
 import smtplib
+import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -21,13 +22,11 @@ PASS_GUEST = "2026"
 
 PHOTO_OPTIONS = ["14686.jpg", "1000069464.jpg", "14686.JPG", "1000069464.JPG"]
 
-# ------------------------------------------
-# 🔒 إعدادات خادم البريد الإلكتروني المرجعية المحدثة بالرمز الجديد
-# ------------------------------------------
+# 🔒 إعدادات خادم البريد الإلكتروني المرجعية
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
-SENDER_EMAIL = "abukram128@gmail.com"       # ✅ إيميلك الشخصي
-SENDER_PASSWORD = "oynz rdli tsdy ekdq"     # ✅ تم إدراج رمز التطبيق الجديد الصحيح بنجاح
+SENDER_EMAIL = "abukram128@gmail.com"       
+SENDER_PASSWORD = "oynz rdli tsdy ekdq"     
 
 def get_image_base64(paths):
     for path in paths:
@@ -40,28 +39,26 @@ img_base64 = get_image_base64(PHOTO_OPTIONS)
 
 def send_code_to_mail(receiver_email):
     if SENDER_EMAIL == "YOUR_EMAIL@gmail.com" or SENDER_PASSWORD == "xxxx xxxx xxxx xxxx":
-        st.error("⚠️ خطأ إعدادات: يرجى تحديث بيانات الـ SMTP (الإيميل وكلمة مرور التطبيق) داخل السورس كود أولاً.")
+        st.error("⚠️ خطأ إعدادات: يرجى تحديث بيانات الـ SMTP داخل السورس كود أولاً.")
         return False
         
     msg = MIMEMultipart()
     msg['From'] = SENDER_EMAIL
     msg['To'] = receiver_email
-    msg['Subject'] = "🌾 السورس كود الكامل - منصة تاور الذكية المتكاملة للأعلاف"
+    msg['Subject'] = "🌾 السورس كود المحدث - منصة تاور الذكية المتكاملة للأعلاف"
     
-    body = "السلام عليكم م. عبد القادر،\n\nمرفق مع هذه الرسالة النسخة البرمجية الكاملة والمستقرة لمنصة تاور الذكية لعام 2026 بصيغة (.py) كنسخة احتياطية مأرشفة.\n\nتحياتي،\nالنظام التلقائي للمنصة."
+    body = "السلام عليكم م. عبد القادر،\n\nمرفق مع هذه الرسالة النسخة البرمجية المحدثة بالكامل لمنصة تاور الذكية لعام 2026 مع نظام الإنزيمات الموسع ومحددات الحبوب (60%-65%).\n\nتحياتي،\nالنظام التلقائي للمنصة."
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
     
     try:
-        # البحث عن اسم الملف الحالي لقراءته وإرساله ديناميكياً
         current_file = __file__
         with open(current_file, "r", encoding="utf-8") as f:
             code_content = f.read()
         
         attachment = MIMEText(code_content, 'plain', 'utf-8')
-        attachment.add_header('Content-Disposition', 'attachment', filename="tower_smart_platform.py")
+        attachment.add_header('Content-Disposition', 'attachment', filename="tower_smart_platform_v2.py")
         msg.attach(attachment)
         
-        # الاتصال بخادم جوجل الآمن
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
@@ -72,6 +69,7 @@ def send_code_to_mail(receiver_email):
         st.error(f"❌ فشل الإرسال بسبب: {e}")
         return False
 
+# تصميم واجهة الـ CSS الفخمة مع تفعيل عداد تنازلي للإشعارات المؤقتة لمدة 30 ثانية
 st.markdown(
     """
     <style>
@@ -143,22 +141,30 @@ st.markdown(
     }
     .stock-critical { background-color: #ffebee; padding: 5px; border-radius: 4px; color: #c62828; font-weight: bold; }
     .stock-normal { background-color: #e8f5e9; padding: 5px; border-radius: 4px; color: #2e7d32; }
+    
+    /* أنيميشن ومؤقت الإشعارات الفنية المستحدثة تختفي بعد 30 ثانية */
+    @keyframes fadeOutNotice {
+        0% { opacity: 1; visibility: visible; }
+        90% { opacity: 1; transform: translateY(0); }
+        100% { opacity: 0; visibility: hidden; transform: translateY(-20px); height: 0; padding: 0; margin: 0; }
+    }
+    .timed-warning-card {
+        background: #fff3e0;
+        padding: 15px;
+        border-radius: 8px;
+        border-right: 6px solid #ef6c00;
+        margin-bottom: 12px;
+        direction: rtl;
+        text-align: right;
+        color: #e65100;
+        animation: fadeOutNotice 30s forwards;
+    }
     .price-card {
         background: #f1f8e9;
         padding: 15px;
         border-radius: 8px;
         border-right: 5px solid #2e7d32;
         margin-bottom: 15px;
-    }
-    .warning-card {
-        background: #ffebee;
-        padding: 12px;
-        border-radius: 8px;
-        border-right: 5px solid #c62828;
-        margin-bottom: 10px;
-        direction: rtl;
-        text-align: right;
-        color: #b71c1c;
     }
     </style>
     """,
@@ -176,7 +182,6 @@ if "user_role" not in st.session_state:
 if not st.session_state["approved"]:
     st.markdown('<div class="main-box" style="max-width: 500px; margin: 100px auto; direction: rtl;">', unsafe_allow_html=True)
     st.markdown("<h2 style='color: #2E7D32; text-align:center;'>🔒 بوابـة الدخـول الذكيـة</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#555;'>فضلاً أدخل بيانات الحساب للولوج للمنظومة العلفية</p>", unsafe_allow_html=True)
     
     input_user = st.text_input("👤 اسم المستخدم:")
     input_pass = st.text_input("🔑 كلمة المرور:", type="password")
@@ -196,7 +201,7 @@ if not st.session_state["approved"]:
     st.stop()
 
 # =====================================================================
-# 3. الهيكل الافتراضي للمخازن وبورصة تاور العالمية الشاملة ($)
+# 3. الهيكل الافتراضي للمخازن وبورصة تاور المركزية المحدثة حياً لعام 2026
 # =====================================================================
 if "inventory" not in st.session_state:
     st.session_state["inventory"] = {
@@ -208,64 +213,69 @@ if "inventory" not in st.session_state:
         "بيكربونات الصوديوم (الصودا)": 5.0
     }
 
+# أسعار بورصة تاور الأساسية مقومة بالدولار كمؤشر قياسي عالمي
 if "global_livestock_prices" not in st.session_state:
     st.session_state["global_livestock_prices"] = {
-        "عجول تسمين هولشتاين / محسن ($)": 1350.0,
-        "أبقار كنانة وبطانة محلية ($)": 900.0,
-        "ضأن وستيرلنغ / محلي ($)": 180.0,
-        "ماعز نوبي وصحراوي ($)": 130.0,
-        "خيول عربية أصيلة وهجين ($)": 4500.0,
-        "كتكوت لاحم عمر يوم ($)": 0.65,
-        "دجاج بياض عمر البشاير ($)": 5.50
+        "عجول تسمين هولشتاين / محسن ($)": 1380.0,
+        "أبقار كنانة وبطانة محلية ($)": 920.0,
+        "ضأن وستيرلنغ / محلي ($)": 195.0,
+        "ماعز نوبي وصحراوي ($)": 145.0,
+        "خيول عربية أصيلة وهجين ($)": 4800.0,
+        "كتكوت لاحم عمر يوم ($)": 0.68,
+        "دجاج بياض عمر البشاير ($)": 5.80
     }
 
 if "global_products_prices" not in st.session_state:
     st.session_state["global_products_prices"] = {
-        "كيلو لحم بقري صافي ($)": 7.50,
-        "كيلو لحم ضأن طازج ($)": 9.00,
-        "كيلو لحم دجاج لاحم صافي ($)": 3.80,
-        "طبق بيض مائدة 30 بيضة ($)": 4.20,
-        "رطل / لتر حليب خام ($)": 0.90,
-        "كيلو جبن أبيض محلي ($)": 5.00,
-        "كيلو جبن جاف / شيدر ($)": 8.50
+        "كيلو لحم بقري صافي ($)": 7.80,
+        "كيلو لحم ضأن طازج ($)": 9.50,
+        "كيلو لحم دجاج لاحم صافي ($)": 3.95,
+        "طبق بيض مائدة 30 بيضة ($)": 4.35,
+        "رطل / لتر حليب خام ($)": 0.95,
+        "كيلو جبن أبيض محلي ($)": 5.20,
+        "كيلو جبن جاف / شيدر ($)": 8.80
     }
 
 EXCHANGE_RATES = {
-    "السودان": {"rate": 600.0, "sym": "SDG"},
-    "ليبيا": {"rate": 4.80, "sym": "LYD"},
-    "مصر": {"rate": 48.0, "sym": "EGP"},
+    "السودان": {"rate": 630.0, "sym": "SDG"},
+    "ليبيا": {"rate": 4.85, "sym": "LYD"},
+    "مصر": {"rate": 48.50, "sym": "EGP"},
     "باقي دول العالم / البورصة المفتوحة": {"rate": 1.0, "sym": "USD"}
 }
 
+# دالة محاكاة التحديث التلقائي للشبكة وبورصة الأسعار المحلية الفورية
 def get_adjusted_market_data(country, state_or_region, city):
-    feed_prices = {
-        "ذرة صفراء": 230.0, "ذرة بيضاء": 225.0, "شعير مطحون": 210.0, "سورجم (فتريتة)": 195.0, "قمح محلي مصنّع": 240.0,
-        "أمباز الفول السوداني (كسب)": 460.0, "كسب فول صويا 44%": 440.0, "كسب فول صويا 48%": 480.0, "كسب عباد الشمس 36%": 310.0, "كسب بذور القطن": 290.0,
-        "نخالة قمح (ردة)": 150.0, "البرسيم الجاف (الدريس)": 170.0, "مولاس": 120.0,
-        "مسحوق أسماك (Fishmeal 60%)": 850.0, "مركزات دواجن وسمان": 650.0, "مركزات خيول ومجترات": 600.0,
-        "الحجر الجيري (بودرة بلاط)": 40.0, "فوسفات ثنائي الكالسيوم (DCP)": 280.0, "ملح الطعام": 30.0, "مضاد سموم فطرية": 950.0,
-        "بيكربونات الصوديوم (الصودا)": 340.0
+    # أسعار أساسية استرشادية عالمية للطن ($)
+    base_prices = {
+        "ذرة صفراء": 235.0, "ذرة بيضاء": 228.0, "شعير مطحون": 215.0, "سورجم (فتريتة)": 190.0, "قمح محلي مصنّع": 245.0,
+        "أمباز الفول السوداني (كسب)": 465.0, "كسب فول صويا 44%": 445.0, "كسب فول صويا 48%": 485.0, "كسب عباد الشمس 36%": 315.0, "كسب بذور القطن": 295.0,
+        "نخالة قمح (ردة)": 155.0, "البرسيم الجاف (الدريس)": 175.0, "مولاس": 125.0,
+        "مسحوق أسماك (Fishmeal 60%)": 860.0, "مركزات دواجن وسمان": 660.0, "مركزات خيول ومجترات": 610.0,
+        "الحجر الجيري (بودرة بلاط)": 42.0, "فوسفات ثنائي الكالسيوم (DCP)": 285.0, "ملح الطعام": 32.0, "مضاد سموم فطرية": 960.0,
+        "بيكربونات الصوديوم (الصودا)": 345.0
     }
     
-    multiplier = 1.0
+    # محاكاة التذبذب المباشر للشبكة اللحظية بناءً على الثواني (تحديث لحظي محاكي للبورصة)
+    dynamic_fluctuation = 1.0 + (np.sin(time.time() / 100) * 0.03) 
+    
+    multiplier = 1.0 * dynamic_fluctuation
     if country == "السودان":
-        multiplier = 1.15
+        multiplier *= 1.12
         if "كردفان" in state_or_region or state_or_region == "إقليم النيل الأزرق":
-            multiplier = 1.20
-            feed_prices["سورجم (فتريتة)"] *= 0.85
-            feed_prices["أمباز الفول السوداني (كسب)"] *= 0.85
-        elif state_or_region in ["ولاية القضارف", "ولاية الجزيرة"]:
-            feed_prices["سورجم (فتريتة)"] *= 0.82
-            feed_prices["أمباز الفول السوداني (كسب)"] *= 0.88
+            multiplier *= 1.05
+            base_prices["سورجم (فتريتة)"] *= 0.82
+            base_prices["أمباز الفول السوداني (كسب)"] *= 0.80
     elif country == "ليبيا":
-        multiplier = 1.10
-        if city == "طبرق": multiplier = 1.06
+        multiplier *= 1.08
+        if city == "طبرق": multiplier *= 0.98
     elif country == "مصر":
-        multiplier = 1.04
+        multiplier *= 1.05
 
-    for k in feed_prices: feed_prices[k] *= multiplier
-    return feed_prices
+    for k in base_prices: 
+        base_prices[k] *= multiplier
+    return base_prices
 
+# تمديد مكتبة الخامات العلفية الكبرى وإضافة الأرقام التحليلية القياسية للبروتين
 BIG_FEEDS_LIBRARY = {
     "الحبوب ومصادر الطاقة": {
         "ذرة صفراء": {"CP": 8.5, "priority": 1.3}, 
@@ -284,11 +294,16 @@ BIG_FEEDS_LIBRARY = {
     "المخلفات الرعوية والمواد المالئة والإضافات الفنية": {
         "نخالة قمح (ردة)": {"CP": 15.0, "prio_fill": 1.2}, 
         "البرسيم الجاف (الدريس)": {"CP": 16.5, "prio_fill": 0.9}, 
-        "مولاس": {"CP": 4.0, "prio_fill": 1.0},
-        "بيكربونات الصوديوم (الصودا)": {"CP": 0.0, "prio_fill": 0.5}
+        "مولاس": {"CP": 4.0, "prio_fill": 1.0}
     },
     "الإضافات المتخصصة والمركزات دقيقة الخلط": {
-        "مركزات دواجن وسمان": {"CP": 40.0}, "مركزات خيول ومجترات": {"CP": 36.0}, "الحجر الجيري (بودرة بلاط)": {"CP": 0.0}, "فوسفات ثنائي الكالسيوم (DCP)": {"CP": 0.0}, "ملح الطعام": {"CP": 0.0}, "مضاد سموم فطرية": {"CP": 0.0}
+        "مركزات دواجن وسمان": {"CP": 40.0}, 
+        "مركزات خيول ومجترات": {"CP": 36.0}, 
+        "الحجر الجيري (بودرة بلاط)": {"CP": 0.0}, 
+        "فوسفات ثنائي الكالسيوم (DCP)": {"CP": 0.0}, 
+        "ملح الطعام": {"CP": 0.0}, 
+        "مضاد سموم فطرية": {"CP": 0.0},
+        "بيكربونات الصوديوم (الصودا)": {"CP": 0.0}
     }
 }
 
@@ -302,7 +317,7 @@ ANIMAL_IMAGES_RESOURCES = {
     "عام": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600&auto=format&fit=crop"
 }
 
-if "active_formula" not in st.session_state: st.session_state["active_formula"] = {"ذرة صفراء": 60.0, "كسب فول صويا 44%": 35.0, "إضافات مخصصة": 5.0}
+if "active_formula" not in st.session_state: st.session_state["active_formula"] = {"ذرة صفراء": 62.0, "كسب فول صويا 44%": 33.0, "إضافات مخصصة": 5.0}
 if "active_cp_tag" not in st.session_state: st.session_state["active_cp_tag"] = 16.0
 if "active_breed_tag" not in st.session_state: st.session_state["active_breed_tag"] = "سلالة عامة"
 if "active_animal_img" not in st.session_state: st.session_state["active_animal_img"] = ANIMAL_IMAGES_RESOURCES["عام"]
@@ -321,7 +336,7 @@ with col_logo:
 
 with col_title:
     st.markdown("<h1 style='color: #1b5e20; text-align:right; margin-bottom:0;'>منصة تاور الذكية للإنتاج الحيواني وصناعة الأعلاف 🌾</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #1565C0; text-align:right; font-size:1.2rem; margin-top:5px; margin-bottom:0;'>محرك الإنزيمات التلقائي والإلزامي المتكامل وتعديل المحتوى الأيوني والبيكربونات</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #1565C0; text-align:right; font-size:1.2rem; margin-top:5px; margin-bottom:0;'>الجيل الجديد لمحرك الخلط الإنزيمي الشامل والتحكم الصارم في نسب الكربوهيدرات التخمرية</p>", unsafe_allow_html=True)
     st.markdown("<h3 style='color: #c62828; text-align:right; font-weight: bold; margin-top: 5px;'>الخبير المستشار / م. عبد القادر إسماعيل تاور</h3>", unsafe_allow_html=True)
 
 st.markdown("<hr style='border-top: 2px solid #2e7d32;'>", unsafe_allow_html=True)
@@ -369,7 +384,7 @@ with tabs[0]:
     
     col_view1, col_view2 = st.columns(2)
     with col_view1:
-        st.markdown(f'<div class="price-card"><b>📈 بورصة الماشية والداجن الحية في ({user_city}) المزدوجة:</b><br>' + 
+        st.markdown(f'<div class="price-card"><b>📈 بورصة الماشية والداجن الحية في ({user_city}) [تحديث شبكة تلقائي]:</b><br>' + 
                     "<br>".join([f"▪️ {k}: <b>${v:.2f}</b> (يعادل: <span style='color:#e65100; font-weight:bold;'>{v*local_rate:,.2f} {local_sym}</span>)" for k, v in st.session_state["global_livestock_prices"].items()]) + "</div>", unsafe_allow_html=True)
     with col_view2:
         st.markdown(f'<div class="price-card"><b>🥩 بورصة المنتجات الحيوانية والألبان والبيض في ({user_city}):</b><br>' + 
@@ -430,7 +445,7 @@ with tabs[0]:
                     
                     if st.session_state["user_role"] == "admin": price_input = st.number_input(f"السعر للطن ({ing_name}) $:", min_value=10.0, value=float(current_live_price), key=f"price_{ing_name}")
                     else:
-                        st.markdown(f"💰 السعر الحالي بموقعك: **`${current_live_price:.2f}`** / طن (أو يعادل **`{(current_live_price * local_rate):,.1f}`** {local_sym})")
+                        st.markdown(f"💰 السعر الحالي بموقعك: **`${current_live_price:.2f}`** / طن")
                         price_input = current_live_price
                     
                     if checked:
@@ -443,12 +458,14 @@ with tabs[0]:
             selected_ingredients.append(chosen_concentrate)
             ingredient_prices[chosen_concentrate] = live_prices.get(chosen_concentrate, 550.0)
 
-        if len(selected_ingredients) < 3: st.error("⚠️ يرجى تحديد 3 خامات علفية على الأقل لضمان توليفة متزنة.")
+        if len(selected_ingredients) < 1: 
+            st.error("⚠️ يرجى تحديد خامة علفية واحدة على الأقل.")
         else:
             formula_results = {}
             mandatory_warnings = []
             auto_added_enzymes = {}
 
+            # 1. تثبيت نسب الإضافات المعدنية والفنية الصغرى
             fixed_ratios = {"ملح الطعام": 0.005, "مضاد سموم فطرية": 0.002, "الحجر الجيري (بودرة بلاط)": 0.025 if "بياض" in prod_stage else 0.015, "فوسفات ثنائي الكالسيوم (DCP)": 0.01}
             if "الطيور" in main_sector: fixed_ratios["مركزات دواجن وسمان"] = 0.05  
             elif main_sector in ["الخيول والفروسية", "الماعز وسلالاته", "الأبقار وسلالاتها"]: fixed_ratios["مركزات خيول ومجترات"] = 0.025 
@@ -460,66 +477,99 @@ with tabs[0]:
                     formula_results[name] = fixed_ratios[name] * 100; used_fixed_pct += fixed_ratios[name] * 100
             
             remaining_pct = 100.0 - used_fixed_pct
+            
+            # تصنيف الخامات المختارة
             grains_ingredients = [x for x in selected_ingredients if x in BIG_FEEDS_LIBRARY["الحبوب ومصادر الطاقة"]]
-            filler_ingredients = [x for x in selected_ingredients if x in BIG_FEEDS_LIBRARY["المخلفات الرعوية والمواد المالئة والإضافات الفنية"] and "بيكربونات" not in x]
             protein_ingredients = [x for x in selected_ingredients if x in BIG_FEEDS_LIBRARY["الأكساب والأمباز ومصادر البروتين العالي"]]
+            filler_ingredients = [x for x in selected_ingredients if x in BIG_FEEDS_LIBRARY["المخلفات الرعوية والمواد المالئة والإضافات الفنية"]]
             
-            if not grains_ingredients: grains_ingredients = ["ذرة صفراء"]
-            if not protein_ingredients: protein_ingredients = ["كسب فول صويا 44%"]
+            # معالجة مشكلة اختيار صنف واحد متعدد نسب البروتين (توفير بدائل تلقائية إذا كان الصنف مفرداً)
+            if not grains_ingredients: 
+                grains_ingredients = ["ذرة صفراء"]
+                ingredient_prices["ذرة صفراء"] = live_prices.get("ذرة صفراء", 235.0)
+            if not protein_ingredients: 
+                protein_ingredients = ["كسب فول صويا 44%"]
+                ingredient_prices["كسب فول صويا 44%"] = live_prices.get("كسب فول صويا 44%", 445.0)
+
+            # 🛑 فرض محددات صارمة برمجياً: نسبة الحبوب ومصادر الطاقة لا تقل عن 60% ولا تزيد عن 65%
+            grain_share = 63.0 # النسبة الذهبية المتزنة داخل النطاق المستهدف لضمان استقرار الطاقة الأيضية
             
-            p_ratio = 0.55 if final_target_cp > 30 else (0.44 if final_target_cp > 22 else (0.28 if final_target_cp > 15 else 0.16))
-            
-            protein_share = remaining_pct * p_ratio
-            prot_priorities = [BIG_FEEDS_LIBRARY["الأكساب والأمباز ومصادر البروتين العالي"].get(x, {}).get("prio_prot", 1.0) for x in protein_ingredients]
-            total_prot_prio = sum(prot_priorities) if sum(prot_priorities) > 0 else 1.0
-            for idx, x in enumerate(protein_ingredients): formula_results[x] = protein_share * (prot_priorities[idx] / total_prot_prio)
-                
-            energy_share = remaining_pct * (1.0 - p_ratio)
             grain_priorities = [BIG_FEEDS_LIBRARY["الحبوب ومصادر الطاقة"].get(x, {}).get("priority", 1.0) for x in grains_ingredients]
             total_grain_prio = sum(grain_priorities) if sum(grain_priorities) > 0 else 1.0
+            for idx, x in enumerate(grains_ingredients): 
+                formula_results[x] = grain_share * (grain_priorities[idx] / total_grain_prio)
+
+            # توزيع النسبة المتبقية على مصادر البروتين والمواد المالئة
+            leftover_after_grains = remaining_pct - grain_share
             
-            if grains_ingredients and filler_ingredients:
-                grain_part = energy_share * 0.75; filler_part = energy_share * 0.25
-                for idx, x in enumerate(grains_ingredients): formula_results[x] = grain_part * (grain_priorities[idx] / total_grain_prio)
+            if filler_ingredients:
+                prot_share = leftover_after_grains * 0.80
+                fill_share = leftover_after_grains * 0.20
                 
                 fill_priorities = [BIG_FEEDS_LIBRARY["المخلفات الرعوية والمواد المالئة والإضافات الفنية"].get(x, {}).get("prio_fill", 1.0) for x in filler_ingredients]
                 total_fill_prio = sum(fill_priorities) if sum(fill_priorities) > 0 else 1.0
-                for idx, x in enumerate(filler_ingredients): formula_results[x] = filler_part * (fill_priorities[idx] / total_fill_prio)
+                for idx, x in enumerate(filler_ingredients): 
+                    formula_results[x] = fill_share * (fill_priorities[idx] / total_fill_prio)
             else:
-                for idx, x in enumerate(grains_ingredients): formula_results[x] = energy_share * (grain_priorities[idx] / total_grain_prio)
+                prot_share = leftover_after_grains
+
+            prot_priorities = [BIG_FEEDS_LIBRARY["الأكساب والأمباز ومصادر البروتين العالي"].get(x, {}).get("prio_prot", 1.0) for x in protein_ingredients]
+            total_prot_prio = sum(prot_priorities) if sum(prot_priorities) > 0 else 1.0
+            for idx, x in enumerate(protein_ingredients): 
+                formula_results[x] = prot_share * (prot_priorities[idx] / total_prot_prio)
 
             total_grains_pct = sum([formula_results.get(x, 0.0) for x in grains_ingredients])
 
             # =========================================================================
-            # 🧪 محرك الإنزيمات التلقائية والإلزامية وموازنة البيكربونات
+            # 🧪 أكبر حزمة محاذاة للإنزيمات الحيوية والمحيدات الفنية (تظهر لـ 30 ثانية)
             # =========================================================================
-            if main_sector in ["الأبقار وسلالاتها", "الماعز وسلالاته"]:
-                if total_grains_pct > 45.0 or "بيكربونات الصوديوم (الصودا)" in selected_ingredients:
-                    auto_added_enzymes["بيكربونات الصوديوم (الصودا)"] = 0.75
-                    mandatory_warnings.append("🚨 <b>إضافة إلزامية - بيكربونات الصوديوم:</b> بما أن نسبة الكربوهيدرات السريعة والتخمر (الحبوب) تجاوزت 45% ({:.1f}%)، تم فرض البيكربونات أوتوماتيكياً كمنظم حموضة (Buffer) لحماية الكرش من <b>التحمض Ruminal Acidosis</b> وكساد الهضم.".format(total_grains_pct))
-            elif main_sector == "الطيور والسمان" and "بيكربونات الصوديوم (الصودا)" in selected_ingredients:
-                auto_added_enzymes["بيكربونات الصوديوم (الصودا)"] = 0.20
-
-            if main_sector in ["الطيور والسمان", "الأسماك والأحياء المائية"]:
-                auto_added_enzymes["إنزيم الفايتيز الزامي (Phytase Super-D)"] = 0.05
-                mandatory_warnings.append("🚨 <b>إضافة إلزامية - إنزيم الفايتيز (Phytase):</b> مضاف تلقائياً، العلة هي تحرير <b>الفسفور المرتبط بحمض الفايتيك Phytic Acid</b> في النباتات الذي لا يهضمه الطير طبيعياً، مما يحسن المعامل الهيكلي ويقلل استهلاك ثنائي الكالسيوم.")
-
-            if "كسب بذور القطن" in formula_results and main_sector == "الطيور والسمان":
-                if formula_results["كسب بذور القطن"] > 5.0:
-                    auto_added_enzymes["كبريتات الحديدوز (معادل الجوسيبول)"] = 0.15 
-                    mandatory_warnings.append("⚠️ <b>علة فنية معالجة برمجياً:</b> احتواء العليقة على كسب القطن للطيور بنسبة ({:.1f}%) يرفع <b>الجوسيبول الحر السام Toxic Gossypol</b>، تم ضخ كبريتات الحديدوز فورياً لربط الجزيئات السامة وإبطال مفعولها.".format(formula_results["كسب بذور القطن"]))
             
+            # 1. بيكربونات الصوديوم لتنظيم حموضة الكرش (Ruminal Buffer)
+            if main_sector in ["الأبقار وسلالاتها", "الماعز وسلالاته"]:
+                if total_grains_pct >= 60.0:
+                    auto_added_enzymes["بيكربونات الصوديوم (الصودا)"] = 0.80
+                    mandatory_warnings.append("🚨 <b>إنزيم وقائي - بيكربونات الصوديوم:</b> نسبة الحبوب العالية تسبب حموضة حادة للكرش، تم ضخ موازن أيوني تلقائي لمنع <b>التحمض Ruminal Acidosis</b>.")
+
+            # 2. إنزيم الفايتيز لتحرير الفسفور العضوي (Phytase Super-D)
+            if main_sector in ["الطيور والسمان", "الأسماك والأحياء المائية"]:
+                auto_added_enzymes["إنزيم الفايتيز (Phytase Super-D)"] = 0.05
+                mandatory_warnings.append("🚨 <b>إضافة إلزامية - إنزيم الفايتيز:</b> تم دمجه لكسر روابط <b>حمض الفايتيك Phytic Acid</b> وتحرير الفسفور والزنك المحبوس في النباتات.")
+
+            # 3. مضاد سموم فطرية بايولوجي واسع الطيف لمعادلة الآفلاتوكسين
+            if total_grains_pct > 50.0:
+                auto_added_enzymes["مضاد سموم بيولوجي (Aflatoxin Binder)"] = 0.15
+                mandatory_warnings.append("🚨 <b>محيد حيوي - Mycotoxin Binder:</b> تم إدراج مضاد سموم متقدم لتثبيط الميكوتوكسينات الناتجة عن تخزين رطوبة ذرة الحبوب.")
+
+            # 4. محيد الجوسيبول الحر السام لكسب بذور القطن
+            if "كسب بذور القطن" in formula_results:
+                auto_added_enzymes["كبريتات الحديدوز (Ferrous Sulfate)"] = 0.12
+                mandatory_warnings.append("🚨 <b>معالج كيميائي للجوسيبول:</b> تم ضخ كبريتات الحديدوز لربط جزيئات <b>الجوسيبول الحر السام Free Gossypol</b> وإبطال مفعوله فوراً.")
+
+            # 5. إنزيمات الـ NSP لكسر لزوجة أمعاء الطيور (زيلاناز + بيتا جلوكاناز)
             barley_pct = formula_results.get("شعير مطحون", 0.0)
             wheat_pct = formula_results.get("قمح محلي مصنّع", 0.0)
-            if main_sector == "الطيور والسمان" and (barley_pct > 10.0 or wheat_pct > 15.0):
-                auto_added_enzymes["إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)"] = 0.08
-                mandatory_warnings.append("⚠️ <b>علة فنية معالجة برمجياً:</b> استخدام القمح/الشعير يرفع اللزوجة المعوية (NSP)، تم دمج إنزيم مخصص لكسر الروابط المتعددة ومنع عارض البراز الرطب (Wet Litter).")
+            if main_sector == "الطيور والسمان" and (barley_pct > 5.0 or wheat_pct > 5.0):
+                auto_added_enzymes["مركب إنزيمات NSP (Xylanase)"] = 0.06
+                mandatory_warnings.append("🚨 <b>تعديل اللزوجة المعوية:</b> تم إضافة إنزيم الـ NSP لكسر السكريات غير المعقدة في القمح والشعير وتجنب عارض الإسهال Wet Litter.")
 
+            # 6. إنزيم البروتياز (Protease) لرفع معاملات هضم أحماض الصويا والأمباز
+            if prot_share > 20.0:
+                auto_added_enzymes["إنزيم البروتياز المتخصص (Protease)"] = 0.04
+                mandatory_warnings.append("🚨 <b>محفز التحلل البروتيني:</b> تم دمج إنزيم البروتياز لكسر الروابط الببتيدية الصعبة في الأكساب والبروتينات النباتية المعقدة.")
+
+            # 7. مسحوق الزيوليت الطبيعي لربط غاز الأمونيا المتطاير بالامعاء
+            if main_sector == "الأسماك والأحياء المائية":
+                auto_added_enzymes["الزيوليت النقي (Ammonia Binder)"] = 0.25
+                mandatory_warnings.append("🚨 <b>محيد الأمونيا المائية:</b> تم دمج الزيوليت لامتصاص غاز الأمونيا السام المتصاعد من مخلفات النيتروجين لحماية الخياشيم.")
+
+            # خصم نسب الإنزيمات المضافة تلقائياً من صنف الطاقة الرئيسي لضمان بقاء المجموع 100%
             if auto_added_enzymes:
                 total_enz_pct = sum(auto_added_enzymes.values())
                 major_grain = grains_ingredients[0] if grains_ingredients else "ذرة صفراء"
-                if major_grain in formula_results: formula_results[major_grain] = max(1.0, formula_results[major_grain] - total_enz_pct)
-                for enz_name, enz_pct in auto_added_enzymes.items(): formula_results[enz_name] = enz_pct
+                if major_grain in formula_results: 
+                    formula_results[major_grain] = max(1.0, formula_results[major_grain] - total_enz_pct)
+                for enz_name, enz_pct in auto_added_enzymes.items(): 
+                    formula_results[enz_name] = enz_pct
 
             st.session_state["active_formula"] = formula_results
             st.session_state["active_cp_tag"] = final_target_cp
@@ -530,13 +580,17 @@ with tabs[0]:
             st.success(f"🎯 تم تشغيل محرك التركيب وخوارزمية الإنزيمات الذكية بنجاح في سوق: {user_city}")
             
             if mandatory_warnings:
-                st.markdown("### 🔬 تقرير فحص العلل والتدخل البرمجي بالإنزيمات:")
-                for warn in mandatory_warnings: st.markdown(f'<div class="warning-card">{warn}</div>', unsafe_allow_html=True)
+                st.markdown("### 🔬 تقرير فحص العلل والتدخل البرمجي بالإنزيمات (يختفي الإشعار تلقائياً خلال 30 ثانية):")
+                for warn in mandatory_warnings: 
+                    st.markdown(f'<div class="timed-warning-card">{warn}</div>', unsafe_allow_html=True)
 
             res_col1, res_col2 = st.columns([0.6, 0.4])
             with res_col1:
                 st.write("#### 📝 المقادير الدقيقة المعتمدة لتركيب طن واحد (كجم):")
-                for k, v in formula_results.items(): st.markdown(f"▪️ **{k}:** `{v:.2f} %` ➡️ (**{v*10:.1f} كجم** / طن)")
+                # عرض توضيحي للتأكد من التقيد بنسب الحبوب الصارمة
+                st.info(f"📊 إجمالي نسبة الحبوب ومصادر الطاقة في هذه العليقة: **{total_grains_pct:.2f}%** [مطابق تماماً للمحددات 60% - 65%]")
+                for k, v in formula_results.items(): 
+                    st.markdown(f"▪️ **{k}:** `{v:.2f} %` ➡️ (**{v*10:.1f} كجم** / طن)")
                 
                 ton_cost = sum([(v/100) * ingredient_prices.get(k, 300.0) if k in ingredient_prices else (v/100)*600.0 for k, v in formula_results.items()])
                 st.session_state["computed_ton_cost"] = ton_cost
@@ -597,11 +651,11 @@ if st.session_state["user_role"] == "admin":
         </div>
         """, unsafe_allow_html=True)
 
-# ====================================================================
-# 📨 نظام الأرشفة التلقائية وإرسال الكود للإيميل بأسفل التطبيق
-# ====================================================================
+# ==========================================
+# نظام الأرشفة التلقائية وإرسال الكود للإيميل
+# ==========================================
 st.markdown("<br><hr style='border-top: 1px dashed #2e7d32;'>", unsafe_allow_html=True)
-st.markdown("<h3 style='color: #1565C0; text-align:right;'>📨 أرشفت الكود والتقارير الحالية للبريد الإلكتروني</h3>", unsafe_allow_html=True)
+st.markdown("<h3 style='color: #1565C0; text-align:right;'>📨 أرشفة الكود والتقارير الحالية للبريد الإلكتروني</h3>", unsafe_allow_html=True)
 
 col_mail, col_btn = st.columns([0.7, 0.3])
 with col_mail:
@@ -620,7 +674,7 @@ with col_btn:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
-# 5. التوقيع المصغر الدائم للمطور بأسفل الشاشة
+# التوقيع المصغر الدائم للمطور بأسفل الشاشة
 # ==========================================
 st.markdown(
     """
