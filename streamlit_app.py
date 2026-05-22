@@ -4,6 +4,7 @@ import json
 import os
 import base64
 import smtplib
+import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -148,16 +149,6 @@ st.markdown(
         border-right: 5px solid #2e7d32;
         margin-bottom: 15px;
     }
-    .warning-card {
-        background: #ffebee;
-        padding: 12px;
-        border-radius: 8px;
-        border-right: 5px solid #c62828;
-        margin-bottom: 10px;
-        direction: rtl;
-        text-align: right;
-        color: #b71c1c;
-    }
     </style>
     """,
     unsafe_allow_html=True
@@ -196,7 +187,6 @@ if not st.session_state["approved"]:
 # =====================================================================
 # 3. الهيكل الافتراضي للمخازن وبورصة تاور العالمية الشاملة ($)
 # =====================================================================
-# مكتبة الخامات الموسعة لتشمل الأحماض والإنزيمات المضافة حديثاً للمخزن
 INITIAL_INVENTORY = {
     "ذرة صفراء": 25.0, "ذرة بيضاء": 10.0, "شعير مطحون": 15.0, "سورجم (فتريتة)": 15.0, "قمح محلي مصنّع": 12.0,
     "أمباز الفول السوداني (كسب)": 20.0, "كسب فول صويا 44%": 14.0, "كسب فول صويا 48%": 18.0, "كسب عباد الشمس 36%": 10.0, "كسب بذور القطن": 8.0,
@@ -204,9 +194,7 @@ INITIAL_INVENTORY = {
     "مسحوق أسماك (Fishmeal 60%)": 4.0, "مركزات دواجن وسمان": 3.5, "مركزات خيول ومجترات": 3.5,
     "الحجر الجيري (بودرة بلاط)": 6.0, "فوسفات ثنائي الكالسيوم (DCP)": 3.0, "ملح الطعام": 2.5, "مضاد سموم فطرية": 1.2,
     "بيكربونات الصوديوم (الصودا)": 5.0,
-    # الإنزيمات المضافة للمكتبة والمخزن
     "إنزيم الفايتيز الزامي (Phytase Super-D)": 1.0, "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)": 1.0, "بروتييز (Protease)": 0.8,
-    # الأحماض الأمينية المضافة للمكتبة والمخزن
     "ليسين نقي (L-Lysine)": 1.5, "ميثيونين نقي (DL-Methionine)": 1.5, "ثريونين (L-Threonine)": 1.2
 }
 
@@ -242,7 +230,6 @@ EXCHANGE_RATES = {
     "باقي دول العالم / البورصة المفتوحة": {"rate": 1.0, "sym": "USD"}
 }
 
-# هيكل بيانات كامل وشامل لكل ولايات ومدن السودان الـ 18 بدون استثناء
 SUDAN_GEOGRAPHY = {
     "ولاية الخرطوم": ["الخرطوم", "أم درمان", "بحري", "شرق النيل", "جبل أولياء"],
     "ولاية الجزيرة": ["ود مدني", "الحصاحيصا", "المناقل", "الكاملين", "رفاعة", "أبو عِشَر"],
@@ -272,7 +259,6 @@ def get_adjusted_market_data(country, state_or_region, city):
         "مسحوق أسماك (Fishmeal 60%)": 850.0, "مركزات دواجن وسمان": 650.0, "مركزات خيول ومجترات": 600.0,
         "الحجر الجيري (بودرة بلاط)": 40.0, "فوسفات ثنائي الكالسيوم (DCP)": 280.0, "ملح الطعام": 30.0, "مضاد سموم فطرية": 950.0,
         "بيكربونات الصوديوم (الصودا)": 340.0,
-        # أسعار تقديرية للطن للإنزيمات والأحماض المضافة حديثاً بالدولار
         "إنزيم الفايتيز الزامي (Phytase Super-D)": 1500.0, "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)": 1800.0, "بروتييز (Protease)": 2000.0,
         "ليسين نقي (L-Lysine)": 2200.0, "ميثيونين نقي (DL-Methionine)": 2800.0, "ثريونين (L-Threonine)": 2400.0
     }
@@ -296,7 +282,6 @@ def get_adjusted_market_data(country, state_or_region, city):
     for k in feed_prices: feed_prices[k] *= multiplier
     return feed_prices
 
-# إضافة الإنزيمات والأحماض الأمينية رسمياً إلى مكتبة المنصة الشاملة مع تحديد أولوياتها وقيم بروتينها التقديرية
 BIG_FEEDS_LIBRARY = {
     "الحبوب ومصادر الطاقة": {
         "ذرة صفراء": {"CP": 8.5, "priority": 1.3}, 
@@ -482,82 +467,93 @@ with tabs[0]:
             mandatory_warnings = []
             auto_added_enzymes = {}
 
-            # نسب خلط قياسية للإضافات الدقيقة
+            # 1. إعطاء الأولوية القصوى والقفل لنسب مصادر الطاقة (60% - 65%)
+            grains_ingredients = [x for x in selected_ingredients if x in BIG_FEEDS_LIBRARY["الحبوب ومصادر الطاقة"]]
+            if not grains_ingredients: 
+                grains_ingredients = ["ذرة صفراء"]
+                selected_ingredients.append("ذرة صفراء")
+                ingredient_prices["ذرة صفراء"] = live_prices.get("ذرة صفراء", 230.0)
+            
+            # قفل نسبة الطاقة الحاكمة هندسياً وفنياً عند 62.5% كمعدل وسطي آمن ومحقق للشروط
+            energy_locked_pct = 62.5 
+            grain_priorities = [BIG_FEEDS_LIBRARY["الحبوب ومصادر الطاقة"].get(x, {}).get("priority", 1.0) for x in grains_ingredients]
+            total_grain_prio = sum(grain_priorities) if sum(grain_priorities) > 0 else 1.0
+            for idx, x in enumerate(grains_ingredients): 
+                formula_results[x] = energy_locked_pct * (grain_priorities[idx] / total_grain_prio)
+
+            # 2. حجز نسب المكونات الثابتة والإضافات الدقيقة من النسبة المتبقية (37.5%)
             fixed_ratios = {"ملح الطعام": 0.005, "مضاد سموم فطرية": 0.002, "الحجر الجيري (بودرة بلاط)": 0.025 if "بياض" in prod_stage else 0.015, "فوسفات ثنائي الكالسيوم (DCP)": 0.01}
             if "الطيور" in main_sector: fixed_ratios["مركزات دواجن وسمان"] = 0.05  
             elif main_sector in ["الخيول والفروسية", "الماعز وسلالاته", "الأبقار وسلالاتها"]: fixed_ratios["مركزات خيول ومجترات"] = 0.025 
             elif "الأسماك" in main_sector: fixed_ratios["مسحوق أسماك (Fishmeal 60%)"] = 0.08 
 
-            # حجز نسب الأحماض الأمينية المختارة برمجياً بنسب قياسية دقيقة للطن لضمان عدم الإفراط
+            # حجز نسب الأحماض الأمينية المختارة برمجياً
             for acid in ["ليسين نقي (L-Lysine)", "ميثيونين نقي (DL-Methionine)", "ثريونين (L-Threonine)"]:
-                if acid in selected_ingredients:
-                    fixed_ratios[acid] = 0.002 # يعادل 2 كجم لكل طن علف قياسياً
+                if acid in selected_ingredients: fixed_ratios[acid] = 0.002
 
-            # حجز نسب الإنزيمات في حال تم اختيارها يدوياً من المستخدم
+            # حجز نسب الإنزيمات في حال تم اختيارها يدوياً
             for enz in ["إنزيم الفايتيز الزامي (Phytase Super-D)", "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)", "بروتييز (Protease)"]:
-                if enz in selected_ingredients:
-                    fixed_ratios[enz] = 0.001 # يعادل 1 كجم لكل طن يدوياً
+                if enz in selected_ingredients: fixed_ratios[enz] = 0.001
 
             used_fixed_pct = 0.0
             for name in selected_ingredients:
                 if name in fixed_ratios:
                     formula_results[name] = fixed_ratios[name] * 100; used_fixed_pct += fixed_ratios[name] * 100
             
-            remaining_pct = 100.0 - used_fixed_pct
-            grains_ingredients = [x for x in selected_ingredients if x in BIG_FEEDS_LIBRARY["الحبوب ومصادر الطاقة"]]
+            # 3. توزيع الرصيد المتبقي بدقة على مصادر البروتين العالي والمواد المالئة
+            remaining_pct = 100.0 - energy_locked_pct - used_fixed_pct
+            if remaining_pct < 0:
+                energy_locked_pct = 60.0 # النزول للحد الأدنى الحرج إذا ضاقت المساحة الحسابية
+                remaining_pct = 100.0 - energy_locked_pct - used_fixed_pct
+                
             filler_ingredients = [x for x in selected_ingredients if x in BIG_FEEDS_LIBRARY["المخلفات الرعوية والمواد المالئة والإضافات الفنية"] and "بيكربونات" not in x]
             protein_ingredients = [x for x in selected_ingredients if x in BIG_FEEDS_LIBRARY["الأكساب والأمباز ومصادر البروتين العالي"]]
             
-            if not grains_ingredients: grains_ingredients = ["ذرة صفراء"]
-            if not protein_ingredients: protein_ingredients = ["كسب فول صويا 44%"]
+            if not protein_ingredients: 
+                protein_ingredients = ["كسب فول صويا 44%"]
+                selected_ingredients.append("كسب فول صويا 44%")
+                ingredient_prices["كسب فول صويا 44%"] = live_prices.get("كسب فول صويا 44%", 440.0)
             
-            p_ratio = 0.55 if final_target_cp > 30 else (0.44 if final_target_cp > 22 else (0.28 if final_target_cp > 15 else 0.16))
+            p_ratio = 0.70 if final_target_cp > 25 else (0.55 if final_target_cp > 18 else 0.40)
             
             protein_share = remaining_pct * p_ratio
             prot_priorities = [BIG_FEEDS_LIBRARY["الأكساب والأمباز ومصادر البروتين العالي"].get(x, {}).get("prio_prot", 1.0) for x in protein_ingredients]
             total_prot_prio = sum(prot_priorities) if sum(prot_priorities) > 0 else 1.0
             for idx, x in enumerate(protein_ingredients): formula_results[x] = protein_share * (prot_priorities[idx] / total_prot_prio)
                 
-            energy_share = remaining_pct * (1.0 - p_ratio)
-            grain_priorities = [BIG_FEEDS_LIBRARY["الحبوب ومصادر الطاقة"].get(x, {}).get("priority", 1.0) for x in grains_ingredients]
-            total_grain_prio = sum(grain_priorities) if sum(grain_priorities) > 0 else 1.0
-            
-            if grains_ingredients and filler_ingredients:
-                grain_part = energy_share * 0.75; filler_part = energy_share * 0.25
-                for idx, x in enumerate(grains_ingredients): formula_results[x] = grain_part * (grain_priorities[idx] / total_grain_prio)
-                
+            filler_share = remaining_pct * (1.0 - p_ratio)
+            if filler_ingredients:
                 fill_priorities = [BIG_FEEDS_LIBRARY["المخلفات الرعوية والمواد المالئة والإضافات الفنية"].get(x, {}).get("prio_fill", 1.0) for x in filler_ingredients]
                 total_fill_prio = sum(fill_priorities) if sum(fill_priorities) > 0 else 1.0
-                for idx, x in enumerate(filler_ingredients): formula_results[x] = filler_part * (fill_priorities[idx] / total_fill_prio)
+                for idx, x in enumerate(filler_ingredients): formula_results[x] = filler_share * (fill_priorities[idx] / total_fill_prio)
             else:
-                for idx, x in enumerate(grains_ingredients): formula_results[x] = energy_share * (grain_priorities[idx] / total_grain_prio)
-
-            total_grains_pct = sum([formula_results.get(x, 0.0) for x in grains_ingredients])
+                # إذا لم يختر مادة مالئة، يضاف رصيدها بالكامل للبروتين لرفع الكفاءة
+                for idx, x in enumerate(protein_ingredients): formula_results[x] += filler_share * (prot_priorities[idx] / total_prot_prio)
 
             # =========================================================================
-            # 🧪 محرك الإنزيمات التلقائية والإلزامية وموازنة البيكربونات والأحماض
+            # 🧪 محرك معالجة الإنزيمات البرمجية وتحويلها إلى إشعارات مؤقتة
             # =========================================================================
             if main_sector in ["الأبقار وسلالاتها", "الماعز وسلالاته"]:
-                if total_grains_pct > 45.0 or "بيكربونات الصوديوم (الصودا)" in selected_ingredients:
+                if energy_locked_pct > 45.0 or "بيكربونات الصوديوم (الصودا)" in selected_ingredients:
                     auto_added_enzymes["بيكربونات الصوديوم (الصودا)"] = 0.75
-                    mandatory_warnings.append("🚨 <b>إضافة إلزامية - بيكربونات الصوديوم:</b> بما أن نسبة الحبوب تجاوزت 45% ({:.1f}%)، تم فرض البيكربونات أوتوماتيكياً كمنظم حموضة لحماية الكرش من <b>التحمض Ruminal Acidosis</b>.".format(total_grains_pct))
+                    mandatory_warnings.append("🚨 إضافة إلزامية - بيكربونات الصوديوم: لحماية الكرش من التحمض Ruminal Acidosis نتيجة وصول الطاقة لـ {:.1f}%.".format(energy_locked_pct))
             elif main_sector == "الطيور والسمان" and "بيكربونات الصوديوم (الصودا)" in selected_ingredients:
                 auto_added_enzymes["بيكربونات الصوديوم (الصودا)"] = 0.20
 
             if main_sector in ["الطيور والسمان", "الأسماك والأحياء المائية"] and "إنزيم الفايتيز الزامي (Phytase Super-D)" not in selected_ingredients:
                 auto_added_enzymes["إنزيم الفايتيز الزامي (Phytase Super-D)"] = 0.05
-                mandatory_warnings.append("🚨 <b>إضافة إلزامية - إنزيم الفايتيز (Phytase):</b> مضاف تلقائياً لتحرير <b>الفسفور المرتبط بحمض الفايتيك Phytic Acid</b> في النباتات الذي لا يهضمه الطير طبيعياً.")
+                mandatory_warnings.append("🚨 إضافة إلزامية - إنزيم الفايتيز (Phytase): مضاف تلقائياً لتحرير الفسفور المرتبط بحمض الفايتيك Phytic Acid في النباتات.")
 
             if "كسب بذور القطن" in formula_results and main_sector == "الطيور والسمان":
                 if formula_results["كسب بذور القطن"] > 5.0:
                     auto_added_enzymes["كبريتات الحديدوز (معادل الجوسيبول)"] = 0.15 
-                    mandatory_warnings.append("⚠️ <b>علة فنية معالجة برمجياً:</b> احتواء العليقة على كسب القطن للطيور بنسبة ({:.1f}%) يرفع <b>الجوسيبول الحر السام Toxic Gossypol</b>، تم ضخ كبريتات الحديدوز فورياً لإبطال مفعوله.".format(formula_results["كسب بذور القطن"]))
+                    mandatory_warnings.append("⚠️ علة فنية معالجة: تم ضخ كبريتات الحديدوز فورياً لربط جزئيات الجوسيبول الحر السام في كسب القطن.")
             
             barley_pct = formula_results.get("شعير مطحون", 0.0)
             wheat_pct = formula_results.get("قمح محلي مصنّع", 0.0)
             if main_sector == "الطيور والسمان" and (barley_pct > 10.0 or wheat_pct > 15.0) and "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)" not in selected_ingredients:
                 auto_added_enzymes["إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)"] = 0.08
-                mandatory_warnings.append("⚠️ <b>علة فنية معالجة برمجياً:</b> استخدام القمح/الشعير يرفع اللزوجة المعوية (NSP)، تم دمج إنزيم مخصص لكسر الروابط المتعددة.")
+                mandatory_warnings.append("⚠️ علة فنية معالجة: تم دمج إنزيم الـ NSP لكسر روابط القمح/الشعير ومنع اللزوجة المعوية.")
 
             if auto_added_enzymes:
                 total_enz_pct = sum(auto_added_enzymes.values())
@@ -573,9 +569,10 @@ with tabs[0]:
             
             st.success(f"🎯 تم تشغيل محرك التركيب وخوارزمية الإنزيمات والأحماض الذكية بنجاح في سوق: {user_city}")
             
+            # 🔔 إطلاق الإشعارات البرمجية التلقائية المنبثقة المؤقتة
             if mandatory_warnings:
-                st.markdown("### 🔬 تقرير فحص العلل والتدخل البرمجي بالإنزيمات:")
-                for warn in mandatory_warnings: st.markdown(f'<div class="warning-card">{warn}</div>', unsafe_allow_html=True)
+                for warn in mandatory_warnings:
+                    st.toast(warn, icon="🔬")
 
             res_col1, res_col2 = st.columns([0.6, 0.4])
             with res_col1:
