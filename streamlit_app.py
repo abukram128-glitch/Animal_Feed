@@ -330,8 +330,16 @@ if "active_animal_img" not in st.session_state: st.session_state["active_animal_
 if "active_stage_title" not in st.session_state: st.session_state["active_stage_title"] = "إنتاج عام"
 if "computed_ton_cost" not in st.session_state: st.session_state["computed_ton_cost"] = 280.0
 
-# ==========================================
-# 4. بناء الواجهة الرئيسية للمنصة
+# ========================================== 
+# السطر 334 وما يليه:
+col_share, col_pdf = st.columns(2
+with col_share: 
+st.link_button("📲 مشاركة واتساب", f"https://wa.me/?text=تركيبة تاور: {sub_type}، التكلفة {ton_cost:.2f}$")
+with col_pdf:
+# هنا يتم استدعاء الدالة الجديدة التي قمنا بتعديلها
+pdf_data = generate_pdf_report(formula_results, final_target_cp, sub_type, ton_cost, user_city)
+st.download_button("📥 تحميل التقرير PDF", pdf_data, file_name="Tower_Report.pdf", mime="application/pdf")
+
 # ==========================================
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
@@ -622,7 +630,24 @@ with tabs[0]:
             st.error("❌ تعذر إيجاد حل رياضي متزن تماماً ضمن المحددات الحالية للمركبات الضيقة. يرجى إتاحة وتفعيل خامات إضافية ككسب فول صويا أو أمباز الفول لتوسيع مساحة الحل للمعالج الخطي.")
 
 # ====================================================================
-# التبويبات الإدارية المتقدمة (تظهر للمالك والمسؤول فقط)
+#def generate_pdf_report(formula, target_cp, breed, cost, city):
+    pdf = FPDF()
+    pdf.add_page()
+    # تأكد من تحميل ملف خط عربي مثل Amiri-Regular.ttf في مجلد المشروع
+    pdf.set_font("Arial", 'B', 16) 
+    
+    pdf.cell(190, 10, txt=fix_arabic("تقرير منصة تاور الذكية للأعلاف"), ln=True, align='C')
+    pdf.set_font("Arial", size=12)
+    pdf.cell(190, 10, txt=fix_arabic(f"الموقع: {city} | السلالة: {breed}"), ln=True, align='R')
+    pdf.cell(190, 10, txt=fix_arabic(f"نسبة البروتين: {target_cp}% | تكلفة الطن: ${cost:.2f}"), ln=True, align='R')
+    pdf.ln(10)
+    
+    for k, v in formula.items():
+        text_line = f"{k}: {v:.2f}% ({v*10:.1f} كجم/طن)"
+        pdf.cell(190, 8, txt=fix_arabic(text_line), ln=True, align='R')
+        
+    return pdf.output(dest='S')
+
 # ====================================================================
 if st.session_state["user_role"] == "admin":
     with tabs[1]:
