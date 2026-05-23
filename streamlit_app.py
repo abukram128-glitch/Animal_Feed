@@ -8,11 +8,28 @@ import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from scipy.optimize import linprog
+import streamlit as st
+import numpy as np
+import json
+import os
+import base64
+import smtplib
+import time
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from scipy.optimize import linprog
+from fpdf import FPDF  # أضف هذا السطر هنا
 
 # ==========================================
 # 1. إعدادات المنصة الرسمية والمظهر الفخم لعام 2026
 # ==========================================
 st.set_page_config(page_title="منصة تاور الذكية المتكاملة للأعلاف والإنتاج الحيواني", page_icon="🌾", layout="wide")
+# نظام حماية الجلسة - مضاف حديثاً
+if "last_active" not in st.session_state: st.session_state["last_active"] = time.time()
+if time.time() - st.session_state["last_active"] > 3600:
+    st.session_state["approved"] = False
+    st.rerun()
+st.session_state["last_active"] = time.time()
 
 # بيانات التحكم والوصول والأمان
 USER_ADMIN = "تاور"       
@@ -551,7 +568,18 @@ with tabs[0]:
             st.session_state["active_stage_title"] = f"{main_sector} - {prod_stage}"
             
             st.success(f"🎯 تم تشغيل محرك التركيب واستقرار الاستمثال الخطي بنجاح في سوق: {user_city}")
+                    if res.success:
+            # ... كودك الحالي لعرض النتائج يظل كما هو ...
             
+            # أضف هذه الأسطر فقط في نهاية بلوك res.success:
+            col_share, col_pdf = st.columns(2)
+            msg_text = f"تركيبة تاور لـ {sub_type}: التكلفة {ton_cost:.2f}$"
+            with col_share:
+                st.link_button("📲 مشاركة واتساب", f"https://wa.me/?text={msg_text}")
+            with col_pdf:
+                pdf_data = generate_pdf_report(formula_results, final_target_cp, sub_type, ton_cost, user_city)
+                st.download_button("📥 تحميل التقرير PDF", pdf_data, file_name="Tower_Report.pdf")
+
             if mandatory_warnings:
                 st.markdown("### 🔬 تقرير فحص العلل والتدخل البرمجي بالإنزيمات والمنظمات الأيونية:")
                 for warn in mandatory_warnings: st.markdown(f'<div class="warning-card">{warn}</div>', unsafe_allow_html=True)
@@ -657,3 +685,16 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+# دالة توليد التقرير - مضافة حديثاً في نهاية الملف
+def generate_pdf_report(formula, target_cp, breed, cost, city):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(200, 10, txt="TOWER SMART PLATFORM REPORT", ln=True, align='C')
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt=f"Location: {city} | Breed: {breed}", ln=True)
+    pdf.cell(200, 10, txt=f"Protein Target: {target_cp}% | Cost/Ton: ${cost:.2f}", ln=True)
+    pdf.ln(10)
+    for k, v in formula.items():
+        pdf.cell(200, 8, txt=f"- {k}: {v:.2f}% ({v*10:.1f} kg/ton)", ln=True)
+    return pdf.output(dest='S').encode('latin-1')
