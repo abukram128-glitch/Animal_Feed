@@ -3,3 +3,4 @@ scipy
 plotly
 pulp
 pandas
+fpdf
