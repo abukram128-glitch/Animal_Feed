@@ -600,16 +600,13 @@ with tabs[0]:
             formula_results = {}
             for idx, ing in enumerate(selected_ingredients):
                 if res.x[idx] > 0.0001: 
-                    formula_results[ing] = res.x[idx]
-
+                    formula_results[ing] = res.x[idx
             st.session_state["active_formula"] = formula_results
             st.session_state["active_cp_tag"] = final_target_cp
             st.session_state["active_breed_tag"] = sub_type
             st.session_state["active_animal_img"] = ANIMAL_IMAGES_RESOURCES.get(dynamic_img_key, ANIMAL_IMAGES_RESOURCES["عام"])
-            st.session_state["active_stage_title"] = f"{main_sector} - {prod_stage}"
-            
-            st.success(f"🎯 تم تشغيل محرك التركيب واستقرار الاستمثال الخطي بنجاح في سوق: {user_city}")
-            
+            st.session_state["active_stage_title"] = f"{main_sector} - {prod_stage}" 
+            st.success(f"🎯 تم تشغيل محرك التركيب واستقرار الاستمثال الخطي بنجاح في سوق: {user_city}")  
             if mandatory_warnings:
                 st.markdown("### 🔬 تقرير فحص العلل والتدخل البرمجي بالإنزيمات والمنظمات الأيونية:")
                 for warn in mandatory_warnings: 
@@ -641,13 +638,10 @@ with tabs[0]:
     pdf.cell(190, 10, txt=fix_arabic(f"الموقع: {city} | السلالة: {breed}"), ln=True, align='R')
     pdf.cell(190, 10, txt=fix_arabic(f"نسبة البروتين: {target_cp}% | تكلفة الطن: ${cost:.2f}"), ln=True, align='R')
     pdf.ln(10)
-    
     for k, v in formula.items():
         text_line = f"{k}: {v:.2f}% ({v*10:.1f} كجم/طن)"
-        pdf.cell(190, 8, txt=fix_arabic(text_line), ln=True, align='R')
-        
+        pdf.cell(190, 8, txt=fix_arabic(text_line), ln=True, align='R')  
     return pdf.output(dest='S')
-
 # ====================================================================
 if st.session_state["user_role"] == "admin":
     with tabs[1]:
@@ -661,7 +655,6 @@ if st.session_state["user_role"] == "admin":
             st.subheader("🥛 بورصة الألبان واللحوم والأطباق")
             for product, price in st.session_state["global_products_prices"].items():
                 st.session_state["global_products_prices"][product] = st.number_input(f"تحديث سعر: {product}", min_value=0.0, value=float(price), step=0.05, key=f"prod_edit_{product}")
-
     with tabs[2]:
         st.markdown('<div class="section-title">🏭 لوحة التحكم الذكية بالمخازن والمستودعات المركزية</div>', unsafe_allow_html=True)
         inv_cols = st.columns(3)
@@ -670,7 +663,6 @@ if st.session_state["user_role"] == "admin":
                 status_badge = f'<span class="stock-critical">⚠️ حرج: {qty:.2f} طن</span>' if qty < 5.0 else f'<span class="stock-normal">آمن: {qty:.2f} طن</span>'
                 st.markdown(f"**{ing_name}** | {status_badge}", unsafe_allow_html=True)
                 st.session_state["inventory"][ing_name] = st.number_input(f"تحديث رصيد ({ing_name}) طن:", min_value=0.0, value=float(qty), key=f"inv_input_{ing_name}")
-
     with tabs[3]:
         st.markdown('<div class="section-title">💰 نظام تسويق المنتجات وإصدار الفواتير مع الخصم التلقائي</div>', unsafe_allow_html=True)
         col_c1, col_c2, col_c3 = st.columns(3)
@@ -691,7 +683,6 @@ if st.session_state["user_role"] == "admin":
                 for name, pct in st.session_state["active_formula"].items(): 
                     st.session_state["inventory"][name] -= ((pct / 100) * required_tons)
                 st.success("🔥 تم الخصم التلقائي وتحديث المخازن بنجاح!"); time.sleep(1); st.rerun()
-
     with tabs[4]:
         st.markdown('<div class="section-title">🏷️ مُصمم ديباجات الطباعة الفنية على جوالات الأعلاف</div>', unsafe_allow_html=True)
         trade_brand = st.text_input("اسم البراند التجاري لإصدار الفاتورة:", "مجموعة تاور لإنتاج الأعلاف ومصنعات الإنتاج الحيواني")
@@ -703,17 +694,14 @@ if st.session_state["user_role"] == "admin":
             <p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:6px; color:#1b5e20;">🎯 علف مخصص لـ: {st.session_state['active_stage_title']} | نسبة البروتين المحققة: {st.session_state['active_cp_tag']:.1f}%</p>
         </div>
         """, unsafe_allow_html=True)
-
 # ====================================================================
 # 📨 نظام حفظ السورس كود والتقارير بأمان
 # ====================================================================
 st.markdown("<br><hr style='border-top: 1px dashed #2e7d32;'>", unsafe_allow_html=True)
 st.markdown("<h3 style='color: #1565C0; text-align:right;'>📨 أرشفت الكود والتقارير الحالية للبريد الإلكتروني</h3>", unsafe_allow_html=True)
-
 col_mail, col_btn = st.columns([0.7, 0.3])
 with col_mail:
     target_email = st.text_input("أدخل البريد الإلكتروني المستلم لحفظ نسخة السورس كود الأساسية:", placeholder="example@gmail.com")
-
 with col_btn:
     st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
     if st.button("إرسال نسخة الكود فوراً 🚀", use_container_width=True, type="secondary"):
@@ -734,7 +722,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
 def generate_pdf_report(formula, target_cp, breed, cost, city):
     pdf = FPDF()
     pdf.add_page()
