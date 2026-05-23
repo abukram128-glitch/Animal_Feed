@@ -3,5 +3,7 @@ scipy
 plotly
 pulp
 pandas
-fpdf
 numpy
+fpdf2
+arabic-reshaper
+python-bidi
