@@ -4,3 +4,4 @@ plotly
 pulp
 pandas
 fpdf
+numpy
