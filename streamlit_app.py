@@ -4,21 +4,10 @@ import config as cfg
 import logic as log
 import utils as ut
 
-# 1. إعدادات الواجهة
+# إعدادات الصفحة (شكل المنصة الأساسي)
 st.set_page_config(page_title="منصة تاور الذكية 2026", layout="wide")
 
-# 2. حماية الدخول
-if "approved" not in st.session_state: st.session_state["approved"] = False
-# ... (كود الدخول)
-
-# 3. عرض المحتوى باستدعاء المكتبات (cfg, log, ut)
-# مثال:
-# if st.button("🚀 تشغيل المحرك"):
-#     res = log.run_optimization(...)
-
-# 4. صلاحية المالك فقط للإرسال
-if st.session_state["user_role"] == "admin":
-    target_email = st.text_input("بريد المالك لإرسال الكود:")
-    if st.button("إرسال نسخة الكود"):
-        # إرسال الكود
-        pass
+# محتوى المنصة (الواجهة)
+# يمكنك هنا وضع الـ st.title و st.sidebar و st.button كما كنت تفعل سابقاً
+# وعندما تحتاج للحسابات، استخدم: log.run_optimization(...)
+# وعندما تحتاج للإرسال، استخدم: ut.send_code_to_mail(...)
