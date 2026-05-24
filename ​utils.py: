@@ -1,1 +1,14 @@
 
+# utils.py
+import streamlit as st
+import smtplib
+from email.mime.text import MIMEText
+# ... مكتبات الإرسال
+
+def send_code_to_mail(receiver_email, code_content):
+    # كود الإرسال البريدي (ضع المنطق الخاص بك هنا)
+    pass
+
+def generate_pdf_report(formula, ...):
+    # كود الـ FPDF
+    pass
