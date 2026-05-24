@@ -5,6 +5,7 @@ import os
 import base64
 import smtplib
 import time
+import urllib.parse  # مضافة لترميز رسائل الواتساب تلقائياً
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from scipy.optimize import linprog
@@ -29,6 +30,8 @@ SMTP_PORT = 587
 SENDER_EMAIL = "abukram128@gmail.com"       
 SENDER_PASSWORD = "oynz rdli tsdy ekdq"     
 OWNER_EMAIL = "abukram128@gmail.com"  # البريد الحصري والوحيد المسموح بإرسال الكود إليه
+WHATSAPP_NUMBER = "+249123533489"     # الرقم الدولي المعتمد للمهندس عبدالقادر إسماعيل
+GOOGLE_FORM_URL = "https://forms.google.com/YOUR_FORM_URL"  # ضع رابط نموذج جوجل الخاص بك هنا
 
 def get_image_base64(paths):
     for path in paths:
@@ -94,7 +97,6 @@ def generate_pdf_report(formula, target_cp, breed, cost, city, local_cost, local
     pdf.cell(200, 10, txt="Approved Precise Feed Ingredients (Per Ton):", ln=True)
     pdf.set_font("Helvetica", size=12)
     for k, v in formula.items():
-        # كتابة اسم المكون والوزن المقابل بالـ كجم لكل طن علف
         pdf.cell(200, 8, txt=f"- {k}: {v:.2f}% -> ({v*10:.1f} kg / Ton)", ln=True)
     pdf.ln(15)
     pdf.set_font("Helvetica", 'I', 10)
@@ -371,10 +373,11 @@ with col_title:
 
 st.markdown("<hr style='border-top: 2px solid #2e7d32;'>", unsafe_allow_html=True)
 
+# تفعيل نظام التبويبات لـ كلاً من الآدمن والمربي مع التبويب الجديد
 if st.session_state["user_role"] == "admin":
-    tabs_titles = ["🔬 النمذجة والحسابات العلفية الكبرى", "📊 بورصة تاور المركزية للمنتجات والماشية", "🏭 إدارة المستودعات والخصم التلقائي", "🧾 التسويق وفواتير حركة البيع", "🖨️ مصمم بطاقات الديباجة والدعاية"]
+    tabs_titles = ["🔬 النمذجة والحسابات العلفية الكبرى", "📊 بورصة تاور المركزية للمنتجات والماشية", "🏭 إدارة المستودعات والخصم التلقائي", "🧾 التسويق وفواتير حركة البيع", "🖨️ مصمم بطاقات الديباجة والدعاية", "📖 دليل المستخدم والاستشارات الفنية"]
 else:
-    tabs_titles = ["🔬 النمذجة والحسابات العلفية الكبرى"]
+    tabs_titles = ["🔬 النمذجة والحسابات العلفية الكبرى", "📖 دليل المستخدم والاستشارات الفنية"]
 
 tabs = st.tabs(tabs_titles)
 
@@ -615,18 +618,19 @@ with tabs[0]:
                 st.session_state["computed_ton_cost"] = ton_cost
                 st.metric(f"💰 التكلفة الفعلية لإنتاج الطن في {user_city}: ", f"${ton_cost:.2f} (أو {ton_cost*local_rate:,.1f} {local_sym})")
                 
-                # --- إضافة أزرار المشاركة والتحميل الفوري للـ PDF بعد المعالجة الناجحة ---
                 st.markdown("<br>", unsafe_allow_html=True)
                 col_share, col_pdf = st.columns(2)
                 with col_share:
-                    st.link_button("📲 مشاركة الفاتورة عبر واتساب", f"https://wa.me/?text=تركيبة تاور الذكية: {sub_type}، تكلفة إنتاج الطن الحالي {ton_cost:.2f}$")
+                    # تعديل نص المشاركة ليكون احترافياً باسمك
+                    share_message = f"أستخدم الآن برنامج المهندس عبدالقادر إسماعيل لتركيب الأعلاف وحساب العلائق بأقل تكلفة ودقة علمية عالية. التركيبة المستهدفة: {sub_type}، بتكلفة إنتاج {ton_cost:.2f}$ للطن."
+                    encoded_share_msg = urllib.parse.quote(share_message)
+                    st.link_button("📲 مشاركة الفاتورة عبر واتساب", f"https://wa.me/?text={encoded_share_msg}")
                 with col_pdf:
                     try:
                         pdf_data = generate_pdf_report(formula_results, final_target_cp, sub_type, ton_cost, user_city, ton_cost*local_rate, local_sym)
                         st.download_button("📥 تحميل التقرير الفني PDF", pdf_data, file_name=f"Tower_Formula_{user_city}.pdf", mime="application/pdf", use_container_width=True)
                     except Exception as pdf_err:
                         st.error(f"⚠️ لم يتم بناء ملف الـ PDF: {pdf_err}")
-                # ----------------------------------------------------------------------
                 
             with res_col2: 
                 st.bar_chart(formula_results)
@@ -680,7 +684,7 @@ if st.session_state["user_role"] == "admin":
                 st.success("🔥 تم الخصم التلقائي وتحديث المخازن بنجاح!"); time.sleep(1); st.rerun()
 
     with tabs[4]:
-        st.markdown('<div class="section-title">🏷️ مُصمم ديباجات الطباعة الفنية على جوالات الأعلاف</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">👑 مُصمم ديباجات الطباعة الفنية على جوالات الأعلاف</div>', unsafe_allow_html=True)
         trade_brand = st.text_input("اسم البراند التجاري لإصدار الفاتورة:", "مجموعة تاور لإنتاج الأعلاف ومصنعات الإنتاج الحيواني")
         st.markdown(f"""
         <div class="sack-tag">
@@ -692,6 +696,56 @@ if st.session_state["user_role"] == "admin":
         """, unsafe_allow_html=True)
 
 # ====================================================================
+# 🗂️ التبويب الجديد والمطور: "دليل المستخدم والاستشارات الفنية"
+# ====================================================================
+# تحديد رقم التبويب الأخير بناءً على دور المستخدم تلقائياً
+support_tab_index = 5 if st.session_state["user_role"] == "admin" else 1
+with tabs[support_tab_index]:
+    st.markdown('<div class="section-title">📖 دليل استخدام البرنامج وقنوات التواصل المباشر مع الخبير</div>', unsafe_allow_html=True)
+    
+    col_guide, col_actions = st.columns([0.6, 0.4])
+    
+    with col_guide:
+        st.markdown("### 📒 كتيب دليل المستخدم السريع:")
+        guide_text = (
+            "أهلاً بك في برنامج **المهندس عبدالقادر إسماعيل تاور** لتركيب وتطوير أعلاف الدواجن والماشية والخيل بدقة متناهية وأقل تكلفة اقتصادية.\n\n"
+            "**خطوات التشغيل الفني الصحيح العلائقي:**\n"
+            "1. **تحديد الموقع:** اختر الدولة والولاية لتحديث أسعار بورصة الخامات أوتوماتيكياً في سوقك المحلي.\n"
+            "2. **اختيار الفصيل المستهدف:** حدد الفصيل (دواجن، مجترات، خيل، أسماك) والمرحلة العمرية أو الإنتاجية ليقترح النظام نسبة البروتين الموصى بها علمياً.\n"
+            "3. **القياس الجسدي حَقلياً:** في قطاع الثروة الحيوانية، أدخل محيط الصدر وطول الجسم لتقدير أوزان القطيع واحتياجه اليومي تلقائياً.\n"
+            "4. **تحديد المدخلات:** نشّط مربعات الاختيار بجانب الخامات المتوفرة في مخازنك حالياً (ذرة صفراء، ذرة بيضاء، كسب عباد الشمس، أمباز فول سوداني...).\n"
+            "5. **التحسين الرياضي الذكي:** اضغط على زر *'تشغيل محرك الاستمثال الخطي'* ليقوم المعالج بحساب المقادير لكل طن بأقل تكلفة محددة.\n\n"
+            "*💡 تنويه فني: يرجى الحرص على تحديث الأسعار دورياً لضمان سلامة حسابات التكلفة والربحية الاقتصادية للفواتير.*"
+        )
+        st.info(guide_text)
+
+    with col_actions:
+        st.markdown("### 💬 قنوات التفاعل والاستشارات الفنية:")
+        st.markdown("يمكنك إرسال استشارتك العلفية أو التعليق على البرنامج والتحسينات المطلوبة عبر القنوات التالية:")
+        
+        # زر نموذج جوجل الخارجي
+        st.link_button("📝 إرسال تعليق أو طلب استشارة (نموذج جوجل)", GOOGLE_FORM_URL, use_container_width=True)
+        
+        # زر الواتساب للتواصل المباشر المجهز برسالة ترحيبية
+        welcome_msg = "السلام عليكم مهندس عبدالقادر، أود الحصول على استشارة فنية بخصوص تركيب الأعلاف وحساب العلائق عبر برنامجكم الذكي..."
+        encoded_msg = urllib.parse.quote(welcome_msg)
+        whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}?text={encoded_msg}"
+        st.link_button("💬 تواصل واستشارة مباشرة عبر الواتساب", whatsapp_link, use_container_width=True)
+        
+        # أزرار مشاركة البرنامج ونشر المعرفة
+        st.markdown("<br><b>📢 انشر البرنامج وشارك المعرفة مع زملائك المربين والمهندسين:</b>", unsafe_allow_html=True)
+        
+        share_text_base = "أستخدم الآن برنامج المهندس عبدالقادر إسماعيل لتركيب الأعلاف وحساب العلائق بأقل تكلفة ودقة علمية عالية."
+        encoded_share_text = urllib.parse.quote(share_text_base)
+        
+        col_wa, col_fb = st.columns(2)
+        with col_wa:
+            st.link_button("🟢 مشاركة عبر الواتساب", f"https://wa.me/?text={encoded_share_text}", use_container_width=True)
+        with col_fb:
+            st.link_button("🔵 مشاركة عبر فيسبوك", f"https://www.facebook.com/sharer/sharer.php?u=https://yourplatform.com&quote={encoded_share_text}", use_container_width=True)
+
+
+# ====================================================================
 # 📨 نظام حفظ وأرشفة السورس كود - مؤمن بالكامل لبريد المالك فقط
 # ====================================================================
 st.markdown("<br><hr style='border-top: 1px dashed #2e7d32;'>", unsafe_allow_html=True)
@@ -699,7 +753,6 @@ st.markdown("<h3 style='color: #1565C0; text-align:right;'>📨 أرشفتة ش�
 
 col_mail_info, col_btn = st.columns([0.7, 0.3])
 with col_mail_info:
-    # تم إلغاء حقل الإدخال الحر لمنع كتابة أي بريد إلكتروني خارجي
     st.info(f"🔒 حماية الخصوصية نشطة: سيتم إرسال ملف الكود مباشرة إلى البريد الشخصي المثبت للمالك فقط: ({OWNER_EMAIL})")
 
 with col_btn:
