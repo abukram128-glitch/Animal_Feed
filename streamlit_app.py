@@ -387,8 +387,23 @@ with tabs[0]:
             else: user_city = st.selectbox("اختر المدينة الليبية:", ["سبها", "مرزق", "غات"])
         else: user_city = st.text_input("اكتب اسم المدينة العالمية يدوياً:", "طبرق")
 
-    live_prices = get_adjusted_market_data(user_country, chosen_state, user_city)
-    
+    # بدلاً من الوصول المباشر الذي يسبب KeyError، نستخدم .get()
+for idx, (ing_name, qty) in enumerate(list(st.session_state["inventory"].items())):
+    with inv_cols[idx % 3]:
+        # استخدام .get للحصول على القيمة بمرونة
+        current_val = st.session_state["inventory"].get(ing_name, 0.0)
+        status_badge = f'<span class="stock-critical">⚠️ حرج: {current_val:.2f}</span>' if current_val < 5.0 else f'<span class="stock-normal">آمن: {current_val:.2f}</span>'
+        
+        st.markdown(f"**{ing_name}** | {status_badge}", unsafe_allow_html=True)
+        
+        # التحديث الآمن
+        st.session_state["inventory"][ing_name] = st.number_input(
+            f"تحديث رصيد ({ing_name}) طن:", 
+            min_value=0.0, 
+            value=float(current_val), 
+            key=f"inv_input_{ing_name}"
+        )
+
     col_view1, col_view2 = st.columns(2)
     with col_view1:
         st.markdown(f'<div class="price-card"><b>📈 بورصة الماشية والداجن الحية في ({user_city}) المزدوجة:</b><br>' + 
