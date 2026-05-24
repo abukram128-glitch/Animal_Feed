@@ -9,7 +9,14 @@ import urllib.parse  # مضافة لترميز رسائل الواتساب تل�
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from scipy.optimize import linprog
-from fpdf import FPDF
+
+# استيراد مكتبات توليد الـ PDF المتقدمة ومعالجة اللغة العربية الصحيحة
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+import arabic_reshaper
+from bidi.algorithm import get_display
+import io
 
 # ==========================================
 # 1. إعدادات المنصة الرسمية والمظهر الفخم لعام 2026
@@ -80,28 +87,52 @@ def send_code_to_mail(receiver_email):
         st.error(f"❌ فشل الإرسال بسبب: {e}")
         return False
 
-# دالة توليد تقارير PDF الفنية الاحترافية للمنظومة العلفية
+# دالة لتشكيل النصوص العربية وإصلاح اتجاهها للـ PDF
+def fix_arabic_text(text):
+    reshaped_text = arabic_reshaper.reshape(text)
+    bidi_text = get_display(reshaped_text)
+    return bidi_text
+
+# دالة توليد تقارير PDF الفنية الاحترافية للمنظومة العلفية باستخدام معالجة الخطوط الصحيحة
 def generate_pdf_report(formula, target_cp, breed, cost, city, local_cost, local_sym):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Helvetica", 'B', 16)
-    pdf.cell(200, 10, txt="TOWER SMART INTEGRATED PLATFORM REPORT", ln=True, align='C')
-    pdf.ln(5)
-    pdf.set_font("Helvetica", size=12)
-    pdf.cell(200, 10, txt=f"Location / Market: {city}", ln=True)
-    pdf.cell(200, 10, txt=f"Target Animal / Breed: {breed}", ln=True)
-    pdf.cell(200, 10, txt=f"Target Crude Protein (CP): {target_cp}%", ln=True)
-    pdf.cell(200, 10, txt=f"Calculated Cost Per Ton: ${cost:.2f} ({local_cost:,.2f} {local_sym})", ln=True)
-    pdf.ln(10)
-    pdf.set_font("Helvetica", 'B', 14)
-    pdf.cell(200, 10, txt="Approved Precise Feed Ingredients (Per Ton):", ln=True)
-    pdf.set_font("Helvetica", size=12)
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer)
+    
+    # محاولة تسجيل الخط العربي لضمان سلامة الطباعة وتفادي انهيار السيرفر
+    font_name = "Helvetica"
+    if os.path.exists("Amiri-Regular.ttf"):
+        try:
+            pdfmetrics.registerFont(TTFont('Amiri', 'Amiri-Regular.ttf'))
+            font_name = "Amiri"
+        except Exception:
+            pass
+            
+    p.setFont(font_name, 16)
+    p.drawString(100, 800, fix_arabic_text("تقرير منصة تاور الذكية لتركيب الأعلاف والإنتاج الحيواني"))
+    p.setFont(font_name, 12)
+    p.drawString(100, 760, fix_arabic_text(f"الموقع / السوق الجغرافي المستهدف: {city}"))
+    p.drawString(100, 740, fix_arabic_text(f"الفصيل / السلالة الحيوانية: {breed}"))
+    p.drawString(100, 720, fix_arabic_text(f"نسبة البروتين الخام المستهدفة (CP): {target_cp}%"))
+    p.drawString(100, 700, fix_arabic_text(f"التكلفة المحسوبة للطن: ${cost:.2f} ({local_cost:,.2f} {local_sym})"))
+    
+    p.setFont(font_name, 14)
+    p.drawString(100, 660, fix_arabic_text("المقادير الدقيقة المعتمدة لتركيب خلطة الطن الواحدة:"))
+    p.setFont(font_name, 12)
+    
+    y_position = 630
     for k, v in formula.items():
-        pdf.cell(200, 8, txt=f"- {k}: {v:.2f}% -> ({v*10:.1f} kg / Ton)", ln=True)
-    pdf.ln(15)
-    pdf.set_font("Helvetica", 'I', 10)
-    pdf.cell(200, 10, txt="Generated automatically by Eng. Abdelkader Ismail Tower System © 2026", ln=True, align='C')
-    return pdf.output(dest='S').encode('latin-1', errors='ignore')
+        line_text = f"- {k}: {v:.2f}% -> ({v*10:.1f} كجم / طن)"
+        p.drawString(100, y_position, fix_arabic_text(line_text))
+        y_position -= 20
+        if y_position < 50:
+            p.showPage()
+            y_position = 800
+            
+    p.setFont(font_name, 10)
+    p.drawString(100, 50, fix_arabic_text("تم التوليد تلقائياً بواسطة منظومة المهندس عبد القادر إسماعيل تاور © 2026"))
+    p.save()
+    buffer.seek(0)
+    return buffer.getvalue()
 
 # --- تحسين الـ CSS لضمان التباين وقابلية القراءة الفخمة ---
 st.markdown(
@@ -621,7 +652,6 @@ with tabs[0]:
                 st.markdown("<br>", unsafe_allow_html=True)
                 col_share, col_pdf = st.columns(2)
                 with col_share:
-                    # تعديل نص المشاركة ليكون احترافياً باسمك
                     share_message = f"أستخدم الآن برنامج المهندس عبدالقادر إسماعيل لتركيب الأعلاف وحساب العلائق بأقل تكلفة ودقة علمية عالية. التركيبة المستهدفة: {sub_type}، بتكلفة إنتاج {ton_cost:.2f}$ للطن."
                     encoded_share_msg = urllib.parse.quote(share_message)
                     st.link_button("📲 مشاركة الفاتورة عبر واتساب", f"https://wa.me/?text={encoded_share_msg}")
@@ -696,9 +726,8 @@ if st.session_state["user_role"] == "admin":
         """, unsafe_allow_html=True)
 
 # ====================================================================
-# 🗂️ التبويب الجديد والمطور: "دليل المستخدم والاستشارات الفنية"
+# 🗂️ دليل المستخدم والاستشارات الفنية
 # ====================================================================
-# تحديد رقم التبويب الأخير بناءً على دور المستخدم تلقائياً
 support_tab_index = 5 if st.session_state["user_role"] == "admin" else 1
 with tabs[support_tab_index]:
     st.markdown('<div class="section-title">📖 دليل استخدام البرنامج وقنوات التواصل المباشر مع الخبير</div>', unsafe_allow_html=True)
@@ -712,7 +741,7 @@ with tabs[support_tab_index]:
             "**خطوات التشغيل الفني الصحيح العلائقي:**\n"
             "1. **تحديد الموقع:** اختر الدولة والولاية لتحديث أسعار بورصة الخامات أوتوماتيكياً في سوقك المحلي.\n"
             "2. **اختيار الفصيل المستهدف:** حدد الفصيل (دواجن، مجترات، خيل، أسماك) والمرحلة العمرية أو الإنتاجية ليقترح النظام نسبة البروتين الموصى بها علمياً.\n"
-            "3. **القياس الجسدي حَقلياً:** في قطاع الثروة الحيوانية، أدخل محيط الصدر وطول الجسم لتقدير أوزان القطيع واحتياجه اليومي تلقائياً.\n"
+            "3. **القياس الجسدي حَقلياً:** في قطاع الثروة الحيوانية، أدخل محيط الصدر وطول الجسم لتقدير أوزان القطيع وااحتياجه اليومي تلقائياً.\n"
             "4. **تحديد المدخلات:** نشّط مربعات الاختيار بجانب الخامات المتوفرة في مخازنك حالياً (ذرة صفراء، ذرة بيضاء، كسب عباد الشمس، أمباز فول سوداني...).\n"
             "5. **التحسين الرياضي الذكي:** اضغط على زر *'تشغيل محرك الاستمثال الخطي'* ليقوم المعالج بحساب المقادير لكل طن بأقل تكلفة محددة.\n\n"
             "*💡 تنويه فني: يرجى الحرص على تحديث الأسعار دورياً لضمان سلامة حسابات التكلفة والربحية الاقتصادية للفواتير.*"
@@ -723,16 +752,13 @@ with tabs[support_tab_index]:
         st.markdown("### 💬 قنوات التفاعل والاستشارات الفنية:")
         st.markdown("يمكنك إرسال استشارتك العلفية أو التعليق على البرنامج والتحسينات المطلوبة عبر القنوات التالية:")
         
-        # زر نموذج جوجل الخارجي
         st.link_button("📝 إرسال تعليق أو طلب استشارة (نموذج جوجل)", GOOGLE_FORM_URL, use_container_width=True)
         
-        # زر الواتساب للتواصل المباشر المجهز برسالة ترحيبية
         welcome_msg = "السلام عليكم مهندس عبدالقادر، أود الحصول على استشارة فنية بخصوص تركيب الأعلاف وحساب العلائق عبر برنامجكم الذكي..."
         encoded_msg = urllib.parse.quote(welcome_msg)
         whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}?text={encoded_msg}"
         st.link_button("💬 تواصل واستشارة مباشرة عبر الواتساب", whatsapp_link, use_container_width=True)
         
-        # أزرار مشاركة البرنامج ونشر المعرفة
         st.markdown("<br><b>📢 انشر البرنامج وشارك المعرفة مع زملائك المربين والمهندسين:</b>", unsafe_allow_html=True)
         
         share_text_base = "أستخدم الآن برنامج المهندس عبدالقادر إسماعيل لتركيب الأعلاف وحساب العلائق بأقل تكلفة ودقة علمية عالية."
@@ -744,12 +770,11 @@ with tabs[support_tab_index]:
         with col_fb:
             st.link_button("🔵 مشاركة عبر فيسبوك", f"https://www.facebook.com/sharer/sharer.php?u=https://yourplatform.com&quote={encoded_share_text}", use_container_width=True)
 
-
 # ====================================================================
 # 📨 نظام حفظ وأرشفة السورس كود - مؤمن بالكامل لبريد المالك فقط
 # ====================================================================
 st.markdown("<br><hr style='border-top: 1px dashed #2e7d32;'>", unsafe_allow_html=True)
-st.markdown("<h3 style='color: #1565C0; text-align:right;'>📨 أرشفتة شفرة المصدر البرمجية للمنصة</h3>", unsafe_allow_html=True)
+st.markdown("<h3 style='color: #1565C0; text-align:right;'>📨 أرشفة شفرة المصدر البرمجية للمنصة</h3>", unsafe_allow_html=True)
 
 col_mail_info, col_btn = st.columns([0.7, 0.3])
 with col_mail_info:
