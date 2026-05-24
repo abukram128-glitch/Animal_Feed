@@ -9,19 +9,12 @@ import urllib.parse  # مضافة لترميز رسائل الواتساب تل�
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from scipy.optimize import linprog
-
-# استيراد مكتبات ReportLab والمعالجة العربية لدعم ملفات الـ PDF بشكل صحيح
-import arabic_reshaper
-from bidi.algorithm import get_display
-from reportlab.pdfgen import canvas
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.pagesizes import letter
+from fpdf import FPDF
 
 # ==========================================
 # 1. إعدادات المنصة الرسمية والمظهر الفخم لعام 2026
 # ==========================================
-st.set_page_config(page_title="برنامج المهندس عبد القادر إسماعيل تاور لتركيب الأعلاف", page_icon="🌾", layout="wide")
+st.set_page_config(page_title="منصة تاور الذكية المتكاملة للأعلاف والإنتاج الحيواني", page_icon="🌾", layout="wide")
 
 # بيانات التحكم والوصول والأمان
 USER_ADMIN = "تاور"       
@@ -60,7 +53,7 @@ def send_code_to_mail(receiver_email):
     msg = MIMEMultipart()
     msg['From'] = SENDER_EMAIL
     msg['To'] = receiver_email
-    msg['Subject'] = "🌾 السورس كود الكامل والمطور - برنامج المهندس عبد القادر إسماعيل"
+    msg['Subject'] = "🌾 السورس كود الكامل والمطور - منصة تاور الذكية المتكاملة"
     
     body = "السلام عليكم م. عبد القادر،\n\nمرفق مع هذه الرسالة النسخة البرمجية الكاملة، المدمجة والمستقرة لمنصة تاور الذكية بعد دمج محركات الاستمثال الخطي وتصحيح نسب المكتبة الموسعة لعام 2026 كنسخة احتياطية مأرشفة لسيادتكم فقط.\n\nتحياتي الهندسية."
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
@@ -87,92 +80,28 @@ def send_code_to_mail(receiver_email):
         st.error(f"❌ فشل الإرسال بسبب: {e}")
         return False
 
-# --- دالة معالجة النصوص العربية وحظر الحروف المتقطعة والمقلوبة في الـ PDF ---
-def fix_arabic(text):
-    if not text:
-        return ""
-    reshaped = arabic_reshaper.reshape(str(text))
-    bidi_text = get_display(reshaped)
-    return bidi_text
-
-# --- دالة توليد تقارير PDF الفنية والاحترافية المحدثة باللغة العربية بالكامل ---
-def generate_pdf_report(formula, target_cp, breed, cost, city, local_cost, local_sym, filename="Tower_Formula_Report.pdf"):
-    c = canvas.Canvas(filename, pagesize=letter)
-    width, height = letter
-    
-    # محاولة جلب خط عربي (مثل Cairo) إذا كان مرفوعاً بجانب الكود على جيت هاب لضمان المظهر الفخم
-    font_name = 'Helvetica'
-    font_path = "Cairo-Regular.ttf" 
-    if os.path.exists(font_path):
-        pdfmetrics.registerFont(TTFont('ArabicFont', font_path))
-        font_name = 'ArabicFont'
-    
-    # رسم الهيدر العلوي الاحترافي باللون الأخضر الزرعي الفخم
-    c.setFillColorRGB(0.15, 0.68, 0.37)
-    c.rect(0, height - 85, width, 85, fill=True, stroke=False)
-    
-    c.setFillColorRGB(1, 1, 1)
-    c.setFont(font_name, 18)
-    c.drawRightString(width - 40, height - 35, fix_arabic("برنامج المهندس عبدالقادر اسماعيل تاور لتركيب الاعلاف"))
-    c.setFont(font_name, 11)
-    c.drawRightString(width - 40, height - 60, fix_arabic("تقرير فني معتمد لتركيب العلائق وحساب الاحتياجات الغذائية الاقتصادية"))
-    
-    # بيانات السوق والقطيع المستهدف
-    c.setFillColorRGB(0.17, 0.24, 0.31)
-    c.setFont(font_name, 12)
-    c.drawRightString(width - 40, height - 115, fix_arabic(f"الموقع الجغرافي / البورصة: {city}"))
-    c.drawRightString(width - 40, height - 135, fix_arabic(f"الفصيل / السلالة المستهدفة: {breed}"))
-    c.drawRightString(width - 40, height - 155, fix_arabic(f"نسبة بروتين العليقة المحققة (CP): {target_cp}%"))
-    c.drawRightString(width - 40, height - 175, fix_arabic(f"تكلفة إنتاج الطن الفعلية: ${cost:.2f} ({local_cost:,.2f} {local_sym})"))
-    
-    # رسم جدول المكونات العلفية
-    c.setStrokeColorRGB(0.8, 0.8, 0.8)
-    c.line(40, height - 195, width - 40, height - 195)
-    
-    y = height - 215
-    c.setFont(font_name, 12)
-    c.drawRightString(width - 50, y, fix_arabic("اسم المكون العلفي المعتمد"))
-    c.drawRightString(width - 280, y, fix_arabic("النسبة المئوية (%)"))
-    c.drawRightString(width - 440, y, fix_arabic("الوزن المطلوب (كجم / طن)"))
-    
-    y -= 8
-    c.line(40, y, width - 40, y)
-    
-    c.setFont(font_name, 11)
+# دالة توليد تقارير PDF الفنية الاحترافية للمنظومة العلفية
+def generate_pdf_report(formula, target_cp, breed, cost, city, local_cost, local_sym):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", 'B', 16)
+    pdf.cell(200, 10, txt="TOWER SMART INTEGRATED PLATFORM REPORT", ln=True, align='C')
+    pdf.ln(5)
+    pdf.set_font("Helvetica", size=12)
+    pdf.cell(200, 10, txt=f"Location / Market: {city}", ln=True)
+    pdf.cell(200, 10, txt=f"Target Animal / Breed: {breed}", ln=True)
+    pdf.cell(200, 10, txt=f"Target Crude Protein (CP): {target_cp}%", ln=True)
+    pdf.cell(200, 10, txt=f"Calculated Cost Per Ton: ${cost:.2f} ({local_cost:,.2f} {local_sym})", ln=True)
+    pdf.ln(10)
+    pdf.set_font("Helvetica", 'B', 14)
+    pdf.cell(200, 10, txt="Approved Precise Feed Ingredients (Per Ton):", ln=True)
+    pdf.set_font("Helvetica", size=12)
     for k, v in formula.items():
-        y -= 24
-        if y < 60:  # لحماية المحتوى من الخروج خارج نطاق الصفحة الهندسية
-            c.showPage()
-            y = height - 60
-            c.setFont(font_name, 11)
-        c.drawRightString(width - 50, y, fix_arabic(k))
-        c.drawRightString(width - 280, y, f"{v:.2f} %")
-        c.drawRightString(width - 440, y, f"{v*10:.1f} كجم")
-        
-    y -= 30
-    c.line(40, y, width - 40, y)
-    y -= 20
-    c.setFont(font_name, 10)
-    c.setFillColorRGB(0.2, 0.2, 0.2)
-    c.drawRightString(width - 40, y, fix_arabic("📜 صدر تلقائياً عبر المنظومة الذكية للمستشار المهندس عبد القادر إسماعيل تاور © 2026"))
-    
-    c.showPage()
-    c.save()
-    
-    with open(filename, "rb") as f:
-        return f.read()
-
-# --- محرك الاستمثال الخطي المعالج تلقائياً لمنع حالات التعذر الحاد (Infeasible) ---
-def optimize_feed_smart(c_vector, A_ub, b_ub, A_eq, b_eq, bounds, iteration=1):
-    res = linprog(c_vector, A_ub=A_ub if A_ub else None, b_ub=b_ub if b_ub else None, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
-    
-    # المعالجة الذكية: إذا ضاقت مساحة الحل وفشل التقارب الرياضي، نقوم برفع السقف آلياً بنسبة 2%
-    if not res.success and iteration <= 3:
-        st.warning(f"⚠️ المحددات الحالية للمكونات ضيقة جداً، جاري توسيع النطاق آلياً (محاولة {iteration} من 3)...")
-        if b_ub:
-            relaxed_b_ub = [val * 1.02 if val > 0 else val * 0.98 for val in b_ub]
-            return optimize_feed_smart(c_vector, A_ub, relaxed_b_ub, A_eq, b_eq, bounds, iteration + 1)
-    return res
+        pdf.cell(200, 8, txt=f"- {k}: {v:.2f}% -> ({v*10:.1f} kg / Ton)", ln=True)
+    pdf.ln(15)
+    pdf.set_font("Helvetica", 'I', 10)
+    pdf.cell(200, 10, txt="Generated automatically by Eng. Abdelkader Ismail Tower System © 2026", ln=True, align='C')
+    return pdf.output(dest='S').encode('latin-1', errors='ignore')
 
 # --- تحسين الـ CSS لضمان التباين وقابلية القراءة الفخمة ---
 st.markdown(
@@ -438,7 +367,7 @@ with col_logo:
     else: st.markdown(f'<img src="{ANIMAL_IMAGES_RESOURCES["عام"]}" class="profile-img-style">', unsafe_allow_html=True)
 
 with col_title:
-    st.markdown("<h1 style='color: #1b5e20; text-align:right; margin-bottom:0;'>برنامج المهندس عبد القادر إسماعيل تاور لتركيب الأعلاف 🌾</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color: #1b5e20; text-align:right; margin-bottom:0;'>منصة تاور الذكية للإنتاج الحيواني وصناعة الأعلاف 🌾</h1>", unsafe_allow_html=True)
     st.markdown("<p style='color: #1565C0; text-align:right; font-size:1.2rem; margin-top:5px; margin-bottom:0;'>محرك الإنزيمات التلقائي والإلزامي المتكامل وتعديل المحتوى الأيوني والبيكربونات</p>", unsafe_allow_html=True)
     st.markdown("<h3 style='color: #c62828; text-align:right; font-weight: bold; margin-top: 5px;'>الخبير المستشار / م. عبد القادر إسماعيل تاور</h3>", unsafe_allow_html=True)
 
@@ -539,7 +468,7 @@ with tabs[0]:
             default_cp = 35.0 if "زريعة" in prod_stage else 30
 
     if show_measurements:
-        st.markdown('<div class="section-title">📐 ثبت شريط القياس الجسدي وتقدير الأوزان والاحتياجات حَقلياً</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📐 ثالثاً: شريط القياس الجسدي وتقدير الأوزان والاحتياجات حَقلياً</div>', unsafe_allow_html=True)
         col_h, col_l, col_ag = st.columns(3)
         with col_h: h_girth = st.number_input("📏 محيط الصدر خلف الكوع مباشرة (سم):", value=150.0 if "الأبقار" in main_sector or "الخيول" in main_sector else 70.0)
         with col_l: b_length = st.number_input("📏 طول الجسم الجسدي (سم):", value=130.0 if "الأبقار" in main_sector or "الخيول" in main_sector else 60.0)
@@ -645,8 +574,20 @@ with tabs[0]:
             A_ub.append(fiber_indicators)
             b_ub.append(18.0)
 
-        # استدعاء محرك الاستمثال الخطي المطور الذكي لمنع التوقف الحاد
-        res = optimize_feed_smart(c_vector, A_ub, b_ub, A_eq, b_eq, bounds)
+        res = linprog(c_vector, A_ub=A_ub if A_ub else None, b_ub=b_ub if b_ub else None, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+
+        if not res.success:
+            A_ub_flex = []
+            b_ub_flex = []
+            if sum(grain_indicators) > 0:
+                A_ub_flex.append([-1.0 * x for x in grain_indicators])
+                b_ub_flex.append(-40.0)
+            if "نخالة قمح (ردة)" in selected_ingredients:
+                fiber_indicators = [1.0 if ing == "نخالة قمح (ردة)" else 0.0 for ing in selected_ingredients]
+                A_ub_flex.append(fiber_indicators)
+                b_ub_flex.append(25.0)
+                
+            res = linprog(c_vector, A_ub=A_ub_flex if A_ub_flex else None, b_ub=b_ub_flex if b_ub_flex else None, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
 
         if res.success:
             formula_results = {}
@@ -680,28 +621,14 @@ with tabs[0]:
                 st.markdown("<br>", unsafe_allow_html=True)
                 col_share, col_pdf = st.columns(2)
                 with col_share:
+                    # تعديل نص المشاركة ليكون احترافياً باسمك
                     share_message = f"أستخدم الآن برنامج المهندس عبدالقادر إسماعيل لتركيب الأعلاف وحساب العلائق بأقل تكلفة ودقة علمية عالية. التركيبة المستهدفة: {sub_type}، بتكلفة إنتاج {ton_cost:.2f}$ للطن."
                     encoded_share_msg = urllib.parse.quote(share_message)
                     st.link_button("📲 مشاركة الفاتورة عبر واتساب", f"https://wa.me/?text={encoded_share_msg}")
                 with col_pdf:
                     try:
-                        # استدعاء دالة بناء الـ PDF المعربة والمحدثة
-                        pdf_data = generate_pdf_report(
-                            formula=formula_results, 
-                            target_cp=final_target_cp, 
-                            breed=sub_type, 
-                            cost=ton_cost, 
-                            city=user_city, 
-                            local_cost=ton_cost*local_rate, 
-                            local_sym=local_sym
-                        )
-                        st.download_button(
-                            label="📥 تحميل التقرير الفني المعتمد (PDF)", 
-                            data=pdf_data, 
-                            file_name=f"فاتورة_تركيب_الأعلاف_{user_city}.pdf", 
-                            mime="application/pdf", 
-                            use_container_width=True
-                        )
+                        pdf_data = generate_pdf_report(formula_results, final_target_cp, sub_type, ton_cost, user_city, ton_cost*local_rate, local_sym)
+                        st.download_button("📥 تحميل التقرير الفني PDF", pdf_data, file_name=f"Tower_Formula_{user_city}.pdf", mime="application/pdf", use_container_width=True)
                     except Exception as pdf_err:
                         st.error(f"⚠️ لم يتم بناء ملف الـ PDF: {pdf_err}")
                 
@@ -771,6 +698,7 @@ if st.session_state["user_role"] == "admin":
 # ====================================================================
 # 🗂️ التبويب الجديد والمطور: "دليل المستخدم والاستشارات الفنية"
 # ====================================================================
+# تحديد رقم التبويب الأخير بناءً على دور المستخدم تلقائياً
 support_tab_index = 5 if st.session_state["user_role"] == "admin" else 1
 with tabs[support_tab_index]:
     st.markdown('<div class="section-title">📖 دليل استخدام البرنامج وقنوات التواصل المباشر مع الخبير</div>', unsafe_allow_html=True)
@@ -795,13 +723,16 @@ with tabs[support_tab_index]:
         st.markdown("### 💬 قنوات التفاعل والاستشارات الفنية:")
         st.markdown("يمكنك إرسال استشارتك العلفية أو التعليق على البرنامج والتحسينات المطلوبة عبر القنوات التالية:")
         
+        # زر نموذج جوجل الخارجي
         st.link_button("📝 إرسال تعليق أو طلب استشارة (نموذج جوجل)", GOOGLE_FORM_URL, use_container_width=True)
         
+        # زر الواتساب للتواصل المباشر المجهز برسالة ترحيبية
         welcome_msg = "السلام عليكم مهندس عبدالقادر، أود الحصول على استشارة فنية بخصوص تركيب الأعلاف وحساب العلائق عبر برنامجكم الذكي..."
         encoded_msg = urllib.parse.quote(welcome_msg)
         whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}?text={encoded_msg}"
         st.link_button("💬 تواصل واستشارة مباشرة عبر الواتساب", whatsapp_link, use_container_width=True)
         
+        # أزرار مشاركة البرنامج ونشر المعرفة
         st.markdown("<br><b>📢 انشر البرنامج وشارك المعرفة مع زملائك المربين والمهندسين:</b>", unsafe_allow_html=True)
         
         share_text_base = "أستخدم الآن برنامج المهندس عبدالقادر إسماعيل لتركيب الأعلاف وحساب العلائق بأقل تكلفة ودقة علمية عالية."
@@ -812,6 +743,7 @@ with tabs[support_tab_index]:
             st.link_button("🟢 مشاركة عبر الواتساب", f"https://wa.me/?text={encoded_share_text}", use_container_width=True)
         with col_fb:
             st.link_button("🔵 مشاركة عبر فيسبوك", f"https://www.facebook.com/sharer/sharer.php?u=https://yourplatform.com&quote={encoded_share_text}", use_container_width=True)
+
 
 # ====================================================================
 # 📨 نظام حفظ وأرشفة السورس كود - مؤمن بالكامل لبريد المالك فقط
