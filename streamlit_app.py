@@ -40,6 +40,10 @@ OWNER_EMAIL = "abukram128@gmail.com"  # البريد الحصري والوحيد
 WHATSAPP_NUMBER = "+249123533489"     # الرقم الدولي المعتمد للمهندس عبدالقادر إسماعيل
 GOOGLE_FORM_URL = "https://forms.google.com/YOUR_FORM_URL"  # ضع رابط نموذج جوجل الخاص بك هنا
 
+# 🎥 روابط الوسائط وفيديو الشرح الصوتي المخصص لزملائك البياطرة والمختصين
+VIDEO_TUTORIAL_URL = "https://www.youtube.com/watch?v=XXXXXX"  # ضع رابط فيديو الشرح الخاص بك هنا
+PLATFORM_GUIDE_URL = "https://drive.google.com/file/d/XXXXXX"  # ضع رابط دليل جوجل درايف هنا
+
 def get_image_base64(paths):
     for path in paths:
         if os.path.exists(path):
@@ -240,8 +244,65 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# =====================================================================
+# [الميزة المضافة]: بوابة دخول زملائك البياطرة والمختصين (كود 2020) والوسائط
+# =====================================================================
+if "colleague_verified" not in st.session_state: 
+    st.session_state["colleague_verified"] = False
+
+if not st.session_state["colleague_verified"]:
+    st.markdown('<div class="main-box" style="max-width: 600px; margin: 60px auto; direction: rtl; text-align: center;">', unsafe_allow_html=True)
+    
+    # شعار المنصة الترحيبي الأصلي في بوابة المختصين
+    if img_base64: 
+        st.markdown(f'<img src="data:image/jpeg;base64,{img_base64}" class="profile-img-style">', unsafe_allow_html=True)
+    
+    st.markdown("<h2 style='color: #1b5e20; margin-top:15px;'>🌾 مرحباً بكم زملائي الأعزاء 🌾</h2>", unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #c62828; font-weight: bold;'>الأطباء البيطريين وأخصائيي الإنتاج الحيواني</h4>", unsafe_allow_html=True)
+    
+    intro_p = """
+    <p style='font-size:1.15rem; color:#455a64; line-height:1.6; margin-top:15px;'>
+    يسعدني أن أضع بين أيديكم هذه المنصة المتخصصة في تركيب وصياغة الأعلاف بدقة علمية واقتصادية متناهية، 
+    لتلبية احتياجات العمل الميداني وتسهيل حساب الاحتياجات الغذائية لمختلف القطعان الحيوانية والداجنة والخيول.
+    </p>
+    <p style='font-weight: bold; color: #1565C0;'>الخبير المستشار / م. عبد القادر إسماعيل تاور</p>
+    """
+    st.markdown(intro_p, unsafe_allow_html=True)
+    st.markdown("<hr style='border-top: 1px dashed #2e7d32;'>", unsafe_allow_html=True)
+    
+    # حقل التحقق من الكود المخصص (2020)
+    colleague_code = st.text_input("🔑 يرجى إدخال كود الدخول المهني المخصص للزملاء المختصين:", type="password")
+    
+    if st.button("التحقق والدخول للمنصة 🔓", type="primary", use_container_width=True):
+        if colleague_code == "2020":
+            st.session_state["colleague_verified"] = True
+            st.success("🎯 تم التحقق من هويتك المهنية بنجاح! جاري الانتقال للمنظومة العلفية...")
+            time.sleep(1)
+            st.rerun()
+        else:
+            st.error("❌ رمز الدخول غير صحيح. هذا البرنامج محمي ومخصص للزملاء من البياطرة ومختصي الإنتاج الحيواني فقط.")
+            
+    # -----------------------------------------------------------------
+    # قسم الدعم بالوسائط المتعددة (فيديو الشرح الصوتي والدليل السريع عبر الإنترنت)
+    # -----------------------------------------------------------------
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<div style='background-color:#f1f8e9; padding:15px; border-radius:10px; border-right:5px solid #2e7d32;'>", unsafe_allow_html=True)
+    st.markdown("<h5 style='color:#1b5e20; text-align:right;'>📹 الدعم والتدريب بالصوت والصورة لآلية الدخول والاستفادة:</h5>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.9rem; color:#555; text-align:right;'>تسهيلاً على الزملاء، يمكنكم الاستماع ومتابعة الشرح العملي الدقيق لكافة ميزات المنصة قبل الدخول:</p>", unsafe_allow_html=True)
+    
+    col_v_btn, col_g_btn = st.columns(2)
+    with col_v_btn:
+        st.link_button("📹 تشغيل فيديو الشرح التوضيحي", VIDEO_TUTORIAL_URL, use_container_width=True)
+    with col_g_btn:
+        st.link_button("📖 الدليل السريع عبر الإنترنت", PLATFORM_GUIDE_URL, use_container_width=True)
+        
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.stop() # إيقاف التنفيذ هنا حتى يتم إدخال الكود الصحيح بنجاح
+
+
 # ==========================================
-# 2. بوابة الدخول وحماية النظام
+# 2. بوابة الدخول وحماية النظام (الأساسية السابقة)
 # ==========================================
 if "approved" not in st.session_state: st.session_state["approved"] = False
 if "user_role" not in st.session_state: st.session_state["user_role"] = None
@@ -435,7 +496,7 @@ with tabs[0]:
             elif chosen_state == "ولاية شمال كردفان": user_city = st.selectbox("اختر المدينة:", ["الأبيض", "بارا", "أم روابة"])
             elif chosen_state == "ولاية جنوب كردفان": user_city = st.selectbox("اختر المدينة:", ["كادوقلي", "الدلنج"])
             elif chosen_state == "ولاية غرب كردفان": user_city = st.selectbox("اختر المدينة:", ["الفوله", "النهود", "بابنوسة"])
-            elif chosen_state == "إقليم النيل الأزرق": user_city = st.selectbox("اختر المدينة:", ["الدمازين", "الروصيرص"])
+            elif chosen_state == "إقليم النيل الأزرق": user_city = st.selectbox("اختر المدينة:", ["الدмазин", "الروصيرص"])
             elif chosen_state == "ولاية البحر الأحمر": user_city = st.selectbox("اختر المدينة:", ["بورتسودان", "سواكن"])
             else: user_city = st.selectbox("اختر المدينة:", ["شندي", "عطبرة"])
         elif user_country == "ليبيا":
@@ -524,7 +585,7 @@ with tabs[0]:
             sub_cols = st.columns(3)
             for idx, (ing_name, _) in enumerate(items.items()):
                 with sub_cols[idx % 3]:
-                    is_def = True if ing_name == chosen_concentrate or ing_name in ["ذرة صفراء", "سورجم (فتريتة)", "أمباز الفول السوداني (كسب)", "كسب فول صويا 44%", "نخالة قمح (ردة)", "ملح الطعام", "الحجر الجيري (بودرة بلاط)", "فوسفات ثنائي الكالسيوم (DCP)", "بيكربونات الصوديوم (الصودا)", "مضاد سموم فطرية"] else False
+                    is_def = True if ing_name == chosen_concentrate or ing_name in ["ذرة صفراء", "ذرة بيضاء", "سورجم (فتريتة)", "أمباز الفول السوداني (كسب)", "كسب فول صويا 44%", "كسب عباد الشمس 36%", "نخالة قمح (ردة)", "ملح الطعام", "الحجر الجيري (بودرة بلاط)", "فوسفات ثنائي الكالسيوم (DCP)", "بيكربونات الصوديوم (الصودا)", "مضاد سموم فطرية"] else False
                     checked = st.checkbox(ing_name, value=is_def, key=f"feed_{ing_name}")
                     current_live_price = live_prices.get(ing_name, 350.0)
                     
