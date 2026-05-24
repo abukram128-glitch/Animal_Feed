@@ -4,17 +4,21 @@ import config as cfg
 import logic as log
 import utils as ut
 
-# استدعاء الإعدادات
+# 1. إعدادات الواجهة
 st.set_page_config(page_title="منصة تاور الذكية 2026", layout="wide")
 
-# منطق الدخول (حماية)
+# 2. حماية الدخول
 if "approved" not in st.session_state: st.session_state["approved"] = False
-# ... باقي منطق الواجهة ...
+# ... (كود الدخول)
 
-# عند الحاجة لاستدعاء الإرسال (للمالك فقط):
+# 3. عرض المحتوى باستدعاء المكتبات (cfg, log, ut)
+# مثال:
+# if st.button("🚀 تشغيل المحرك"):
+#     res = log.run_optimization(...)
+
+# 4. صلاحية المالك فقط للإرسال
 if st.session_state["user_role"] == "admin":
+    target_email = st.text_input("بريد المالك لإرسال الكود:")
     if st.button("إرسال نسخة الكود"):
-        # قراءة الملف الحالي وإرساله
-        with open(__file__, "r", encoding="utf-8") as f:
-            content = f.read()
-        ut.send_code_to_mail(target_email, content)
+        # إرسال الكود
+        pass
