@@ -1,1 +1,11 @@
 
+# logic.py
+from scipy.optimize import linprog
+
+def get_adjusted_market_data(country, state, city):
+    # انقل هنا دالة get_adjusted_market_data
+    pass
+
+def run_optimization(c_vector, A_ub, b_ub, A_eq, b_eq, bounds):
+    # انقل هنا منطق linprog وتصحيح القيود
+    return linprog(c_vector, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
