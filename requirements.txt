@@ -5,6 +5,6 @@ pulp
 pandas
 numpy
 fpdf2
+reportlab
 arabic-reshaper
 python-bidi
-reportlab
