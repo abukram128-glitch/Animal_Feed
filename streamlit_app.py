@@ -256,8 +256,7 @@ BIG_FEEDS_LIBRARY = {
 }
 
 if "inventory" not in st.session_state:
-    tabs_titles = ["🔬 النمذجة والحسابات", "📊 بورصة تاور", "🏭 المستودعات", "🧾 التسويق", "🏷️ الديباجات", "📖 كتالوج التشغيل"]
-
+    st.session_state["inventory"] = {}
     for cat_name, items in BIG_FEEDS_LIBRARY.items():
         for ing in items:
             st.session_state["inventory"][ing] = 25.0
@@ -387,23 +386,8 @@ with tabs[0]:
             else: user_city = st.selectbox("اختر المدينة الليبية:", ["سبها", "مرزق", "غات"])
         else: user_city = st.text_input("اكتب اسم المدينة العالمية يدوياً:", "طبرق")
 
-    # بدلاً من الوصول المباشر الذي يسبب KeyError، نستخدم .get()
-for idx, (ing_name, qty) in enumerate(list(st.session_state["inventory"].items())):
-    with inv_cols[idx % 3]:
-        # استخدام .get للحصول على القيمة بمرونة
-        current_val = st.session_state["inventory"].get(ing_name, 0.0)
-        status_badge = f'<span class="stock-critical">⚠️ حرج: {current_val:.2f}</span>' if current_val < 5.0 else f'<span class="stock-normal">آمن: {current_val:.2f}</span>'
-        
-        st.markdown(f"**{ing_name}** | {status_badge}", unsafe_allow_html=True)
-        
-        # التحديث الآمن
-        st.session_state["inventory"][ing_name] = st.number_input(
-            f"تحديث رصيد ({ing_name}) طن:", 
-            min_value=0.0, 
-            value=float(current_val), 
-            key=f"inv_input_{ing_name}"
-        )
-
+    live_prices = get_adjusted_market_data(user_country, chosen_state, user_city)
+    
     col_view1, col_view2 = st.columns(2)
     with col_view1:
         st.markdown(f'<div class="price-card"><b>📈 بورصة الماشية والداجن الحية في ({user_city}) المزدوجة:</b><br>' + 
@@ -704,27 +688,11 @@ st.markdown("<h3 style='color: #1565C0; text-align:right;'>📨 أرشفت ال�
 col_mail, col_btn = st.columns([0.7, 0.3])
 with col_mail:
     target_email = st.text_input("أدخل البريد الإلكتروني المستلم لحفظ نسخة السورس كود الأساسية:", placeholder="example@gmail.com")
-    with tabs[5]:
-        st.markdown('<div class="section-title">📖 كتالوج التشغيل الاحترافي</div>', unsafe_allow_html=True)
-        st.markdown("💡 **نصيحة تاور:** ابدأ باختيار الخامات الأساسية أولاً، ثم اترك المحرك يوازن الإنزيمات تلقائياً.")
-# --- بداية منطقة المالك فقط ---
-if st.session_state["user_role"] == "admin":
-    st.markdown("<br><hr style='border-top: 1px dashed #2e7d32;'>", unsafe_allow_html=True)
-    st.markdown("<h3 style='color: #1565C0; text-align:right;'>📨 أرشفت الكود والتقارير للمالك فقط</h3>", unsafe_allow_html=True)
 
-    col_mail, col_btn = st.columns([0.7, 0.3])
-    with col_mail:
-        target_email = st.text_input("أدخل البريد الإلكتروني المستلم:", placeholder="example@gmail.com")
-    with col_btn:
-        st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
-        if st.button("إرسال نسخة الكود للمالك 🚀", use_container_width=True):
-            if target_email:
-                with st.spinner("جاري المعالجة..."):
-                    if send_code_to_mail(target_email):
-                        st.success("تم الإرسال.")
-            else: st.warning("اكتب البريد أولاً.")
-# --- نهاية منطقة المالك فقط ---
-
+with col_btn:
+    st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
+    if st.button("إرسال نسخة الكود فوراً 🚀", use_container_width=True, type="secondary"):
+        if target_email:
             with st.spinner("جاري معالجة الملف والاتصال بالخادم..."):
                 if send_code_to_mail(target_email):
                     st.success(f"📥 تم إرسال السورس كود كملف مرفق (.py) بنجاح إلى: {target_email}")
