@@ -21,7 +21,7 @@ import io
 # ==========================================
 # 1. إعدادات المنصة الرسمية والمظهر الفخم لعام 2026
 # ==========================================
-st.set_page_config(page_title="منصة تاور الذكية المتكاملة للأعلاف والإنتاج الحيواني", page_icon="🌾", layout="wide")
+st.set_page_config(page_title="منصة اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل لتركيب الأعلاف", page_icon="🌾", layout="wide")
 
 # الأكواد المعتمدة لنظام الصلاحيات الثلاثي
 CODES_DB = {
@@ -32,13 +32,13 @@ CODES_DB = {
 
 PHOTO_OPTIONS = ["14686.jpg", "1000069464.jpg", "14686.JPG", "1000069464.JPG"]
 
-# 🔒 إعدادات خادم البريد الإلكتروني الحصرية للمالك (م. عبد القادر إسماعيل تاور)
+# 🔒 إعدادات خادم البريد الإلكتروني الحصرية للمالك 
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SENDER_EMAIL = "abukram128@gmail.com"       
 SENDER_PASSWORD = "oynz rdli tsdy ekdq"     
 OWNER_EMAIL = "abukram128@gmail.com"  # البريد الحصري والوحيد المسموح بإرسال الكود إليه
-WHATSAPP_NUMBER = "+249123533489"     # الرقم الدولي المعتمد للمهندس عبدالقادر إسماعيل
+WHATSAPP_NUMBER = "+249123533489"     # الرقم الدولي المعتمد
 GOOGLE_FORM_URL = "https://forms.google.com/YOUR_FORM_URL"  # ضع رابط نموذج جوجل الخاص بك هنا
 
 def get_image_base64(paths):
@@ -61,9 +61,9 @@ def send_code_to_mail(receiver_email):
     msg = MIMEMultipart()
     msg['From'] = SENDER_EMAIL
     msg['To'] = receiver_email
-    msg['Subject'] = "🌾 السورس كود الكامل والمطور - منصة تاور الذكية المتكاملة"
+    msg['Subject'] = "🌾 السورس كود الكامل والمطور - منصة اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل"
     
-    body = "السلام عليكم م. عبد القادر،\n\nمرفق مع هذه الرسالة النسخة البرمجية الكاملة، المدمجة والمستقرة لمنصة تاور الذكية بعد دمج محركات الاستمثال الخطي وتصحيح نسب المكتبة الموسعة لعام 2026 كنسخة احتياطية مأرشفة لسيادتكم فقط.\n\nتحياتي الهندسية."
+    body = "السلام عليكم م. عبد القادر،\n\nمرفق مع هذه الرسالة النسخة البرمجية الكاملة، المدمجة والمستقرة لمنصتكم الذكية بعد دمج محركات الاستمثال الخطي وتحديث الواجهات والإنزيمات لعام 2026.\n\nتحياتي الهندسية."
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
     
     try:
@@ -94,12 +94,11 @@ def fix_arabic_text(text):
     bidi_text = get_display(reshaped_text)
     return bidi_text
 
-# دالة توليد تقارير PDF الفنية الاحترافية للمنظومة العلفية باستخدام معالجة الخطوط الصحيحة
+# دالة توليد تقارير PDF الفنية الاحترافية للمنظومة العلفية
 def generate_pdf_report(formula, target_cp, breed, cost, city, local_cost, local_sym):
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer)
     
-    # محاولة تسجيل الخط العربي لضمان سلامة الطباعة وتفادي انهيار السيرفر
     font_name = "Helvetica"
     if os.path.exists("Amiri-Regular.ttf"):
         try:
@@ -109,7 +108,7 @@ def generate_pdf_report(formula, target_cp, breed, cost, city, local_cost, local
             pass
             
     p.setFont(font_name, 16)
-    p.drawString(100, 800, fix_arabic_text("تقرير منصة تاور الذكية لتركيب الأعلاف والإنتاج الحيواني"))
+    p.drawString(100, 800, fix_arabic_text("تقرير منصة اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل لتركيب الأعلاف"))
     p.setFont(font_name, 12)
     p.drawString(100, 760, fix_arabic_text(f"الموقع / السوق الجغرافي المستهدف: {city}"))
     p.drawString(100, 740, fix_arabic_text(f"الفصيل / السلالة الحيوانية: {breed}"))
@@ -130,7 +129,7 @@ def generate_pdf_report(formula, target_cp, breed, cost, city, local_cost, local
             y_position = 800
             
     p.setFont(font_name, 10)
-    p.drawString(100, 50, fix_arabic_text("تم التوليد تلقائياً بواسطة منظومة المهندس عبد القادر إسماعيل تاور © 2026"))
+    p.drawString(100, 50, fix_arabic_text("تم التوليد تلقائياً بواسطة منظومة اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل © 2026"))
     p.save()
     buffer.seek(0)
     return buffer.getvalue()
@@ -251,7 +250,7 @@ if "login_welcome_shown" not in st.session_state: st.session_state["login_welcom
 if not st.session_state["approved"]:
     st.markdown('<div class="main-box" style="max-width: 500px; margin: 100px auto; direction: rtl;">', unsafe_allow_html=True)
     st.markdown("<h2 style='color: #2E7D32; text-align:center;'>🔒 بوابـة الدخـول الذكيـة</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#555;'>برنامج المهندس عبدالقادر اسماعيل تاور لتركيب الاعلاف</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#555;'>برنامج اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل لتركيب الأعلاف</p>", unsafe_allow_html=True)
     
     input_code = st.text_input("🔑 أدخل كود الدخول الخاص بك:", type="password")
     
@@ -260,21 +259,21 @@ if not st.session_state["approved"]:
         if input_code_stripped in CODES_DB:
             st.session_state["approved"] = True
             st.session_state["user_role"] = CODES_DB[input_code_stripped]
-            st.session_state["login_welcome_shown"] = False # إعادة تصفير التنبيه ليظهر في الصفحة الرئيسية
+            st.session_state["login_welcome_shown"] = False 
             st.rerun()
         else:
             st.error("❌ الكود الذي أدخلته غير صحيح! يرجى المحاولة مرة أخرى.")
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
-# إظهار رسائل الترحيب المخصصة لكل كود عند الدخول أول مرة فقط
+# إظهار رسائل الترحيب المنفصلة والمخصصة لكل فئة بدقة عند الدخول لأول مرة
 if not st.session_state["login_welcome_shown"]:
     if st.session_state["user_role"] == "owner":
-        st.toast("👋 أهلاً بك في برنامج المهندس عبدالقادر اسماعيل تاور لتركيب الاعلاف", icon="👑")
+        st.toast("👋 مرحباً بك في منصتك، اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل", icon="👑")
     elif st.session_state["user_role"] == "specialist":
-        st.toast("🤝 مرحباً بك يا زميلي العزيز (المختص) في البرنامج", icon="👨‍🔬")
+        st.toast("🔬 أهلاً بالزملاء من الأطباء البيطريين ومختصي الإنتاج الحيواني، شركاء البحث والتطبيق العملي.", icon="👨‍🔬")
     elif st.session_state["user_role"] == "breeder":
-        st.toast("👋 أهلاً بك في واجهة المربي", icon="🌾")
+        st.toast("🚜 أهلاً وسهلاً بإخواننا المربين، شركاء النجاح وأعمدة الإنتاج الحقيقيين.", icon="🌾")
     st.session_state["login_welcome_shown"] = True
 
 # =====================================================================
@@ -348,12 +347,12 @@ if "global_products_prices" not in st.session_state:
 
 if "shared_comments" not in st.session_state:
     st.session_state["shared_comments"] = (
-        "• [توجيه المالك تاور]: يرجى من جميع الزملاء إضافة تعليقاتهم هنا لتبادل الخبرات التركيبية.\n"
+        "• [توجيه اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل]: يرجى من جميع الزملاء إضافة تعليقاتهم هنا لتبادل الخبرات التركيبية.\n"
         "• [ملاحظة مختص]: تم مراجعة جودة كسب زهرة الشمس المتاح حالياً بالأسواق ونوصي بضبط ألياف الخيل بناءً عليه.\n"
     )
 
 EXCHANGE_RATES = {
-    "السودان": {"rate": 600.0, "sym": "SDG"}, "ليبيا": {"rate": 4.80, "sym": "LYD"},
+    "السودان": {"rate": 600.0, "sym": "SDG"}, "LIBYA": {"rate": 4.80, "sym": "LYD"},
     "مصر": {"rate": 48.0, "sym": "EGP"}, "باقي دول العالم / البورصة المفتوحة": {"rate": 1.0, "sym": "USD"}
 }
 
@@ -382,7 +381,7 @@ def get_adjusted_market_data(country, state_or_region, city):
         elif state_or_region in ["ولاية القضارف", "ولاية الجزيرة"]:
             feed_prices["سورجم (فتريتة)"] *= 0.82
             feed_prices["أمباز الفول السوداني (كسب)"] *= 0.88
-    elif country == "ليبيا":
+    elif country == "LIBYA":
         multiplier = 1.10
         if city == "طبرق": multiplier = 1.06
     elif country == "مصر": multiplier = 1.04
@@ -415,7 +414,7 @@ st.markdown('<div class="main-box">', unsafe_allow_html=True)
 # شريط علوي لإدارة الحساب وتسجيل الخروج
 col_logout_space, col_user_status = st.columns([0.8, 0.2])
 with col_user_status:
-    role_arabic = {"owner": "الملك تاور 👑", "specialist": "المختص والزملاء 👨‍🔬", "breeder": "المربي 🌾"}[st.session_state["user_role"]]
+    role_arabic = {"owner": "اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل 👑", "specialist": "المختص والزملاء 👨‍🔬", "breeder": "المربي 🌾"}[st.session_state["user_role"]]
     st.markdown(f"<span style='font-size:0.9rem; color:#555;'>الحساب: <b>{role_arabic}</b></span>", unsafe_allow_html=True)
     if st.button("تسجيل الخروج 🚪", use_container_width=True):
         st.session_state["approved"] = False
@@ -428,24 +427,60 @@ with col_logo:
     else: st.markdown(f'<img src="{ANIMAL_IMAGES_RESOURCES["عام"]}" class="profile-img-style">', unsafe_allow_html=True)
 
 with col_title:
-    st.markdown("<h1 style='color: #1b5e20; text-align:right; margin-bottom:0;'>منصة تاور الذكية للإنتاج الحيواني وصناعة الأعلاف 🌾</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color: #1b5e20; text-align:right; margin-bottom:0;'>منصة تركيب الأعلاف الذكية والإنتاج الحيواني 🌾</h1>", unsafe_allow_html=True)
     st.markdown("<p style='color: #1565C0; text-align:right; font-size:1.2rem; margin-top:5px; margin-bottom:0;'>محرك الإنزيمات التلقائي والإلزامي المتكامل وتعديل المحتوى الأيوني والبيكربونات</p>", unsafe_allow_html=True)
-    st.markdown("<h3 style='color: #c62828; text-align:right; font-weight: bold; margin-top: 5px;'>الخبير المستشار / م. عبد القادر إسماعيل تاور</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color: #c62828; text-align:right; font-weight: bold; margin-top: 5px;'>اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل</h3>", unsafe_allow_html=True)
 
 st.markdown("<hr style='border-top: 2px solid #2e7d32;'>", unsafe_allow_html=True)
+
+# --- التعديل الجديد: زر المشاركة والدعاية والتسويق الاحترافي في مقدمة التطبيق مباشرة ---
+st.markdown("### 📢 المشاركة التسويقية والدعوة العلمية")
+share_text_payload = """📢 دعوة علمية وتسويقية من منصة الخبير م. عبد القادر إسماعيل
+
+إلى كل مهتم بتطوير الثروة الحيوانية؛ من أطباء بيطريين، اختصاصيي إنتاج حيواني، ومربين طموحين:
+يسعدنا دعوتكم لاستخدام وتجربة المنصة المتقدمة لتركيب وتطوير الأعلاف، بإشراف وتصميم:
+[ اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل ]
+
+🎯 ما تقدمه المنصة:
+• حلول برمجية ذكية لتركيب أعلاف اقتصادية وعالية القيمة الغذائية (Least-Cost Formulation).
+• أدوات دقيقة لحساب الاحتياجات الغذائية بما يضمن أعلى معدلات نمو وإنتاجية.
+• دعم كامل للعمل الميداني والبحث العلمي والخصم التلقائي للمستودعات في مكان واحد.
+
+🔗 رابط المنصة: [ضع رابط موقعك هنا]"""
+
+st.text_area("النص الدعائي والإعلامي الجاهز للنشر:", value=share_text_payload, height=140, key="top_share_box")
+if st.button("📋 نسخ الرابط والنص للدعاية والتسويق", type="secondary"):
+    st.success("تم التجهيز بنجاح! يمكنك الآن نسخ النص ومشاركته عبر المجموعات والمنصات.")
+st.markdown("---")
+
+
+# تفعيل نظام الترحيب الديناميكي المنفصل داخل لوحة التحكم بناءً على الصلاحيات المعطاة للداخل
+if st.session_state["user_role"] == "owner":
+    st.markdown("<div style='background-color: #eff6ff; padding: 15px; border-radius: 8px; border-right: 5px solid #1d4ed8; text-align: right; direction: rtl; margin-bottom: 20px;'>"
+                "<b>👑 أهلاً بك يا اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل في برنامجك الخاص. الواجهات والتحكم الكامل في الخصم والأرصدة متاح بين يديك الآن بالكامل.</b>"
+                "</div>", unsafe_allow_html=True)
+elif st.session_state["user_role"] == "specialist":
+    st.markdown("<div style='background-color: #f0fdf4; padding: 15px; border-radius: 8px; border-right: 5px solid #16a34a; text-align: right; direction: rtl; margin-bottom: 20px;'>"
+                "<b>🔬 مرحباً بكم في منصة تركيب وتحليل الأعلاف الذكية. يسعد اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل بالترحيب بالزملاء من الأطباء البيطريين ومختصي الإنتاج الحيواني. معاً نلتقي بالبحث العلمي والتطبيق العقلي لنقود صناعة الأعلاف نحو كفاءة وإنتاجية أعلى.</b>"
+                "</div>", unsafe_allow_html=True)
+elif st.session_state["user_role"] == "breeder":
+    st.markdown("<div style='background-color: #fffbeb; padding: 15px; border-radius: 8px; border-right: 5px solid #d97706; text-align: right; direction: rtl; margin-bottom: 20px;'>"
+                "<b>🚜 أهلاً وسهلاً بكم في منصة اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل لتركيب الأعلاف. نرحب بإخواننا المربين، شركاء النجاح وأعمدة الإنتاج الحقيقيين. نحن هنا لنقدم لكم أفضل الحلول والخلطات العلفية التي تضمن أعلى معدلات التحويل وأفضل العوائد لمشاريعكم.</b>"
+                "</div>", unsafe_allow_html=True)
+
 
 # تفعيل نظام التبويبات بناءً على مستوى الصلاحيات المدخلة (المالك والمختص يريان كل شيء، المربي يرى الأساسيات فقط)
 if st.session_state["user_role"] in ["owner", "specialist"]:
     tabs_titles = [
         "🔬 النمذجة والحسابات العلفية الكبرى", 
-        "📊 بورصة تاور المركزية للمنتجات والماشية", 
+        "📊 بورصة الأسعار المركزية للماشية", 
         "🏭 إدارة المستودعات والخصم التلقائي", 
         "🧾 التسويق وفواتير حركة البيع", 
         "🖨️ مصمم بطاقات الديباجة والدعاية", 
         "💬 خانة تعليقات المختصين والزملاء",
         "📖 دليل المستخدم والاستشارات الفنية"
     ]
-else: # المربي (كود 2026) حدوده العملية فقط
+else: 
     tabs_titles = ["🔬 النمذجة والحسابات العلفية الكبرى", "📖 دليل المستخدم والاستشارات الفنية"]
 
 tabs = st.tabs(tabs_titles)
@@ -456,7 +491,7 @@ tabs = st.tabs(tabs_titles)
 with tabs[0]:
     st.markdown('<div class="section-title">🌍 أولاً: تحديد الموقع الجغرافي وبورصة الأسعار بالعملتين المحلية والأجنبية</div>', unsafe_allow_html=True)
     col_country, col_state, col_city = st.columns(3)
-    with col_country: user_country = st.selectbox("اختر دولة المربي:", ["السودان", "ليبيا", "مصر", "باقي دول العالم / البورصة المفتوحة"])
+    with col_country: user_country = st.selectbox("اختر دولة المربي:", ["السودان", "LIBYA", "مصر", "باقي دول العالم / البورصة المفتوحة"])
         
     c_info = EXCHANGE_RATES.get(user_country, {"rate": 1.0, "sym": "USD"})
     local_rate = c_info["rate"]; local_sym = c_info["sym"]
@@ -465,7 +500,7 @@ with tabs[0]:
     with col_state:
         if user_country == "السودان":
             chosen_state = st.selectbox("اختر الولاية السودانية المحدثة:", ["ولاية الخرطوم", "ولاية الجزيرة", "ولاية القضارف", "ولاية شمال كردفان", "ولاية جنوب كردفان", "ولاية غرب كردفان", "إقليم النيل الأزرق", "ولاية البحر الأحمر", "ولاية نهر النيل"])
-        elif user_country == "ليبيا": chosen_state = st.selectbox("اختر الإقليم الجغرافي:", ["المنطقة الشرقية", "المنطقة الغربية", "المنطقة الجنوبية"])
+        elif user_country == "LIBYA": chosen_state = st.selectbox("اختر الإقليم الجغرافي:", ["المنطقة الشرقية", "المنطقة الغربية", "المنطقة الجنوبية"])
         else: chosen_state = st.selectbox("الإقليم الإداري:", ["المركز الرئيسي العالمي", "الأسواق المفتوحة"])
 
     with col_city:
@@ -479,7 +514,7 @@ with tabs[0]:
             elif chosen_state == "إقليم النيل الأزرق": user_city = st.selectbox("اختر المدينة:", ["الدمازين", "الروصيرص"])
             elif chosen_state == "ولاية البحر الأحمر": user_city = st.selectbox("اختر المدينة:", ["بورتسودان", "سواكن"])
             else: user_city = st.selectbox("اختر المدينة:", ["شندي", "عطبرة"])
-        elif user_country == "ليبيا":
+        elif user_country == "LIBYA":
             if chosen_state == "المنطقة الشرقية": user_city = st.selectbox("اختر المدينة الليبية:", ["طبرق", "بنغازي", "البيضاء", "درنة"])
             elif chosen_state == "المنطقة الغربية": user_city = st.selectbox("اختر المدينة الليبية:", ["طرابلس", "مصراتة", "الزاوية"])
             else: user_city = st.selectbox("اختر المدينة الليبية:", ["سبها", "مرزق", "غات"])
@@ -569,7 +604,6 @@ with tabs[0]:
                     checked = st.checkbox(ing_name, value=is_def, key=f"feed_{ing_name}")
                     current_live_price = live_prices.get(ing_name, 350.0)
                     
-                    # قيد الصلاحيات: المالك فقط من يحق له التعديل على الأسعار التنافسية، أما المختص والمربي فيشاهدونها فقط
                     if st.session_state["user_role"] == "owner": 
                         price_input = st.number_input(f"السعر للطن ({ing_name}) $:", min_value=5.0, value=float(current_live_price), key=f"price_{ing_name}")
                     else:
@@ -610,8 +644,18 @@ with tabs[0]:
             ingredient_prices[item] = live_prices.get(item, 40.0)
 
     st.markdown("---")
+    
+    # تحضير وعاء خارجي منبثق لإشعار الإنزيمات الـ 40 ثانية لتفعيله تلقائياً مع محرك البحث الخطي
+    nz_placeholder = st.empty()
+    
     if st.button("🚀 تشغيل محرك الاستمثال الخطي للأعلاف (Scipy Optimized)", type="primary", use_container_width=True):
         
+        # تفعيل إشعار الإنزيمات الفوري المنبثق تلبية لشرط الـ 40 ثانية تلقائياً
+        with nz_placeholder.container():
+            st.warning(
+                "⚠️ **إشعار هام بشأن الإنزيمات ومضافات الأعلاف:** يرجى التأكد التام والحرص الشديد على موازنة درجات حرارة كبس العلف أثناء التصنيع لضمان عدم تثبيط الإنزيمات والفيتامينات الدقيقة المضافة حيوياً. (سيختفي هذا الإشعار تلقائياً بعد 40 ثانية)"
+            )
+            
         c_vector = [ingredient_prices[ing] for ing in selected_ingredients]
         bounds = []
         for ing in selected_ingredients:
@@ -694,7 +738,7 @@ with tabs[0]:
                 st.markdown("<br>", unsafe_allow_html=True)
                 col_share, col_pdf = st.columns(2)
                 with col_share:
-                    share_message = f"أستخدم الآن برنامج المهندس عبدالقادر إسماعيل لتركيب الأعلاف وحساب العلائق بأقل تكلفة ودقة علمية عالية. التركيبة المستهدفة: {sub_type}، بتكلفة إنتاج {ton_cost:.2f}$ للطن."
+                    share_message = f"أستخدم الآن برنامج اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل لتركيب الأعلاف وحساب العلائق بأقل تكلفة ودقة علمية عالية. التركيبة المستهدفة: {sub_type}، بتكلفة إنتاج {ton_cost:.2f}$ للطن."
                     encoded_share_msg = urllib.parse.quote(share_message)
                     st.link_button("📲 مشاركة الفاتورة عبر واتساب", f"https://wa.me/?text={encoded_share_msg}")
                 with col_pdf:
@@ -708,6 +752,10 @@ with tabs[0]:
                 st.bar_chart(formula_results)
         else:
             st.error("❌ تعذر إيجاد حل رياضي متزن تماماً ضمن المحددات الحالية للمركبات الضيقة. يرجى إتاحة وتفعيل خامات إضافية ككسب فول صويا أو أمباز الفول لتوسيع مساحة الحل للمعالج الخطي.")
+            
+        # تنفيذ العداد التنازلي لإخفاء الإشعار المنبثق للإنزيمات بعد 40 ثانية تلقائياً دون تجميد النتائج
+        time.sleep(40)
+        nz_placeholder.empty()
 
 # ====================================================================
 # التبويبات الإدارية المتقدمة (تظهر للمالك والمسؤول والمختص بـ قيود تمنع التلاعب بالأصل)
@@ -718,7 +766,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
     with tabs[1]:
         st.markdown('<div class="section-title">📊 لوحة تحكم بورصة تاور المركزية الشاملة (تحديث الأسعار المباشرة)</div>', unsafe_allow_html=True)
         if st.session_state["user_role"] == "specialist":
-            st.warning("⚠️ حساب زميل/مختص: متاح لك استعراض أسعار البورصة فقط، تعديل وحفظ السجلات الأساسية محجوز للمالك تاور.")
+            st.warning("⚠️ حساب زميل/مختص: متاح لك استعراض أسعار البورصة فقط، تعديل وحفظ السجلات الأساسية محجوز لإدارة المنصة.")
             
         col_edit1, col_edit2 = st.columns(2)
         with col_edit1:
@@ -761,7 +809,6 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
         st.markdown("### 🧾 فاتورة بيع وتوريد أعلاف رسمية")
         st.markdown(f"### 💰 إجمالي القيمة المستحقة للفاتورة: `${total_bill:.2f}` (أو تعادل `{total_bill*local_rate:,.1f}` {local_sym})")
         
-        # السماح بتأكيد البيع فقط للمالك لحماية العمليات الإدارية والمادية
         if st.session_state["user_role"] == "owner":
             if st.button("✅ تأكيد عملية البيع وخصم المكونات من المستودع"):
                 can_deduct = True
@@ -775,7 +822,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                         st.session_state["inventory"][name] -= ((pct / 100) * required_tons)
                     st.success("🔥 تم الخصم التلقائي وتحديث المخازن بنجاح!"); time.sleep(1); st.rerun()
         else:
-            st.info("ℹ️ تأكيد الفواتير وحركات الخصم المالي والترحيل متاحة حصرياً لإدارة المالك تاور.")
+            st.info("ℹ️ تأكيد الفواتير وحركات الخصم المالي والترحيل متاحة حصرياً لإدارة المالك المنفرد للمنصة.")
 
     # تبويب مصمم ديباجات الطباعة 
     with tabs[4]:
@@ -786,23 +833,21 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
             <img src="{st.session_state['active_animal_img']}" class="animal-banner-img">
             <h2 style="text-align: center; margin-top:0;">🌟 {trade_brand} 🌟</h2>
             <h3 style="text-align: center; color: #c62828; margin-top:0; font-weight: bold;">م. عبد القادر إسماعيل تاور</h3>
-            <p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:6px; color:#1b5e20;">🎯 علف مخصص لـ: {st.session_state['active_stage_title']} | نسبة البروتين المحققة: {st.session_state['active_cp_tag']:.1f}%</p>
+            <p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:6px; color:#1b5e20;">🎯 اختصاصي الإنتاج الحيواني | علف مخصص لـ: {st.session_state['active_stage_title']} | نسبة البروتين المحققة: {st.session_state['active_cp_tag']:.1f}%</p>
         </div>
         """, unsafe_allow_html=True)
 
-    # التبويب الجديد: خانة تعليقات المختصين والزملاء (كود 2020 & 202687)
+    # التبويب الخامس: خانة تعليقات المختصين والزملاء (كود 2020 & 202687)
     with tabs[5]:
         st.markdown('<div class="section-title">💬 قناة التواصل والتعليقات الخاصة بالزملاء والمختصين</div>', unsafe_allow_html=True)
         st.markdown("### 📝 دفتر الملاحظات الفنية المشتركة لتركيب العلائق:")
         
-        # عرض التعليقات السابقة
         st.text_area("التعليقات الحالية:", value=st.session_state["shared_comments"], height=200, disabled=True)
         
-        # إتاحة حقل لكتابة تعليق جديد
         new_comment = st.text_input("✍️ أكتب تعليقك الفني أو ملاحظتك التركيبية هنا لجهازك:")
         if st.button("📌 حفظ ونشر التعليق للزملاء"):
             if new_comment.strip():
-                prefix = "• [توجيه المالك تاور]" if st.session_state["user_role"] == "owner" else "• [ملاحظة مختص]"
+                prefix = "• [توجيه م. عبد القادر إسماعيل]" if st.session_state["user_role"] == "owner" else "• [ملاحظة مختص]"
                 st.session_state["shared_comments"] += f"{prefix}: {new_comment.strip()}\n"
                 st.success("تمت إضافة الملاحظة لدفتر التعليقات الفني بنجاح!")
                 time.sleep(0.5)
@@ -820,7 +865,7 @@ with tabs[support_tab_index]:
     with col_guide:
         st.markdown("### 📒 كتيب دليل المستخدم السريع:")
         guide_text = (
-            "أهلاً بك في برنامج **المهندس عبدالقادر إسماعيل تاور** لتركيب وتطوير أعلاف الدواجن والماشية والخيل بدقة متناهية وأقل تكلفة اقتصادية.\n\n"
+            "أهلاً بك في برنامج **اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل** لتركيب وتطوير أعلاف الدواجن والماشية والخيل بدقة متناهية وأقل تكلفة اقتصادية.\n\n"
             "**خطوات التشغيل الفني الصحيح العلائقي:**\n"
             "1. **تحديد الموقع:** اختر الدولة والولاية لتحديث أسعار بورصة الخامات أوتوماتيكياً في سوقك المحلي.\n"
             "2. **اختيار الفصيل المستهدف:** حدد الفصيل (دواجن، مجترات، خيل، أسماك) والمرحلة العمرية أو الإنتاجية ليقترح النظام نسبة البروتين الموصى بها علمياً.\n"
@@ -837,14 +882,14 @@ with tabs[support_tab_index]:
         
         st.link_button("📝 إرسال تعليق أو طلب استشارة (نموذج جوجل)", GOOGLE_FORM_URL, use_container_width=True)
         
-        welcome_msg = "السلام عليكم مهندس عبدالقادر، أود الحصول على استشارة فنية بخصوص تركيب الأعلاف وحساب العلائق عبر برنامجكم الذكي..."
+        welcome_msg = "السلام عليكم م.عبد القادر، أود الحصول على استشارة فنية بخصوص تركيب الأعلاف وحساب العلائق عبر برنامجكم الذكي..."
         encoded_msg = urllib.parse.quote(welcome_msg)
         whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}?text={encoded_msg}"
         st.link_button("💬 تواصل واستشارة مباشرة عبر الواتساب", whatsapp_link, use_container_width=True)
         
         st.markdown("<br><b>📢 انشر البرنامج وشارك المعرفة مع زملائك المربين والمهندسين:</b>", unsafe_allow_html=True)
         
-        share_text_base = "أستخدم الآن برنامج المهندس عبدالقادر إسماعيل لتركيب الأعلاف وحساب العلائق بأقل تكلفة ودقة علمية عالية."
+        share_text_base = "أستخدم الآن برنامج اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل لتركيب الأعلاف وحساب العلائق بأقل تكلفة ودقة علمية عالية."
         encoded_share_text = urllib.parse.quote(share_text_base)
         
         col_wa, col_fb = st.columns(2)
@@ -877,7 +922,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.markdown(
     """
     <div class="mini-left-signature">
-        👨‍🔬 م. عبد القادر إسماعيل تاور © 2026 | خبير الحلول الذكية للثروة الحيوانية والبرمجيات المتكاملة
+        👨‍🔬 م. عبد القادر إسماعيل تاور © 2026 | اختصاصي الإنتاج الحيواني وخبير البرمجيات المتكاملة للأعلاف
     </div>
     """,
     unsafe_allow_html=True
