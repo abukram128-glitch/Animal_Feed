@@ -134,21 +134,17 @@ def generate_pdf_report(formula, target_cp, breed, cost, city, local_cost, local
     buffer.seek(0)
     return buffer.getvalue()
 
-# --- تحسين الـ CSS لضمان التباين وقابلية القراءة الفخمة وسلاسة التمرير لفيسبوك ---
+# --- تحسين الـ CSS لضمان التباين وقابلية القراءة الفخمة ---
 st.markdown(
     """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght=400;700&display=swap');
-    
-    /* [تعديل] حل مشكلة سلاسة التمرير والتنقل من أسفل لأعلى في متصفحات الهواتف وتطبيق فيسبوك */
-    html, body, [data-testid="stAppViewContainer"], [data-testid="stMainSpaceElement"] {
+    html, body, [data-testid="stAppViewContainer"] {
         font-family: 'Cairo', sans-serif;
         background-image: url("https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600&auto=format&fit=crop");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
-        scroll-behavior: smooth !important;
-        -webkit-overflow-scrolling: touch !important;
     }
     .stApp { background: transparent; }
     .main-box {
@@ -239,33 +235,7 @@ st.markdown(
         text-align: right;
         color: #b71c1c;
     }
-
-    /* [إضافة] تنسيق زر التنبيه الذكي للمشاركة الموحدة لعام 2026 */
-    #customToast {
-        position: fixed;
-        bottom: -60px;
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: #1b5e20;
-        color: white;
-        padding: 12px 24px;
-        border-radius: 30px;
-        font-size: 15px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        transition: bottom 0.4s ease, opacity 0.4s ease;
-        opacity: 0;
-        z-index: 99999;
-        direction: rtl;
-        text-align: center;
-        font-weight: bold;
-    }
-    #customToast.show {
-        bottom: 40px;
-        opacity: 1;
-    }
     </style>
-
-    <div id="customToast">📋 تم نسخ نص الدعوة والرابط بنجاح! يمكنك الآن لصقه ونشره بسهولة.</div>
     """,
     unsafe_allow_html=True
 )
@@ -386,19 +356,7 @@ EXCHANGE_RATES = {
     "مصر": {"rate": 48.0, "sym": "EGP"}, "باقي دول العالم / البورصة المفتوحة": {"rate": 1.0, "sym": "USD"}
 }
 
-# --- [تعديل جديد لربط البورصة على مدار الساعة] ---
-# محاكي التحديث المباشر للبورصة لمنع تجميد البيانات وجعل الحركة مستمرة وحقيقية
-def get_live_ticker_price(base_price):
-    """
-    تقوم هذه الدالة بإنشاء تذبذب حقيقي ومباشر في السعر يحاكي حركة الأسواق الحية
-    ويمكن استبدالها برابط API مباشر للأسواق العالمية والمحلية لاحقاً.
-    """
-    # توليد تذبذب طفيف بين -0.5% و +0.5% بناء على الوقت الحالي لتحديث الأسعار في نفس الثانية
-    np.random.seed(int(time.time() * 1000) % 100000)
-    flurequest = np.random.uniform(-0.005, 0.005)
-    return base_price * (1 + flurequest)
-
-def get_adjusted_market_data(country, state_or_region, city, live_mode=True):
+def get_adjusted_market_data(country, state_or_region, city):
     feed_prices = {}
     for cat in BIG_FEEDS_LIBRARY.values():
         for ing in cat:
@@ -428,12 +386,7 @@ def get_adjusted_market_data(country, state_or_region, city, live_mode=True):
         if city == "طبرق": multiplier = 1.06
     elif country == "مصر": multiplier = 1.04
 
-    for k in feed_prices: 
-        feed_prices[k] *= multiplier
-        # إذا كان الوضع الحي نشطاً، يتم تفعيل التحديث اللحظي للأسعار
-        if live_mode:
-            feed_prices[k] = get_live_ticker_price(feed_prices[k])
-            
+    for k in feed_prices: feed_prices[k] *= multiplier
     return feed_prices
 
 ANIMAL_IMAGES_RESOURCES = {
@@ -480,7 +433,7 @@ with col_title:
 
 st.markdown("<hr style='border-top: 2px solid #2e7d32;'>", unsafe_allow_html=True)
 
-# --- [تعديل] زر المشاركة الموحد بنقرة واحدة وحل مشكلة متصفح فيسبوك ---
+# --- التعديل الجديد: زر المشاركة والدعاية والتسويق الاحترافي في مقدمة التطبيق مباشرة ---
 st.markdown("### 📢 المشاركة التسويقية والدعوة العلمية")
 share_text_payload = """📢 دعوة علمية وتسويقية من منصة الخبير م. عبد القادر إسماعيل
 
@@ -493,75 +446,11 @@ share_text_payload = """📢 دعوة علمية وتسويقية من منصة 
 • أدوات دقيقة لحساب الاحتياجات الغذائية بما يضمن أعلى معدلات نمو وإنتاجية.
 • دعم كامل للعمل الميداني والبحث العلمي والخصم التلقائي للمستودعات في مكان واحد.
 
-🔗 رابط المنصة: https://yourplatform.com"""
+🔗 رابط المنصة: [ضع رابط موقعك هنا]"""
 
-# حقن كود جافا سكريبت متطور لتنفيذ النسخ والمشاركة بنقرة واحدة بنجاح داخل الفيسبوك
-js_share_script = f"""
-<script>
-function executeSmartShare() {{
-    const shareData = {{
-        title: 'منصة م. عبد القادر إسماعيل لتركيب الأعلاف',
-        text: `{share_text_payload}`,
-        url: window.location.href
-    }};
-    const textToCopy = shareData.text;
-
-    // 1. محاولة استخدام ميزة النظام الرسمية للمشاركة
-    if (navigator.share) {{
-        navigator.share(shareData).catch(err => console.log('إلغاء أو خطأ مشاركة'));
-    }} else {{
-        // 2. الحل البديل المضمون لمتصفح فيسبوك الداخلي: النسخ الصامت المباشر
-        if (navigator.clipboard && navigator.clipboard.writeText) {{
-            navigator.clipboard.writeText(textToCopy).then(() => {{
-                showToastNotification();
-            }}).catch(() => {{
-                fallbackCopyMethod(textToCopy);
-            }});
-        }} else {{
-            fallbackCopyMethod(textToCopy);
-        }}
-    }}
-}}
-
-function fallbackCopyMethod(text) {{
-    const textArea = document.createElement("textarea");
-    textArea.value = text;
-    textArea.style.position = "fixed"; 
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-    try {{
-        document.execCommand('copy');
-        showToastNotification();
-    }} catch (err) {{
-        console.error('فشل النسخ الاحتياطي');
-    }}
-    document.body.removeChild(textArea);
-}}
-
-function showToastNotification() {{
-    const toast = document.getElementById("customToast");
-    toast.classList.add("show");
-    setTimeout(() => {{ 
-        toast.classList.remove("show"); 
-    }}, 4000);
-}}
-</script>
-"""
-st.markdown(js_share_script, unsafe_allow_html=True)
-
-# تصميم زر المشاركة الموحد بنقرة واحدة
-st.markdown(
-    """
-    <div style="direction: rtl; text-align: right; margin-bottom: 20px;">
-        <p style="color: #555;">انقر على الزر أدناه لمشاركة رابط المنصة مصحوباً بنص الدعوة بالكامل فوراً:</p>
-        <button onclick="executeSmartShare()" style="width: 100%; max-width: 400px; padding: 14px 28px; background-color: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.15); transition: background-color 0.2s;">
-            🔗 اضغط هنا لنسخ رابط المنصة والدعوة معاً ونشرها
-        </button>
-    </div>
-    """, 
-    unsafe_allow_html=True
-)
+st.text_area("النص الدعائي والإعلامي الجاهز للنشر:", value=share_text_payload, height=140, key="top_share_box")
+if st.button("📋 نسخ الرابط والنص للدعاية والتسويق", type="secondary"):
+    st.success("تم التجهيز بنجاح! يمكنك الآن نسخ النص ومشاركته عبر المجموعات والمنصات.")
 st.markdown("---")
 
 
@@ -631,27 +520,15 @@ with tabs[0]:
             else: user_city = st.selectbox("اختر المدينة الليبية:", ["سبها", "مرزق", "غات"])
         else: user_city = st.text_input("اكتب اسم المدينة العالمية يدوياً:", "طبرق")
 
-    # --- [تعديل] تفعيل قسم البورصة الحية المنفصل باستخدام ميزة الحاويات اللحظية في التمرير ---
-    st.markdown("#### ⚡ أسعار البورصة المباشرة (تحديث حي تلقائي على مدار الساعة)")
+    live_prices = get_adjusted_market_data(user_country, chosen_state, user_city)
     
-    # حاوية برمجية تضمن تحديث الأسعار دون مقاطعة حقول الإدخال الأخرى للمستخدم
-    live_market_box = st.container()
-    
-    # جلب أسعار الخامات الحية بناءً على المحاكي اللحظي المتصل بالوقت الفعلي
-    live_prices = get_adjusted_market_data(user_country, chosen_state, user_city, live_mode=True)
-    
-    # جلب تحديثات حية لأسعار الماشية والمنتجات
-    live_livestock = {k: get_live_ticker_price(v) for k, v in st.session_state["global_livestock_prices"].items()}
-    live_products = {k: get_live_ticker_price(v) for k, v in st.session_state["global_products_prices"].items()}
-    
-    with live_market_box:
-        col_view1, col_view2 = st.columns(2)
-        with col_view1:
-            st.markdown(f'<div class="price-card"><b>📈 بورصة الماشية والداجن الحية في ({user_city}) المزدوجة:</b><br>' + 
-                        "<br>".join([f"▪️ {k}: <b>${v:.2f}</b> (يعادل: <span style='color:#e65100; font-weight:bold;'>{v*local_rate:,.2f} {local_sym}</span>)" for k, v in live_livestock.items()]) + "</div>", unsafe_allow_html=True)
-        with col_view2:
-            st.markdown(f'<div class="price-card"><b>🥩 بورصة المنتجات الحيوانية والألبان والبيض في ({user_city}):</b><br>' + 
-                        "<br>".join([f"▪️ {k}: <b>${v:.2f}</b> (يعادل: <span style='color:#1b5e20; font-weight:bold;'>{v*local_rate:,.2f} {local_sym}</span>)" for k, v in live_products.items()]) + "</div>", unsafe_allow_html=True)
+    col_view1, col_view2 = st.columns(2)
+    with col_view1:
+        st.markdown(f'<div class="price-card"><b>📈 بورصة الماشية والداجن الحية في ({user_city}) المزدوجة:</b><br>' + 
+                    "<br>".join([f"▪️ {k}: <b>${v:.2f}</b> (يعادل: <span style='color:#e65100; font-weight:bold;'>{v*local_rate:,.2f} {local_sym}</span>)" for k, v in st.session_state["global_livestock_prices"].items()]) + "</div>", unsafe_allow_html=True)
+    with col_view2:
+        st.markdown(f'<div class="price-card"><b>🥩 بورصة المنتجات الحيوانية والألبان والبيض في ({user_city}):</b><br>' + 
+                    "<br>".join([f"▪️ {k}: <b>${v:.2f}</b> (يعادل: <span style='color:#1b5e20; font-weight:bold;'>{v*local_rate:,.2f} {local_sym}</span>)" for k, v in st.session_state["global_products_prices"].items()]) + "</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="section-title">⚖️ ثانياً: اختيار القطاع والنوع والإنتاجية المستهدفة</div>', unsafe_allow_html=True)
     col_sec, col_sub, col_prod = st.columns(3)
@@ -893,17 +770,17 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
             
         col_edit1, col_edit2 = st.columns(2)
         with col_edit1:
-            st.subheader("🐓 بورصة الماشية والداجن (أسعار حية تتدفق الآن)")
-            for animal, price in live_livestock.items():
+            st.subheader("🐓 بورصة الماشية والداجن")
+            for animal, price in st.session_state["global_livestock_prices"].items():
                 if st.session_state["user_role"] == "owner":
-                    st.session_state["global_livestock_prices"][animal] = st.number_input(f"تحديث سعر الأساس: {animal}", min_value=0.0, value=float(st.session_state["global_livestock_prices"][animal]), step=0.1, key=f"livestock_{animal}")
+                    st.session_state["global_livestock_prices"][animal] = st.number_input(f"تحديث سعر: {animal}", min_value=0.0, value=float(price), step=0.1, key=f"livestock_{animal}")
                 else:
                     st.markdown(f"▪️ {animal}: **${price:.2f}**")
         with col_edit2:
-            st.subheader("🥛 بورصة الألبان واللحوم والأطباق (محدثة لحظياً)")
-            for product, price in live_products.items():
+            st.subheader("🥛 بورصة الألبان واللحوم والأطباق")
+            for product, price in st.session_state["global_products_prices"].items():
                 if st.session_state["user_role"] == "owner":
-                    st.session_state["global_products_prices"][product] = st.number_input(f"تحديث سعر الأساس: {product}", min_value=0.0, value=float(st.session_state["global_products_prices"][product]), step=0.05, key=f"prod_edit_{product}")
+                    st.session_state["global_products_prices"][product] = st.number_input(f"تحديث سعر: {product}", min_value=0.0, value=float(price), step=0.05, key=f"prod_edit_{product}")
                 else:
                     st.markdown(f"▪️ {product}: **${price:.2f}**")
 
@@ -933,7 +810,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
         st.markdown(f"### 💰 إجمالي القيمة المستحقة للفاتورة: `${total_bill:.2f}` (أو تعادل `{total_bill*local_rate:,.1f}` {local_sym})")
         
         if st.session_state["user_role"] == "owner":
-            if st.button("✅ تأكيد عملية البيع وخصم Mكونات من المستودع"):
+            if st.button("✅ تأكيد عملية البيع وخصم المكونات من المستودع"):
                 can_deduct = True
                 for name, pct in st.session_state["active_formula"].items():
                     if st.session_state["inventory"].get(name, 0.0) < ((pct / 100) * required_tons): 
@@ -993,7 +870,7 @@ with tabs[support_tab_index]:
             "1. **تحديد الموقع:** اختر الدولة والولاية لتحديث أسعار بورصة الخامات أوتوماتيكياً في سوقك المحلي.\n"
             "2. **اختيار الفصيل المستهدف:** حدد الفصيل (دواجن، مجترات، خيل، أسماك) والمرحلة العمرية أو الإنتاجية ليقترح النظام نسبة البروتين الموصى بها علمياً.\n"
             "3. **القياس الجسدي حَقلياً:** في قطاع الثروة الحيوانية، أدخل محيط الصدر وطول الجسم لتقدير أوزان القطيع وااحتياجه اليومي تلقائياً.\n"
-            "4. **تحديد Mudkhlat:** نشّط مربعات الاختيار بجانب الخامات المتوفرة في مخازنك حالياً (ذرة صفراء، ذرة بيضاء، كسب عباد الشمس، أمباز فول سوداني...).\n"
+            "4. **تحديد المدخلات:** نشّط مربعات الاختيار بجانب الخامات المتوفرة في مخازنك حالياً (ذرة صفراء، ذرة بيضاء، كسب عباد الشمس، أمباز فول سوداني...).\n"
             "5. **التحسين الرياضي الذكي:** اضغط على زر *'تشغيل محرك الاستمثال الخطي'* ليقوم المعالج بحساب المقادير لكل طن بأقل تكلفة محددة.\n\n"
             "*💡 تنويه فني: يرجى الحرص على تحديث الأسعار دورياً لضمان سلامة حسابات التكلفة والربحية الاقتصادية للفواتير.*"
         )
@@ -1050,8 +927,3 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
-# --- [إضافة تفعيل آلية إعادة التشغيل التلقائي اللحظية لتدفق الأسعار] ---
-# تضمن هذه الإضافة تحديث الأسعار أمام المستخدم كل ثانية واحدة بشكل غير مرئي ودون تجميد المدخلات
-time.sleep(1)
-st.rerun()
