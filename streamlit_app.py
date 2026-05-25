@@ -1,5 +1,6 @@
 import streamlit as st
 import numpy as np
+import pandas as pd  # تم إضافة المكتبة هنا لإصلاح خطأ جداول المختبر الفني
 import json
 import os
 import base64
@@ -426,6 +427,7 @@ def get_adjusted_market_data(country, state_or_region, city):
 ANIMAL_IMAGES_RESOURCES = {
     "أبقار": "https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?q=80&w=600",
     "ماعز": "https://images.unsplash.com/photo-1524388680868-377a2e6bbb1c?q=80&w=600",
+    "أغنام": "https://images.unsplash.com/photo-1484557985045-edf25e08da73?q=80&w=600",
     "خيول": "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?q=80&w=600",
     "دواجن": "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?q=80&w=600",
     "أسماك": "https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?q=80&w=600",
@@ -523,7 +525,7 @@ with tabs[0]:
     # إنشاء تبويب داخلي للفصل بين "التركيب التلقائي للطن" وبين "مختبر الفحص الحر"
     sub_tab_formulator, sub_tab_analyzer = st.tabs(["🎯 تركيب علفة نموذجية (أقل تكلفة)", "🔬 مختبر تحليل وفحص الأعلاف الجاهزة"])
     
-    # --- النافذة الأولى: تركيب العلفة النموذجية (الكود الأساسي الأصلي دون أي تعديل) ---
+    # --- النافذة الأولى: تركيب العلفة النموذجية ---
     with sub_tab_formulator:
         st.markdown('<div class="section-title">🌍 أولاً: تحديد الموقع الجغرافي وبورصة الأسعار بالعملتين المحلية والأجنبية</div>', unsafe_allow_html=True)
         col_country, col_state, col_city = st.columns(3)
@@ -568,20 +570,29 @@ with tabs[0]:
 
         st.markdown('<div class="section-title">⚖️ ثانياً: اختيار القطاع والنوع والإنتاجية المستهدفة</div>', unsafe_allow_html=True)
         col_sec, col_sub, col_prod = st.columns(3)
-        with col_sec: main_sector = st.selectbox("اختر القطاع الإنتاجي الرئيسي:", ["الخيول والفروسية", "الماعز وسلالاته", "الأبقار وسلالاتها", "الطيور والسمان", "الأسماك والأحياء المائية"])
+        with col_sec: main_sector = st.selectbox("اختر القطاع الإنتاجي الرئيسي:", ["الأغنام وسلالاتها 🐏", "الماعز وسلالاتها", "الأبقار وسلالاتها", "الخيول والفروسية", "الطيور والسمان", "الأسماك والأحياء المائية"])
         
         show_measurements = False; weight_factor = 10000; feed_factor = 0.02; default_cp = 14.0; dynamic_img_key = "عام"; chosen_concentrate = None
         
+        # تفعيل آلية الفصل بين الجنسين ذكياً لقطاع الأغنام والماعز لضبط خطوط الإنتاج والعلائق
+        gender_option = "إناث"
+        if main_sector in ["الأغنام وسلالاتها 🐏", "الماعز وسلالاتها"]:
+            with col_sec:
+                gender_option = st.radio("حدد الجنس (يفصل برمجياً خطوط إنتاج الحليب والأمهات عن التسمين):", ["ذكور (تسمين)", "إناث (حليب / أمهات)"], horizontal=True)
+
         with col_sub:
-            if main_sector == "الخيول والفروسية": 
-                sub_type = st.selectbox("السلالة المستهدفة:", ["خيل عربي أصيل", "ثوروبريد", "خيول محلية هجين"])
-                dynamic_img_key = "خيول"; show_measurements = True; weight_factor = 11877; feed_factor = 0.022; chosen_concentrate = "مركزات خيول ومجترات"
-            elif main_sector == "الماعز وسلالاته": 
+            if main_sector == "الأغنام وسلالاتها 🐏":
+                sub_type = st.selectbox("السلالة المستهدفة:", ["الضأن الصحراوي السوداني", "البربري", "النعيمي", "سلالات محلية / هجين"])
+                dynamic_img_key = "أغنام"; show_measurements = True; weight_factor = 15500; feed_factor = 0.035; chosen_concentrate = "مركزات خيول ومجترات"
+            elif main_sector == "الماعز وسلالاتها": 
                 sub_type = st.selectbox("السلالة المستهدفة:", ["الماعز النوبي السوداني", "الماعز الصحراوي", "بور / محسن"])
                 dynamic_img_key = "ماعز"; show_measurements = True; weight_factor = 15000; feed_factor = 0.032; chosen_concentrate = "مركزات خيول ومجترات"
             elif main_sector == "الأبقار وسلالاتها": 
                 sub_type = st.selectbox("السلالة المستهدفة:", ["كنانة (سوداني)", "بطانة (مدر)", "هولشتاين / محسن"])
                 dynamic_img_key = "أبقار"; show_measurements = True; weight_factor = 10838; feed_factor = 0.025; chosen_concentrate = "مركزات خيول ومجترات"
+            elif main_sector == "الخيول والفروسية": 
+                sub_type = st.selectbox("السلالة المستهدفة:", ["خيل عربي أصيل", "ثوروبريد", "خيول محلية هجين"])
+                dynamic_img_key = "خيول"; show_measurements = True; weight_factor = 11877; feed_factor = 0.022; chosen_concentrate = "مركزات خيول ومجترات"
             elif main_sector == "الطيور والسمان": 
                 sub_type = st.selectbox("نوع الطيور:", ["طائر السمان (Quail)", "دواجن لاحم (Broiler)", "دواجن بياض (Layer)"])
                 dynamic_img_key = "سمان" if "السمان" in sub_type else "دواجن"; chosen_concentrate = "مركزات دواجن وسمان"
@@ -590,15 +601,28 @@ with tabs[0]:
                 dynamic_img_key = "أسماك"; chosen_concentrate = "مسحوق أسماك (Fishmeal 60%)"
 
         with col_prod:
-            if main_sector == "الخيول والفروسية": 
-                prod_stage = st.selectbox("نوع الإنتاج:", ["خيول رياضة ونشاط مكثف", "أمهار نامية صغيرة", "فرسات مرضعات"])
-                default_cp = 16.0 if "أمهار" in prod_stage or "مرضعات" in prod_stage else 12.0
-            elif main_sector == "الماعز وسلالاته": 
-                prod_stage = st.selectbox("نوع الإنتاج:", ["إنتاج اللحوم وتسمين", "إنتاج ألبان وحليب"])
-                default_cp = 15.5 if "ألبان" in prod_stage else 13.5
+            if main_sector == "الأغنام وسلالاتها 🐏":
+                if gender_option == "ذكور (تسمين)":
+                    prod_stage = st.selectbox("خط إنتاج الذكور الحصري:", ["تسمين حملان مكثف (نمو سريع)", "حملان تيد / كباش جاهزة للأسواق"])
+                    default_cp = 15.0 if "مكثف" in prod_stage else 12.5
+                else:
+                    prod_stage = st.selectbox("خط إنتاج الإناث والأمهات الحصري:", ["نعاج مرضعات (إدرار عالي)", "نعاج حامل (الفترة الأخيرة)", "نعاج جافة / صيانة"])
+                    default_cp = 16.0 if "مرضعات" in prod_stage else (14.0 if "حامل" in prod_stage else 11.5)
+                    
+            elif main_sector == "الماعز وسلالاتها": 
+                if gender_option == "ذكور (تسمين)":
+                    prod_stage = st.selectbox("خط إنتاج الذكور الحصري:", ["تسمين جديان نمو سريع", "تيوس علفية جاهزة للتسويق"])
+                    default_cp = 14.5 if "جديان" in prod_stage else 12.0
+                else:
+                    prod_stage = st.selectbox("خط إنتاج الإناث والأمهات الحصري:", ["عنزات حلابة وغزارة لبن", "عنزات حامل (دفع غذائي)", "صيانة دورية للأمهات"])
+                    default_cp = 16.0 if "حلابة" in prod_stage else (13.5 if "حامل" in prod_stage else 11.0)
+                    
             elif main_sector == "الأبقار وسلالاتها": 
                 prod_stage = st.selectbox("نوع الإنتاج:", ["إنتاج حليب وغزارة إدرار", "تسمين عجول مكثف"])
                 default_cp = 16.0 if "حليب" in prod_stage else 13.0
+            elif main_sector == "الخيول والفروسية": 
+                prod_stage = st.selectbox("نوع الإنتاج:", ["خيول رياضة ونشاط مكثف", "أمهار نامية صغيرة", "فرسات مرضعات"])
+                default_cp = 16.0 if "أمهار" in prod_stage or "مرضعات" in prod_stage else 12.0
             elif main_sector == "الطيور والسمان":
                 if "السمان" in sub_type: 
                     prod_stage = st.selectbox("نوع الإنتاج:", ["سمان بادي / نامي", "سمان بياض إنتاجي"])
@@ -611,10 +635,10 @@ with tabs[0]:
                 default_cp = 35.0 if "زريعة" in prod_stage else 30
 
         if show_measurements:
-            st.markdown('<div class="section-title">📐 ثالثاً: شريط القياس الجسدي وتقدير الأوزان والاحتياجات حَقلياً</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">📐 Critical Measurements Area | شريط القياس الجسدي وتقدير الأوزان والاحتياجات حَقلياً</div>', unsafe_allow_html=True)
             col_h, col_l, col_ag = st.columns(3)
-            with col_h: h_girth = st.number_input("📏 محيط الصدر خلف الكوع مباشرة (سم):", value=150.0 if "الأبقار" in main_sector or "الخيول" in main_sector else 70.0)
-            with col_l: b_length = st.number_input("📏 طول الجسم الجسدي (سم):", value=130.0 if "الأبقار" in main_sector or "الخيول" in main_sector else 60.0)
+            with col_h: h_girth = st.number_input("📏 محيط الصدر خلف الكوع مباشرة (سم):", value=150.0 if "الأبقار" in main_sector or "الخيول" in main_sector else 75.0)
+            with col_l: b_length = st.number_input("📏 طول الجسم الجسدي (سم):", value=130.0 if "الأبقار" in main_sector or "الخيول" in main_sector else 65.0)
             with col_ag: a_months = st.number_input("⏳ عمر الحيوان التقديري (أشهر):", value=12)
             calc_weight = (h_girth ** 2 * b_length) / weight_factor; req_feed_kg = calc_weight * feed_factor
             st.success(f"📊 الوزن الحيوي المتوقع للحيوان: **{calc_weight:.1f} كجم** | الاحتياج اليومي المقدر للمادة الجافة: **{req_feed_kg:.2f} كجم**")
@@ -655,7 +679,7 @@ with tabs[0]:
         auto_added_enzymes = {}
         mandatory_warnings = []
         
-        if main_sector in ["الأبقار وسلالاتها", "الماعز وسلالاته"]:
+        if main_sector in ["الأبقار وسلالاتها", "الماعز وسلالاتها", "الأغنام وسلالاتها 🐏"]:
             auto_added_enzymes["بيكربونات الصوديوم (الصودا)"] = 0.75
             mandatory_warnings.append("🚨 <b>إضافة إلزامية - بيكربونات الصوديوم:</b> تم فرض بيكربونات الصوديوم أوتوماتيكياً بنسبة 0.75% كمنظم حموضة (Buffer) لحماية الكرش من <b>التحمض Ruminal Acidosis</b>.")
         elif main_sector == "الطيور والسمان":
@@ -750,7 +774,7 @@ with tabs[0]:
                 st.session_state["active_cp_tag"] = final_target_cp
                 st.session_state["active_breed_tag"] = sub_type
                 st.session_state["active_animal_img"] = ANIMAL_IMAGES_RESOURCES.get(dynamic_img_key, ANIMAL_IMAGES_RESOURCES["عام"])
-                st.session_state["active_stage_title"] = f"{main_sector} - {prod_stage}"
+                st.session_state["active_stage_title"] = f"{main_sector} ({gender_option}) - {prod_stage}"
                 
                 st.success(f"🎯 تم تشغيل محرك التركيب واستقرار الاستمثال الخطي بنجاح في سوق: {user_city}")
                 
@@ -772,12 +796,12 @@ with tabs[0]:
                     st.markdown("<br>", unsafe_allow_html=True)
                     col_share, col_pdf = st.columns(2)
                     with col_share:
-                        share_message = f"منصة تاور العلمية - الخلطة المعتمدة: {sub_type}، بتكلفة إنتاج {ton_cost:.2f}$ للطن. المشرف: الاختصاصي م. عبد القادر إسماعيل تاور."
+                        share_message = f"منصة تاور العلمية - الخلطة المعتمدة: {sub_type} ({gender_option})، بتكلفة إنتاج {ton_cost:.2f}$ للطن. المشرف: الاختصاصي م. عبد القادر إسماعيل تاور."
                         encoded_share_msg = urllib.parse.quote(share_message)
                         st.link_button("📲 مشاركة الفاتورة عبر واتساب", f"https://wa.me/?text={encoded_share_msg}")
                     with col_pdf:
                         try:
-                            pdf_data = generate_pdf_report(formula_results, final_target_cp, sub_type, ton_cost, user_city, ton_cost*local_rate, local_sym)
+                            pdf_data = generate_pdf_report(formula_results, final_target_cp, f"{sub_type} ({gender_option})", ton_cost, user_city, ton_cost*local_rate, local_sym)
                             st.download_button("📥 تحميل التقرير الفني PDF", pdf_data, file_name=f"Tower_Scientific_Platform_{user_city}.pdf", mime="application/pdf", use_container_width=True)
                         except Exception as pdf_err:
                             st.error(f"⚠️ لم يتم بناء ملف الـ PDF: {pdf_err}")
@@ -790,35 +814,32 @@ with tabs[0]:
             time.sleep(40)
             nz_placeholder.empty()
 
-    # --- النافذة الثانية: مختبر تحليل وفحص الأعلاف الجاهزة (الإضافة البرمجية المطلوبة) ---
+    # --- النافذة الثانية: مختبر تحليل وفحص الأعلاف الجاهزة يدوياً ---
     with sub_tab_analyzer:
         st.markdown('<div class="section-title">🔬 مختبر فحص وتحليل الخلطات الجاهزة يدوياً</div>', unsafe_allow_html=True)
         st.write("اكتب مقادير خلطتك الحالية بالكيلوجرام، وسيقوم المختبر بتحليلها برمجياً لتقدير نسبة البروتين الكلية مقارنة بنوع الإنتاج المستهدف.")
         
-        # 1. تحديد فئة المقارنة بناءً على المكتبة الأصلية المتاحة لديك
         st.subheader("🎯 حدد الحيوان والغرض المستهدف لمقارنة النتيجة:")
         col_lab_sec, col_lab_cp = st.columns(2)
         with col_lab_sec:
-            target_animal = st.selectbox("اختر فئة الحيوان المستهدف بالفحص:", ["الطيور والسمان", "الأبقار وسلالاتها", "الماعز وسلالاته", "الخيول والفروسية", "الأسماك والأحياء المائية"], key="lab_target_animal")
+            target_animal = st.selectbox("اختر فئة الحيوان المستهدف بالفحص:", ["الأغنام وسلالاتها 🐏", "الطيور والسمان", "الأبقار وسلالاتها", "الماعز وسلالاته", "الخيول والفروسية", "الأسماك والأحياء المائية"], key="lab_target_animal")
         with col_lab_cp:
-            # استنباط حد البروتين الاسترشادي تلقائياً بناءً على معاييرك الأصلية بالكود
             suggested_cp_target = 14.0
             if target_animal == "الطيور والسمان": suggested_cp_target = 21.0
             elif target_animal == "الأسماك والأحياء المائية": suggested_cp_target = 30.0
             elif target_animal == "الأبقار وسلالاتها": suggested_cp_target = 15.0
+            elif target_animal == "الأغنام وسلالاتها 🐏": suggested_cp_target = 14.0
             st.markdown(f"🧬 البروتين القياسي المطلوب لهذه الفئة: **{suggested_cp_target}%**")
 
         st.markdown("---")
         st.subheader("📥 أدخل أوزان المكونات بالكيلوجرام (حرية الإدخال بالكامل):")
         
-        # تجميع الخامات المتاحة من مكتبتك الأصلية لتسهيل الإدخال الفردي
         lab_user_inputs = {}
         all_library_ingredients = []
         for cat_name, items in BIG_FEEDS_LIBRARY.items():
             for ing_name in items.keys():
                 all_library_ingredients.append(ing_name)
         
-        # تقسيم واجهة الإدخال على ثلاثة أعمدة منظمة لتفادي طول الصفحة وضمان سهولة القراءة
         col_input1, col_input2, col_input3 = st.columns(3)
         total_ing_count = len(all_library_ingredients)
         segment = total_ing_count // 3 + 1
@@ -844,11 +865,9 @@ with tabs[0]:
                 calculated_total_cp = 0.0
                 entered_components_summary = []
                 
-                # حساب المساهمة الحجمية والغذائية بناء على قاعدة بروتين الخامات الأصلية
                 for ing_name, weight in lab_user_inputs.items():
                     if weight > 0:
                         pct = weight / lab_total_weight
-                        # جلب نسبة بروتين الخامة من مكتبتك الكبرى
                         ing_cp = 0.0
                         for cat, items in BIG_FEEDS_LIBRARY.items():
                             if ing_name in items:
@@ -861,9 +880,7 @@ with tabs[0]:
                             "النسبة المئوية من الإجمالي": f"{pct * 100:.2f}%"
                         })
                 
-                # عرض تقرير التحليل النهائي
                 st.success("🔬 تم فحص عينة العلف وتحليل المحتوى النيتروجيني بنجاح!")
-                
                 st.markdown(f"### ⚖️ إجمالي وزن الخلطة الجاهزة المختبرة: **{lab_total_weight:.1f} كجم**")
                 st.write("#### 📊 نسب توزيع المكونات في العينة المدخلة:")
                 st.table(pd.DataFrame(entered_components_summary))
@@ -883,7 +900,6 @@ with tabs[0]:
                 ]
                 st.table(pd.DataFrame(lab_report_data))
                 
-                # رسم بياني توضيحي للمستخدم لمعاينة توزيع الأوزان
                 st.write("📊 التمثيل البياني لتوزيع أوزان المواد المدخلة:")
                 graph_data = {k: v for k, v in lab_user_inputs.items() if v > 0}
                 st.bar_chart(graph_data)
@@ -985,7 +1001,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                 st.rerun()
 
 # ====================================================================
-# 🗂️ التبويب المطور: دليل المستخدم في شكل كتيب رقمي جميل ومنسق (واضح القراءة)
+# 🗂️ التبويب المطور: دليل المستخدم في شكل كتيب رقمي جميل ومنسق
 # ====================================================================
 support_tab_index = 6 if st.session_state["user_role"] in ["owner", "specialist"] else 1
 with tabs[support_tab_index]:
@@ -994,7 +1010,6 @@ with tabs[support_tab_index]:
     col_guide, col_actions = st.columns([0.65, 0.35])
     
     with col_guide:
-        # تصميم كتيب رقمي تفاعلي باستخدام HTML/CSS متقدم وعالي المرونة والحداثة في التبويب
         st.markdown("""
         <div class="manual-book">
             <div style="text-align: center; border-bottom: 2px double #2c3e50; padding-bottom: 15px; margin-bottom: 20px;">
@@ -1020,8 +1035,9 @@ with tabs[support_tab_index]:
             <div class="book-chapter">📌 التبويب الثالث: الوحدات الإنتاجية المتخصصة (Sectors Hub)</div>
             <div class="book-body">
                 تم تبويب المنصة إلى واجهات برمجية منفصلة لسهولة الحركة والملاحة الفيلقية:<br>
+                • <b>قطاع الأغنام والماعز المطور:</b> يدعم تماماً الفصل البرمجي الذكي بين الذكور (خط التسمين) والإناث (خطوط إنتاج اللبن وغزارة الألبان، خطوط الحمل والدفع الغذائي للنعاج والعنزات).<br>
                 • <b>قطاع الدواجن والطيور:</b> يدعم دواجن التسمين، البياض، وطائر السمان حسب فترات النمو (بادي، نامي، ناهي).<br>
-                • <b>قطاع المجترات والأبقار والماعز:</b> مخصص لتسمين اللحوم الحمراء أو غزارة إدرار الألبان والتحكم بالكرش.<br>
+                • <b>قطاع المجترات والأبقار:</b> مخصص لتسمين اللحوم الحمراء أو غزارة إدرار الألبان والتحكم بالكرش.<br>
                 • <b>قطاع الخيول والفروسية:</b> مخصص لأعلاف طاقة الجري أو أمهار نامية صغيرة.
             </div>
             
@@ -1032,11 +1048,6 @@ with tabs[support_tab_index]:
                 <b>الخطوة 2:</b> اختر الخامات المتوفرة بالمستودع لديك وقم بوضع الأسعار الحالية للسوق المحلي.<br>
                 <b>الخطوة 3:</b> اضغط على زر <i>تشغيل محرك الاستمثال الخطي</i> لتقوم المنصة بمعالجة الاحتمالات خلال أجزاء من الثانية والوصول للخلطة الأقل تكلفة.<br>
                 <b>الخطوة 4:</b> استعرض تقرير فحص العلل، ثم قم بطباعة ديباجة الجوال أو تصدير التقرير الفني المباشر.
-            </div>
-            
-            <div class="book-chapter">📌 التبويب الخامس: مرونة التقارير والدعم الفني المباشر</div>
-            <div class="book-body">
-                تمنحك المنصة القدرة على سحب تقارير فنية بصيغة PDF عالية التنسيق، مع إدرار نظام "الذكاء التحذيري" الذي يمنع حدوث طرأت مفاجئة في القطيع (مثل عوارض تحمض الكرش أو البراز الرطب للطيور) عبر الإضافة التلقائية والإلزامية للمنظمات والمحفزات الحيوية.
             </div>
         </div>
         """, unsafe_allow_html=True)
