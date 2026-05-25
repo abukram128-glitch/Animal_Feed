@@ -5,7 +5,7 @@ import os
 import base64
 import smtplib
 import time
-import urllib.parse  # مضافة لترميز رسائل الواتساب تلقائياً
+import urllib.parse  
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from scipy.optimize import linprog
@@ -19,14 +19,14 @@ from bidi.algorithm import get_display
 import io
 
 # ==========================================
-# 1. إعدادات المنصة الرسمية والمظهر الفخم لعام 2026
+# 1. إعدادات المنصة الرسمية والمظهر الفخم
 # ==========================================
-st.set_page_config(page_title="منصة اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل لتركيب الأعلاف", page_icon="🌾", layout="wide")
+st.set_page_config(page_title="منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف", page_icon="🌾", layout="wide")
 
 # الأكواد المعتمدة لنظام الصلاحيات الثلاثي
 CODES_DB = {
     "202687": "owner",       # المالك تاور - صلاحية واسعة
-    "2020": "specialist",    # المختص والزملاء - رؤية التبويبات مع قيود المربي في التعديل
+    "2020": "specialist",    # المختص والزملاء 
     "2026": "breeder"        # المربي - الحدود العملية فقط
 }
 
@@ -37,9 +37,9 @@ SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SENDER_EMAIL = "abukram128@gmail.com"       
 SENDER_PASSWORD = "oynz rdli tsdy ekdq"     
-OWNER_EMAIL = "abukram128@gmail.com"  # البريد الحصري والوحيد المسموح بإرسال الكود إليه
-WHATSAPP_NUMBER = "+249123533489"     # الرقم الدولي المعتمد
-GOOGLE_FORM_URL = "https://forms.google.com/YOUR_FORM_URL"  # ضع رابط نموذج جوجل الخاص بك هنا
+OWNER_EMAIL = "abukram128@gmail.com"  
+WHATSAPP_NUMBER = "+249123533489"     
+GOOGLE_FORM_URL = "https://forms.google.com/YOUR_FORM_URL"  
 
 def get_image_base64(paths):
     for path in paths:
@@ -61,9 +61,9 @@ def send_code_to_mail(receiver_email):
     msg = MIMEMultipart()
     msg['From'] = SENDER_EMAIL
     msg['To'] = receiver_email
-    msg['Subject'] = "🌾 السورس كود الكامل والمطور - منصة اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل"
+    msg['Subject'] = "🌾 السورس كود الكامل والمطور - منصة تاور العلمية"
     
-    body = "السلام عليكم م. عبد القادر،\n\nمرفق مع هذه الرسالة النسخة البرمجية الكاملة، المدمجة والمستقرة لمنصتكم الذكية بعد دمج محركات الاستمثال الخطي وتحديث الواجهات والإنزيمات لعام 2026.\n\nتحياتي الهندسية."
+    body = "السلام عليكم م. عبد القادر،\n\nمرفق مع هذه الرسالة النسخة البرمجية الكاملة والمستقرة لمنصتكم الذكية (منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف) بعد تحديث الدليل والواجهات بالكامل.\n\nتحياتي الهندسية."
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
     
     try:
@@ -75,7 +75,7 @@ def send_code_to_mail(receiver_email):
             code_content = "# كود المنصة مأرشف داخلياً\n"
         
         attachment = MIMEText(code_content, 'plain', 'utf-8')
-        attachment.add_header('Content-Disposition', 'attachment', filename="tower_smart_integrated_platform.py")
+        attachment.add_header('Content-Disposition', 'attachment', filename="tower_scientific_platform.py")
         msg.attach(attachment)
         
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
@@ -94,7 +94,7 @@ def fix_arabic_text(text):
     bidi_text = get_display(reshaped_text)
     return bidi_text
 
-# دالة توليد تقارير PDF الفنية الاحترافية للمنظومة العلفية
+# دالة توليد تقارير PDF الفنية الاحترافية للمنظومة العلفية باسم المنصة الجديد
 def generate_pdf_report(formula, target_cp, breed, cost, city, local_cost, local_sym):
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer)
@@ -108,18 +108,19 @@ def generate_pdf_report(formula, target_cp, breed, cost, city, local_cost, local
             pass
             
     p.setFont(font_name, 16)
-    p.drawString(100, 800, fix_arabic_text("تقرير منصة اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل لتركيب الأعلاف"))
+    p.drawString(100, 800, fix_arabic_text("تقرير: منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف"))
     p.setFont(font_name, 12)
-    p.drawString(100, 760, fix_arabic_text(f"الموقع / السوق الجغرافي المستهدف: {city}"))
-    p.drawString(100, 740, fix_arabic_text(f"الفصيل / السلالة الحيوانية: {breed}"))
-    p.drawString(100, 720, fix_arabic_text(f"نسبة البروتين الخام المستهدفة (CP): {target_cp}%"))
-    p.drawString(100, 700, fix_arabic_text(f"التكلفة المحسوبة للطن: ${cost:.2f} ({local_cost:,.2f} {local_sym})"))
+    p.drawString(100, 760, fix_arabic_text(f"المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور"))
+    p.drawString(100, 740, fix_arabic_text(f"الموقع / السوق الجغرافي المستهدف: {city}"))
+    p.drawString(100, 720, fix_arabic_text(f"الفصيل / السلالة الحيوانية: {breed}"))
+    p.drawString(100, 700, fix_arabic_text(f"نسبة البروتين الخام المستهدفة (CP): {target_cp}%"))
+    p.drawString(100, 680, fix_arabic_text(f"التكلفة المحسوبة للطن: ${cost:.2f} ({local_cost:,.2f} {local_sym})"))
     
     p.setFont(font_name, 14)
-    p.drawString(100, 660, fix_arabic_text("المقادير الدقيقة المعتمدة لتركيب خلطة الطن الواحدة:"))
+    p.drawString(100, 640, fix_arabic_text("المقادير الدقيقة المعتمدة لتركيب خلطة الطن الواحدة:"))
     p.setFont(font_name, 12)
     
-    y_position = 630
+    y_position = 610
     for k, v in formula.items():
         line_text = f"- {k}: {v:.2f}% -> ({v*10:.1f} كجم / طن)"
         p.drawString(100, y_position, fix_arabic_text(line_text))
@@ -129,16 +130,16 @@ def generate_pdf_report(formula, target_cp, breed, cost, city, local_cost, local
             y_position = 800
             
     p.setFont(font_name, 10)
-    p.drawString(100, 50, fix_arabic_text("تم التوليد تلقائياً بواسطة منظومة اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل © 2026"))
+    p.drawString(100, 50, fix_arabic_text("تم التوليد تلقائياً بواسطة منصة تاور العلمية © 2026 تحت إشراف م. عبد القادر إسماعيل تاور"))
     p.save()
     buffer.seek(0)
     return buffer.getvalue()
 
-# --- تحسين الـ CSS لضمان التباين وقابلية القراءة الفخمة ---
+# --- تحسين الـ CSS لضمان التباين وقابلية القراءة الفخمة الحداثية ---
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght=400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght=400;600;700&display=swap');
     html, body, [data-testid="stAppViewContainer"] {
         font-family: 'Cairo', sans-serif;
         background-image: url("https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600&auto=format&fit=crop");
@@ -165,6 +166,7 @@ st.markdown(
         color: #1b5e20 !important;
         border-right: 5px solid #2e7d32;
         box-shadow: 0px 2px 5px rgba(0,0,0,0.05);
+        text-align: right;
     }
     
     .section-title {
@@ -224,6 +226,8 @@ st.markdown(
         border-radius: 8px;
         border-right: 5px solid #2e7d32;
         margin-bottom: 15px;
+        direction: rtl;
+        text-align: right;
     }
     .warning-card {
         background: #ffebee;
@@ -234,6 +238,37 @@ st.markdown(
         direction: rtl;
         text-align: right;
         color: #b71c1c;
+    }
+    
+    /* تنسيقات الكتاب الكتيب الرقمي المطور */
+    .manual-book {
+        background-color: #ffffff;
+        padding: 30px;
+        border-radius: 12px;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0px 5px 15px rgba(0,0,0,0.05);
+        direction: rtl;
+        text-align: right;
+    }
+    .book-chapter {
+        background: linear-gradient(135deg, #2c3e50, #34495e);
+        color: #ffffff;
+        padding: 10px 15px;
+        border-radius: 6px;
+        font-weight: bold;
+        margin-top: 20px;
+        font-size: 1.15rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .book-body {
+        padding: 12px 20px;
+        font-size: 1.05rem;
+        line-height: 1.7;
+        color: #2c3e50;
+        border-left: 3px solid #3498db;
+        margin-bottom: 15px;
+        background-color: #f8f9fa;
+        border-radius: 0 6px 6px 0;
     }
     </style>
     """,
@@ -250,7 +285,7 @@ if "login_welcome_shown" not in st.session_state: st.session_state["login_welcom
 if not st.session_state["approved"]:
     st.markdown('<div class="main-box" style="max-width: 500px; margin: 100px auto; direction: rtl;">', unsafe_allow_html=True)
     st.markdown("<h2 style='color: #2E7D32; text-align:center;'>🔒 بوابـة الدخـول الذكيـة</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#555;'>برنامج اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل لتركيب الأعلاف</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#555;'>منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف</p>", unsafe_allow_html=True)
     
     input_code = st.text_input("🔑 أدخل كود الدخول الخاص بك:", type="password")
     
@@ -266,14 +301,13 @@ if not st.session_state["approved"]:
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
-# إظهار رسائل الترحيب المنفصلة والمخصصة لكل فئة بدقة عند الدخول لأول مرة
 if not st.session_state["login_welcome_shown"]:
     if st.session_state["user_role"] == "owner":
-        st.toast("👋 مرحباً بك في منصتك، اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل", icon="👑")
+        st.toast("👋 مرحباً بك في منصتك، الاختصاصي م. عبد القادر إسماعيل تاور", icon="👑")
     elif st.session_state["user_role"] == "specialist":
-        st.toast("🔬 أهلاً بالزملاء من الأطباء البيطريين ومختصي الإنتاج الحيواني، شركاء البحث والتطبيق العملي.", icon="👨‍🔬")
+        st.toast("🔬 أهلاً بالزملاء من الأطباء البيطريين ومختصي الإنتاج الحيواني.", icon="👨‍🔬")
     elif st.session_state["user_role"] == "breeder":
-        st.toast("🚜 أهلاً وسهلاً بإخواننا المربين، شركاء النجاح وأعمدة الإنتاج الحقيقيين.", icon="🌾")
+        st.toast("🚜 أهلاً وسهلاً بإخواننا المربين، شركاء النجاح.", icon="🌾")
     st.session_state["login_welcome_shown"] = True
 
 # =====================================================================
@@ -347,7 +381,7 @@ if "global_products_prices" not in st.session_state:
 
 if "shared_comments" not in st.session_state:
     st.session_state["shared_comments"] = (
-        "• [توجيه اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل]: يرجى من جميع الزملاء إضافة تعليقاتهم هنا لتبادل الخبرات التركيبية.\n"
+        "• [توجيه الاختصاصي م. عبد القادر إسماعيل تاور]: يرجى من جميع الزملاء إضافة تعليقاتهم هنا لتبادل الخبرات التركيبية.\n"
         "• [ملاحظة مختص]: تم مراجعة جودة كسب زهرة الشمس المتاح حالياً بالأسواق ونوصي بضبط ألياف الخيل بناءً عليه.\n"
     )
 
@@ -411,11 +445,10 @@ if "computed_ton_cost" not in st.session_state: st.session_state["computed_ton_c
 # ==========================================
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
-# شريط علوي لإدارة الحساب وتسجيل الخروج
-col_logout_space, col_user_status = st.columns([0.8, 0.2])
+col_logout_space, col_user_status = st.columns([0.7, 0.3])
 with col_user_status:
-    role_arabic = {"owner": "اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل 👑", "specialist": "المختص والزملاء 👨‍🔬", "breeder": "المربي 🌾"}[st.session_state["user_role"]]
-    st.markdown(f"<span style='font-size:0.9rem; color:#555;'>الحساب: <b>{role_arabic}</b></span>", unsafe_allow_html=True)
+    role_arabic = {"owner": "الاختصاصي م. عبد القادر إسماعيل تاور 👑", "specialist": "المختص والزملاء 👨‍🔬", "breeder": "المربي 🌾"}[st.session_state["user_role"]]
+    st.markdown(f"<div style='text-align: left; font-size:0.9rem; color:#555;'>الحساب: <b>{role_arabic}</b></div>", unsafe_allow_html=True)
     if st.button("تسجيل الخروج 🚪", use_container_width=True):
         st.session_state["approved"] = False
         st.session_state["user_role"] = None
@@ -427,19 +460,19 @@ with col_logo:
     else: st.markdown(f'<img src="{ANIMAL_IMAGES_RESOURCES["عام"]}" class="profile-img-style">', unsafe_allow_html=True)
 
 with col_title:
-    st.markdown("<h1 style='color: #1b5e20; text-align:right; margin-bottom:0;'>منصة تركيب الأعلاف الذكية والإنتاج الحيواني 🌾</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color: #1b5e20; text-align:right; margin-bottom:0;'>منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف 🌾</h1>", unsafe_allow_html=True)
     st.markdown("<p style='color: #1565C0; text-align:right; font-size:1.2rem; margin-top:5px; margin-bottom:0;'>محرك الإنزيمات التلقائي والإلزامي المتكامل وتعديل المحتوى الأيوني والبيكربونات</p>", unsafe_allow_html=True)
-    st.markdown("<h3 style='color: #c62828; text-align:right; font-weight: bold; margin-top: 5px;'>اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color: #c62828; text-align:right; font-weight: bold; margin-top: 5px;'>الاختصاصي م. عبد القادر إسماعيل تاور</h3>", unsafe_allow_html=True)
 
 st.markdown("<hr style='border-top: 2px solid #2e7d32;'>", unsafe_allow_html=True)
 
-# --- التعديل الجديد: زر المشاركة والدعاية والتسويق الاحترافي في مقدمة التطبيق مباشرة ---
+# --- زر المشاركة والدعاية والتسويق الاحترافي ---
 st.markdown("### 📢 المشاركة التسويقية والدعوة العلمية")
-share_text_payload = """📢 دعوة علمية وتسويقية من منصة الخبير م. عبد القادر إسماعيل
+share_text_payload = """📢 دعوة علمية وتسويقية من منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف
 
 إلى كل مهتم بتطوير الثروة الحيوانية؛ من أطباء بيطريين، اختصاصيي إنتاج حيواني، ومربين طموحين:
 يسعدنا دعوتكم لاستخدام وتجربة المنصة المتقدمة لتركيب وتطوير الأعلاف، بإشراف وتصميم:
-[ اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل ]
+[ الاختصاصي م. عبد القادر إسماعيل تاور ]
 
 🎯 ما تقدمه المنصة:
 • حلول برمجية ذكية لتركيب أعلاف اقتصادية وعالية القيمة الغذائية (Least-Cost Formulation).
@@ -453,23 +486,21 @@ if st.button("📋 نسخ الرابط والنص للدعاية والتسوي�
     st.success("تم التجهيز بنجاح! يمكنك الآن نسخ النص ومشاركته عبر المجموعات والمنصات.")
 st.markdown("---")
 
-
-# تفعيل نظام الترحيب الديناميكي المنفصل داخل لوحة التحكم بناءً على الصلاحيات المعطاة للداخل
+# نظام الترحيب الديناميكي المحدث
 if st.session_state["user_role"] == "owner":
     st.markdown("<div style='background-color: #eff6ff; padding: 15px; border-radius: 8px; border-right: 5px solid #1d4ed8; text-align: right; direction: rtl; margin-bottom: 20px;'>"
-                "<b>👑 أهلاً بك يا اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل في برنامجك الخاص. الواجهات والتحكم الكامل في الخصم والأرصدة متاح بين يديك الآن بالكامل.</b>"
+                "<b>👑 أهلاً بك في منصتك، الاختصاصي م. عبد القادر إسماعيل تاور. الواجهات والتحكم الكامل في الخصم والأرصدة متاح بين يديك الآن بالكامل.</b>"
                 "</div>", unsafe_allow_html=True)
 elif st.session_state["user_role"] == "specialist":
     st.markdown("<div style='background-color: #f0fdf4; padding: 15px; border-radius: 8px; border-right: 5px solid #16a34a; text-align: right; direction: rtl; margin-bottom: 20px;'>"
-                "<b>🔬 مرحباً بكم في منصة تركيب وتحليل الأعلاف الذكية. يسعد اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل بالترحيب بالزملاء من الأطباء البيطريين ومختصي الإنتاج الحيواني. معاً نلتقي بالبحث العلمي والتطبيق العقلي لنقود صناعة الأعلاف نحو كفاءة وإنتاجية أعلى.</b>"
+                "<b>🔬 مرحباً بكم في منصة تركيب وتحليل الأعلاف الذكية. يسعد الاختصاصي م. عبد القادر إسماعيل تاور بالترحيب بالزملاء من الأطباء البيطريين ومختصي الإنتاج الحيواني. معاً نلتقي بالبحث العلمي والتطبيق العقلي لنقود صناعة الأعلاف نحو كفاءة وإنتاجية أعلى.</b>"
                 "</div>", unsafe_allow_html=True)
 elif st.session_state["user_role"] == "breeder":
     st.markdown("<div style='background-color: #fffbeb; padding: 15px; border-radius: 8px; border-right: 5px solid #d97706; text-align: right; direction: rtl; margin-bottom: 20px;'>"
-                "<b>🚜 أهلاً وسهلاً بكم في منصة اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل لتركيب الأعلاف. نرحب بإخواننا المربين، شركاء النجاح وأعمدة الإنتاج الحقيقيين. نحن هنا لنقدم لكم أفضل الحلول والخلطات العلفية التي تضمن أعلى معدلات التحويل وأفضل العوائد لمشاريعكم.</b>"
+                "<b>🚜 أهلاً وسهلاً بكم في منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف. نرحب بإخواننا المربين، شركاء النجاح وأعمدة الإنتاج الحقيقيين. نحن هنا لنقدم لكم أفضل الحلول والخلطات العلفية التي تضمن أعلى معدلات التحويل وأفضل العوائد لمشاريعكم.</b>"
                 "</div>", unsafe_allow_html=True)
 
-
-# تفعيل نظام التبويبات بناءً على مستوى الصلاحيات المدخلة (المالك والمختص يريان كل شيء، المربي يرى الأساسيات فقط)
+# تفعيل نظام التبويبات بناءً على مستوى الصلاحيات المدخلة
 if st.session_state["user_role"] in ["owner", "specialist"]:
     tabs_titles = [
         "🔬 النمذجة والحسابات العلفية الكبرى", 
@@ -478,10 +509,10 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
         "🧾 التسويق وفواتير حركة البيع", 
         "🖨️ مصمم بطاقات الديباجة والدعاية", 
         "💬 خانة تعليقات المختصين والزملاء",
-        "📖 دليل المستخدم والاستشارات الفنية"
+        "📖 دليل المستخدم (الكتيب الرقمي)"
     ]
 else: 
-    tabs_titles = ["🔬 النمذجة والحسابات العلفية الكبرى", "📖 دليل المستخدم والاستشارات الفنية"]
+    tabs_titles = ["🔬 النمذجة والحسابات العلفية الكبرى", "📖 دليل المستخدم (الكتيب الرقمي)"]
 
 tabs = st.tabs(tabs_titles)
 
@@ -645,12 +676,10 @@ with tabs[0]:
 
     st.markdown("---")
     
-    # تحضير وعاء خارجي منبثق لإشعار الإنزيمات الـ 40 ثانية لتفعيله تلقائياً مع محرك البحث الخطي
     nz_placeholder = st.empty()
     
     if st.button("🚀 تشغيل محرك الاستمثال الخطي للأعلاف (Scipy Optimized)", type="primary", use_container_width=True):
         
-        # تفعيل إشعار الإنزيمات الفوري المنبثق تلبية لشرط الـ 40 ثانية تلقائياً
         with nz_placeholder.container():
             st.warning(
                 "⚠️ **إشعار هام بشأن الإنزيمات ومضافات الأعلاف:** يرجى التأكد التام والحرص الشديد على موازنة درجات حرارة كبس العلف أثناء التصنيع لضمان عدم تثبيط الإنزيمات والفيتامينات الدقيقة المضافة حيوياً. (سيختفي هذا الإشعار تلقائياً بعد 40 ثانية)"
@@ -738,13 +767,13 @@ with tabs[0]:
                 st.markdown("<br>", unsafe_allow_html=True)
                 col_share, col_pdf = st.columns(2)
                 with col_share:
-                    share_message = f"أستخدم الآن برنامج اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل لتركيب الأعلاف وحساب العلائق بأقل تكلفة ودقة علمية عالية. التركيبة المستهدفة: {sub_type}، بتكلفة إنتاج {ton_cost:.2f}$ للطن."
+                    share_message = f"منصة تاور العلمية - الخلطة المعتمدة: {sub_type}، بتكلفة إنتاج {ton_cost:.2f}$ للطن. المشرف: الاختصاصي م. عبد القادر إسماعيل تاور."
                     encoded_share_msg = urllib.parse.quote(share_message)
                     st.link_button("📲 مشاركة الفاتورة عبر واتساب", f"https://wa.me/?text={encoded_share_msg}")
                 with col_pdf:
                     try:
                         pdf_data = generate_pdf_report(formula_results, final_target_cp, sub_type, ton_cost, user_city, ton_cost*local_rate, local_sym)
-                        st.download_button("📥 تحميل التقرير الفني PDF", pdf_data, file_name=f"Tower_Formula_{user_city}.pdf", mime="application/pdf", use_container_width=True)
+                        st.download_button("📥 تحميل التقرير الفني PDF", pdf_data, file_name=f"Tower_Scientific_Platform_{user_city}.pdf", mime="application/pdf", use_container_width=True)
                     except Exception as pdf_err:
                         st.error(f"⚠️ لم يتم بناء ملف الـ PDF: {pdf_err}")
                 
@@ -753,12 +782,11 @@ with tabs[0]:
         else:
             st.error("❌ تعذر إيجاد حل رياضي متزن تماماً ضمن المحددات الحالية للمركبات الضيقة. يرجى إتاحة وتفعيل خامات إضافية ككسب فول صويا أو أمباز الفول لتوسيع مساحة الحل للمعالج الخطي.")
             
-        # تنفيذ العداد التنازلي لإخفاء الإشعار المنبثق للإنزيمات بعد 40 ثانية تلقائياً دون تجميد النتائج
         time.sleep(40)
         nz_placeholder.empty()
 
 # ====================================================================
-# التبويبات الإدارية المتقدمة (تظهر للمالك والمسؤول والمختص بـ قيود تمنع التلاعب بالأصل)
+# التبويبات الإدارية المتقدمة (تظهر للمالك والمسؤول والمختص)
 # ====================================================================
 if st.session_state["user_role"] in ["owner", "specialist"]:
     
@@ -827,17 +855,17 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
     # تبويب مصمم ديباجات الطباعة 
     with tabs[4]:
         st.markdown('<div class="section-title">👑 مُصمم ديباجات الطباعة الفنية على جوالات الأعلاف</div>', unsafe_allow_html=True)
-        trade_brand = st.text_input("اسم البراند التجاري لإصدار الفاتورة:", "مجموعة تاور لإنتاج الأعلاف ومصنعات الإنتاج الحيواني")
+        trade_brand = st.text_input("اسم البراند التجاري لإصدار الفاتورة:", "منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف")
         st.markdown(f"""
         <div class="sack-tag">
             <img src="{st.session_state['active_animal_img']}" class="animal-banner-img">
             <h2 style="text-align: center; margin-top:0;">🌟 {trade_brand} 🌟</h2>
-            <h3 style="text-align: center; color: #c62828; margin-top:0; font-weight: bold;">م. عبد القادر إسماعيل تاور</h3>
+            <h3 style="text-align: center; color: #c62828; margin-top:0; font-weight: bold;">الاختصاصي م. عبد القادر إسماعيل تاور</h3>
             <p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:6px; color:#1b5e20;">🎯 اختصاصي الإنتاج الحيواني | علف مخصص لـ: {st.session_state['active_stage_title']} | نسبة البروتين المحققة: {st.session_state['active_cp_tag']:.1f}%</p>
         </div>
         """, unsafe_allow_html=True)
 
-    # التبويب الخامس: خانة تعليقات المختصين والزملاء (كود 2020 & 202687)
+    # خانة تعليقات المختصين والزملاء
     with tabs[5]:
         st.markdown('<div class="section-title">💬 قناة التواصل والتعليقات الخاصة بالزملاء والمختصين</div>', unsafe_allow_html=True)
         st.markdown("### 📝 دفتر الملاحظات الفنية المشتركة لتركيب العلائق:")
@@ -847,34 +875,68 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
         new_comment = st.text_input("✍️ أكتب تعليقك الفني أو ملاحظتك التركيبية هنا لجهازك:")
         if st.button("📌 حفظ ونشر التعليق للزملاء"):
             if new_comment.strip():
-                prefix = "• [توجيه م. عبد القادر إسماعيل]" if st.session_state["user_role"] == "owner" else "• [ملاحظة مختص]"
+                prefix = "• [توجيه الاختصاصي م. عبد القادر إسماعيل تاور]" if st.session_state["user_role"] == "owner" else "• [ملاحظة مختص]"
                 st.session_state["shared_comments"] += f"{prefix}: {new_comment.strip()}\n"
                 st.success("تمت إضافة الملاحظة لدفتر التعليقات الفني بنجاح!")
                 time.sleep(0.5)
                 st.rerun()
 
 # ====================================================================
-# 🗂️ دليل المستخدم والاستشارات الفنية (متاح للجميع وديناميكي التموقع)
+# 🗂️ التبويب المطور: دليل المستخدم في شكل كتيب رقمي جميل ومنسق (واضح القراءة)
 # ====================================================================
 support_tab_index = 6 if st.session_state["user_role"] in ["owner", "specialist"] else 1
 with tabs[support_tab_index]:
-    st.markdown('<div class="section-title">📖 دليل استخدام البرنامج وقنوات التواصل المباشر مع الخبير</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📖 كتيب دليل المستخدم والتقانة الفنية للمنصة</div>', unsafe_allow_html=True)
     
-    col_guide, col_actions = st.columns([0.6, 0.4])
+    col_guide, col_actions = st.columns([0.65, 0.35])
     
     with col_guide:
-        st.markdown("### 📒 كتيب دليل المستخدم السريع:")
-        guide_text = (
-            "أهلاً بك في برنامج **اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل** لتركيب وتطوير أعلاف الدواجن والماشية والخيل بدقة متناهية وأقل تكلفة اقتصادية.\n\n"
-            "**خطوات التشغيل الفني الصحيح العلائقي:**\n"
-            "1. **تحديد الموقع:** اختر الدولة والولاية لتحديث أسعار بورصة الخامات أوتوماتيكياً في سوقك المحلي.\n"
-            "2. **اختيار الفصيل المستهدف:** حدد الفصيل (دواجن، مجترات، خيل، أسماك) والمرحلة العمرية أو الإنتاجية ليقترح النظام نسبة البروتين الموصى بها علمياً.\n"
-            "3. **القياس الجسدي حَقلياً:** في قطاع الثروة الحيوانية، أدخل محيط الصدر وطول الجسم لتقدير أوزان القطيع وااحتياجه اليومي تلقائياً.\n"
-            "4. **تحديد المدخلات:** نشّط مربعات الاختيار بجانب الخامات المتوفرة في مخازنك حالياً (ذرة صفراء، ذرة بيضاء، كسب عباد الشمس، أمباز فول سوداني...).\n"
-            "5. **التحسين الرياضي الذكي:** اضغط على زر *'تشغيل محرك الاستمثال الخطي'* ليقوم المعالج بحساب المقادير لكل طن بأقل تكلفة محددة.\n\n"
-            "*💡 تنويه فني: يرجى الحرص على تحديث الأسعار دورياً لضمان سلامة حسابات التكلفة والربحية الاقتصادية للفواتير.*"
-        )
-        st.info(guide_text)
+        # تصميم كتيب رقمي تفاعلي باستخدام HTML/CSS متقدم وعالي المرونة والحداثة في التبويب
+        st.markdown("""
+        <div class="manual-book">
+            <div style="text-align: center; border-bottom: 2px double #2c3e50; padding-bottom: 15px; margin-bottom: 20px;">
+                <h2 style="color: #2e7d32; margin: 0;">📖 الكتيب الرقمي الذكي لإدارة وتشغيل المنصة</h2>
+                <p style="color: #7f8c8d; font-style: italic; margin: 5px 0 0 0;">إصدار هندسي محدث بأحدث تقنيات العرض لعام 2026</p>
+                <p style="color: #2c3e50; font-weight: bold; margin: 5px 0 0 0;">المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور</p>
+            </div>
+            
+            <div class="book-chapter">📌 التبويب الأول: الرؤية التقنية والهندسية للمنصة</div>
+            <div class="book-body">
+                تعتمد <b>منصة تاور العلمية</b> على دمج علوم الإنتاج الحيواني الدقيقة مع تقنيات الذكاء الاصطناعي وبحوث العمليات (Operations Research). 
+                يتم تطبيق خوارزميات البرمجة الخطية (Linear Programming) عبر مكتبات متطورة مثل <code>SciPy</code> لضمان الوصول إلى خلطات علفية متزنة تماماً وبأقل تكلفة مادية ممكنة <b>(Least-Cost Formulation)</b> مع مرونة كاملة لتعديل النسب الفردية للخامات.
+            </div>
+            
+            <div class="book-chapter">📌 التبويب الثاني: خارطة الطريق الشاملة للمكونات (Ingredients Matrix)</div>
+            <div class="book-body">
+                تم تصنيف المواد العلفية داخل المنصة بمرونة تامة لتشمل:<br>
+                1. <b>الحبوب ومصادر الطاقة:</b> كالذرة البيضاء (Sorghum) لضبط مستويات التمثيل الغذائي بالطاقة، والذرة الصفراء التقليدية.<br>
+                2. <b>الأكساب والبروتينات البديلة:</b> كسب زهرة الشمس (Sunflower Seed Cake) مدمج برمجياً كبديل اقتصادي مستدام للبروتين مع حماية الخوارزمية من تجاوز نسب الألياف الحرج.<br>
+                3. <b>الإضافات والأملاح الدقيقة:</b> بريمكسات متخصصة، أحماض أمينية بلورية مصنعة لتأمين الاحتياجات الأيونية والبيولوجية الحيوية.
+            </div>
+            
+            <div class="book-chapter">📌 التبويب الثالث: الوحدات الإنتاجية المتخصصة (Sectors Hub)</div>
+            <div class="book-body">
+                تم تبويب المنصة إلى واجهات برمجية منفصلة لسهولة الحركة والملاحة الفيلقية:<br>
+                • <b>قطاع الدواجن والطيور:</b> يدعم دواجن التسمين، البياض، وطائر السمان حسب فترات النمو (بادي، نامي، ناهي).<br>
+                • <b>قطاع المجترات والأبقار والماعز:</b> مخصص لتسمين اللحوم الحمراء أو غزارة إدرار الألبان والتحكم بالكرش.<br>
+                • <b>قطاع الخيول والفروسية:</b> مخصص لأعلاف طاقة الجري أو أمهار نامية صغيرة.
+            </div>
+            
+            <div class="book-chapter">📌 التبويب الرابع: خطوات تشغيل المنصة (من المدخلات إلى النتائج)</div>
+            <div class="book-body">
+                تتبع المنصة تقنية "الخطوات الذكية المرنة" لمنع الأخطاء الحقلية البيدرية:<br>
+                <b>الخطوة 1:</b> حدد القطاع والنوع الإنتاجي من لوحة التحكم ليقوم المحرك بشحن الاحتياجات القياسية للبروتين تلقائياً.<br>
+                <b>الخطوة 2:</b> اختر الخامات المتوفرة بالمستودع لديك وقم بوضع الأسعار الحالية للسوق المحلي.<br>
+                <b>الخطوة 3:</b> اضغط على زر <i>تشغيل محرك الاستمثال الخطي</i> لتقوم المنصة بمعالجة الاحتمالات خلال أجزاء من الثانية والوصول للخلطة الأقل تكلفة.<br>
+                <b>الخطوة 4:</b> استعرض تقرير فحص العلل، ثم قم بطباعة ديباجة الجوال أو تصدير التقرير الفني المباشر.
+            </div>
+            
+            <div class="book-chapter">📌 التبويب الخامس: مرونة التقارير والدعم الفني المباشر</div>
+            <div class="book-body">
+                تمنحك المنصة القدرة على سحب تقارير فنية بصيغة PDF عالية التنسيق، مع إدراج نظام "الذكاء التحذيري" الذي يمنع حدوث طرأت مفاجئة في القطيع (مثل عوارض تحمض الكرش أو البراز الرطب للطيور) عبر الإضافة التلقائية والإلزامية للمنظمات والمحفزات الحيوية.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with col_actions:
         st.markdown("### 💬 قنوات التفاعل والاستشارات الفنية:")
@@ -882,14 +944,14 @@ with tabs[support_tab_index]:
         
         st.link_button("📝 إرسال تعليق أو طلب استشارة (نموذج جوجل)", GOOGLE_FORM_URL, use_container_width=True)
         
-        welcome_msg = "السلام عليكم م.عبد القادر، أود الحصول على استشارة فنية بخصوص تركيب الأعلاف وحساب العلائق عبر برنامجكم الذكي..."
+        welcome_msg = "السلام عليكم م. عبد القادر، أود الحصول على استشارة فنية بخصوص تركيب الأعلاف وحساب العلائق عبر منصة تاور العلمية..."
         encoded_msg = urllib.parse.quote(welcome_msg)
         whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}?text={encoded_msg}"
         st.link_button("💬 تواصل واستشارة مباشرة عبر الواتساب", whatsapp_link, use_container_width=True)
         
         st.markdown("<br><b>📢 انشر البرنامج وشارك المعرفة مع زملائك المربين والمهندسين:</b>", unsafe_allow_html=True)
         
-        share_text_base = "أستخدم الآن برنامج اختصاصي الإنتاج الحيواني م. عبد القادر إسماعيل لتركيب الأعلاف وحساب العلائق بأقل تكلفة ودقة علمية عالية."
+        share_text_base = "أستخدم الآن منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف لحساب العلائق بأقل تكلفة ودقة علمية عالية، تحت إشراف م. عبد القادر إسماعيل تاور."
         encoded_share_text = urllib.parse.quote(share_text_base)
         
         col_wa, col_fb = st.columns(2)
@@ -918,12 +980,12 @@ if st.session_state["user_role"] == "owner":
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# التوقيع المصغر الثابت بأسفل الشاشة
+# التوقيع المصغر الثابت بأسفل الشاشة بالمسمى الجديد
 st.markdown(
     """
     <div class="mini-left-signature">
-        👨‍🔬 م. عبد القادر إسماعيل تاور © 2026 | اختصاصي الإنتاج الحيواني وخبير البرمجيات المتكاملة للأعلاف
+        👨‍🔬 الاختصاصي م. عبد القادر إسماعيل تاور © 2026 | منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف
     </div>
     """,
     unsafe_allow_html=True
-)
+) 
