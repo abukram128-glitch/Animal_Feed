@@ -5,7 +5,7 @@ import os
 import smtplib
 import time
 import urllib.parse
-import sqlite3 # تم الدمج لربط قاعدة البيانات
+import sqlite3 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -16,17 +16,16 @@ import streamlit as st
 from bidi.algorithm import get_display
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-# استيراد مكتبات توليد الـ PDF المتقدمة ومعالجة اللغة العربية الصحيحة
 from reportlab.pdfgen import canvas
 from scipy.optimize import linprog
 
 # ==========================================
-# 0. تأسيس وإدارة قاعدة البيانات (الخطوة 2)
+# 0. تأسيس وإدارة قاعدة البيانات (محدثة بالكامل)
 # ==========================================
 DB_NAME = "tower_scientific.db"
 
 def init_database():
-    """إنشاء الجداول وضخ البيانات الأساسية إذا لم تكن موجودة مسبقاً"""
+    """إنشاء الجداول وضخ البيانات الأساسية إذا لم تكن موجودة مسبقاً مع تحديث العناصر الدقيقة"""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("PRAGMA foreign_keys = ON;")
@@ -43,7 +42,7 @@ def init_database():
     )
     ''')
     
-    # جدول العناصر الغذائية ومعاملات الهضم (محدث لعام 2026)
+    # جدول العناصر الغذائية ومعاملات الهضم (محدث وموسع لمحددات الكالسيوم والفسفور)
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS Nutrient_Matrix (
         ingredient_id INTEGER,
@@ -52,6 +51,8 @@ def init_database():
         methionine REAL DEFAULT 0.0,
         digestibility_coeff REAL DEFAULT 1.0,
         starch_equivalent REAL DEFAULT 0.0,
+        calcium REAL DEFAULT 0.0,
+        phosphorus REAL DEFAULT 0.0,
         FOREIGN KEY (ingredient_id) REFERENCES Ingredients(id) ON DELETE CASCADE
     )
     ''')
@@ -62,76 +63,76 @@ def init_database():
     if cursor.fetchone()[0] == 0:
         raw_library = {
             "🌾 الحبوب ومصادر الطاقة الكبرى": {
-                "ذرة صفراء": {"CP": 8.5, "lys": 0.24, "met": 0.17, "DC": 0.85, "SE": 80.0, "price": 230.0},
-                "ذرة بيضاء": {"CP": 8.8, "lys": 0.23, "met": 0.16, "DC": 0.83, "SE": 78.0, "price": 225.0},
-                "شعير مطحون": {"CP": 11.5, "lys": 0.36, "met": 0.19, "DC": 0.80, "SE": 71.0, "price": 210.0},
-                "سورجم (فتريتة)": {"CP": 10.0, "lys": 0.22, "met": 0.15, "DC": 0.78, "SE": 70.0, "price": 195.0},
-                "قمح محلي مصنّع": {"CP": 12.0, "lys": 0.32, "met": 0.21, "DC": 0.85, "SE": 75.0, "price": 240.0},
-                "جريش أرز رزاز": {"CP": 7.8, "lys": 0.28, "met": 0.20, "DC": 0.82, "SE": 82.0, "price": 230.0},
-                "دخن محلي غزير": {"CP": 11.0, "lys": 0.30, "met": 0.22, "DC": 0.75, "SE": 68.0, "price": 230.0},
-                "شوفان علفي": {"CP": 11.0, "lys": 0.40, "met": 0.18, "DC": 0.76, "SE": 62.0, "price": 230.0},
+                "ذرة صفراء": {"CP": 8.5, "lys": 0.24, "met": 0.17, "DC": 0.85, "SE": 80.0, "Ca": 0.02, "P": 0.28, "price": 230.0},
+                "ذرة بيضاء": {"CP": 8.8, "lys": 0.23, "met": 0.16, "DC": 0.83, "SE": 78.0, "Ca": 0.02, "P": 0.27, "price": 225.0},
+                "شعير مطحون": {"CP": 11.5, "lys": 0.36, "met": 0.19, "DC": 0.80, "SE": 71.0, "Ca": 0.06, "P": 0.35, "price": 210.0},
+                "سورجم (فتريتة)": {"CP": 10.0, "lys": 0.22, "met": 0.15, "DC": 0.78, "SE": 70.0, "Ca": 0.04, "P": 0.30, "price": 195.0},
+                "قمح محلي مصنّع": {"CP": 12.0, "lys": 0.32, "met": 0.21, "DC": 0.85, "SE": 75.0, "Ca": 0.05, "P": 0.36, "price": 240.0},
+                "جريش أرز رزاز": {"CP": 7.8, "lys": 0.28, "met": 0.20, "DC": 0.82, "SE": 82.0, "Ca": 0.04, "P": 0.25, "price": 230.0},
+                "دخن محلي غزير": {"CP": 11.0, "lys": 0.30, "met": 0.22, "DC": 0.75, "SE": 68.0, "Ca": 0.05, "P": 0.32, "price": 230.0},
+                "شوفان علفي": {"CP": 11.0, "lys": 0.40, "met": 0.18, "DC": 0.76, "SE": 62.0, "Ca": 0.10, "P": 0.35, "price": 230.0},
             },
             "🌱 الأكساب وأمبازات مصادر البروتين العالي": {
-                "أمباز الفول السوداني (كسب)": {"CP": 46.0, "lys": 1.60, "met": 0.52, "DC": 0.88, "SE": 73.0, "price": 460.0},
-                "كسب فول صويا 44%": {"CP": 44.0, "lys": 2.70, "met": 0.62, "DC": 0.90, "SE": 74.0, "price": 440.0},
-                "كسب فول صويا 48%": {"CP": 48.0, "lys": 2.90, "met": 0.67, "DC": 0.91, "SE": 76.0, "price": 480.0},
-                "كسب عباد الشمس 36%": {"CP": 36.0, "lys": 1.20, "met": 0.75, "DC": 0.76, "SE": 42.0, "price": 310.0},
-                "كسب بذور القطن (مقشور)": {"CP": 41.0, "lys": 1.75, "met": 0.64, "DC": 0.78, "SE": 55.0, "price": 290.0},
-                "كسب بذور الكتان": {"CP": 32.0, "lys": 1.15, "met": 0.60, "DC": 0.82, "SE": 65.0, "price": 350.0},
-                "كسب السمسم المحسن": {"CP": 42.0, "lys": 1.25, "met": 1.10, "DC": 0.84, "SE": 70.0, "price": 350.0},
-                "كسب جلوتين الذرة 60%": {"CP": 60.0, "lys": 1.02, "met": 1.45, "DC": 0.92, "SE": 85.0, "price": 350.0},
-                "كسب نواة النخيل": {"CP": 16.0, "lys": 0.62, "met": 0.31, "DC": 0.65, "SE": 52.0, "price": 350.0},
+                "أمباز الفول السوداني (كسب)": {"CP": 46.0, "lys": 1.60, "met": 0.52, "DC": 0.88, "SE": 73.0, "Ca": 0.20, "P": 0.60, "price": 460.0},
+                "كسب فول صويا 44%": {"CP": 44.0, "lys": 2.70, "met": 0.62, "DC": 0.90, "SE": 74.0, "Ca": 0.29, "P": 0.65, "price": 440.0},
+                "كسب فول صويا 48%": {"CP": 48.0, "lys": 2.90, "met": 0.67, "DC": 0.91, "SE": 76.0, "Ca": 0.30, "P": 0.68, "price": 480.0},
+                "كسب عباد الشمس 36%": {"CP": 36.0, "lys": 1.20, "met": 0.75, "DC": 0.76, "SE": 42.0, "Ca": 0.40, "P": 0.90, "price": 310.0},
+                "كسب بذور القطن (مقشور)": {"CP": 41.0, "lys": 1.75, "met": 0.64, "DC": 0.78, "SE": 55.0, "Ca": 0.25, "P": 0.95, "price": 290.0},
+                "كسب بذور الكتان": {"CP": 32.0, "lys": 1.15, "met": 0.60, "DC": 0.82, "SE": 65.0, "Ca": 0.40, "P": 0.85, "price": 350.0},
+                "كسب السمسم المحسن": {"CP": 42.0, "lys": 1.25, "met": 1.10, "DC": 0.84, "SE": 70.0, "Ca": 2.00, "P": 1.10, "price": 350.0},
+                "كسب جلوتين الذرة 60%": {"CP": 60.0, "lys": 1.02, "met": 1.45, "DC": 0.92, "SE": 85.0, "Ca": 0.05, "P": 0.50, "price": 350.0},
+                "كسب نواة النخيل": {"CP": 16.0, "lys": 0.62, "met": 0.31, "DC": 0.65, "SE": 52.0, "Ca": 0.25, "P": 0.60, "price": 350.0},
             },
             "🚜 المخلفات الزراعية والصناعية والمواد المالئة": {
-                "نخالة قمح (ردة)": {"CP": 15.0, "lys": 0.58, "met": 0.23, "DC": 0.72, "SE": 45.0, "price": 150.0},
-                "البرسيم الجاف (الدريس)": {"CP": 16.5, "lys": 0.75, "met": 0.28, "DC": 0.60, "SE": 35.0, "price": 170.0},
-                "مولاس قصب السكر": {"CP": 4.0, "lys": 0.05, "met": 0.02, "DC": 0.95, "SE": 50.0, "price": 120.0},
-                "تبن قمح ناعم": {"CP": 3.2, "lys": 0.08, "met": 0.04, "DC": 0.35, "SE": 18.0, "price": 230.0},
-                "قشر فول سوداني مطحون": {"CP": 5.0, "lys": 0.12, "met": 0.05, "DC": 0.30, "SE": 15.0, "price": 230.0},
-                "سرسة الأرز المطحونة": {"CP": 2.5, "lys": 0.06, "met": 0.03, "DC": 0.25, "SE": 12.0, "price": 230.0},
-                "بقايا تفل البنجر المجفف": {"CP": 8.0, "lys": 0.42, "met": 0.12, "DC": 0.75, "SE": 58.0, "price": 230.0},
-                "مخلفات مصانع البسكويت": {"CP": 9.5, "lys": 0.28, "met": 0.15, "DC": 0.88, "SE": 76.0, "price": 230.0},
-                "سيلاج ذرة كامل متكامل": {"CP": 8.0, "lys": 0.22, "met": 0.14, "DC": 0.68, "SE": 50.0, "price": 230.0},
+                "نخالة قمح (ردة)": {"CP": 15.0, "lys": 0.58, "met": 0.23, "DC": 0.72, "SE": 45.0, "Ca": 0.14, "P": 1.20, "price": 150.0},
+                "البرسيم الجاف (الدريس)": {"CP": 16.5, "lys": 0.75, "met": 0.28, "DC": 0.60, "SE": 35.0, "Ca": 1.40, "P": 0.25, "price": 170.0},
+                "مولاس قصب السكر": {"CP": 4.0, "lys": 0.05, "met": 0.02, "DC": 0.95, "SE": 50.0, "Ca": 0.80, "P": 0.10, "price": 120.0},
+                "تبن قمح ناعم": {"CP": 3.2, "lys": 0.08, "met": 0.04, "DC": 0.35, "SE": 18.0, "Ca": 0.18, "P": 0.06, "price": 230.0},
+                "قشر فول سوداني مطحون": {"CP": 5.0, "lys": 0.12, "met": 0.05, "DC": 0.30, "SE": 15.0, "Ca": 0.12, "P": 0.08, "price": 230.0},
+                "سرسة الأرز المطحونة": {"CP": 2.5, "lys": 0.06, "met": 0.03, "DC": 0.25, "SE": 12.0, "Ca": 0.08, "P": 0.10, "price": 230.0},
+                "بقايا تفل البنجر المجفف": {"CP": 8.0, "lys": 0.42, "met": 0.12, "DC": 0.75, "SE": 58.0, "Ca": 0.70, "P": 0.10, "price": 230.0},
+                "مخلفات مصانع البسكويت": {"CP": 9.5, "lys": 0.28, "met": 0.15, "DC": 0.88, "SE": 76.0, "Ca": 0.05, "P": 0.30, "price": 230.0},
+                "سيلاج ذرة كامل متكامل": {"CP": 8.0, "lys": 0.22, "met": 0.14, "DC": 0.68, "SE": 50.0, "Ca": 0.25, "P": 0.22, "price": 230.0},
             },
             "🧬 مصادر البروتين الحيواني والمركزات دقيقة الخلط": {
-                "مسحوق أسماك (Fishmeal 60%)": {"CP": 60.0, "lys": 4.50, "met": 1.65, "DC": 0.85, "SE": 65.0, "price": 850.0},
-                "مسحوق أسماك فاخر (72%)": {"CP": 72.0, "lys": 5.40, "met": 2.10, "DC": 0.90, "SE": 72.0, "price": 850.0},
-                "مسحوق اللحم والعظم": {"CP": 50.0, "lys": 2.60, "met": 0.70, "DC": 0.75, "SE": 50.0, "price": 850.0},
-                "مركزات دواجن وسمان": {"CP": 40.0, "lys": 2.50, "met": 1.20, "DC": 0.85, "SE": 60.0, "price": 650.0},
-                "مركزات خيول ومجترات": {"CP": 36.0, "lys": 1.80, "met": 0.65, "DC": 0.80, "SE": 55.0, "price": 600.0},
+                "مسحوق أسماك (Fishmeal 60%)": {"CP": 60.0, "lys": 4.50, "met": 1.65, "DC": 0.85, "SE": 65.0, "Ca": 5.00, "P": 3.00, "price": 850.0},
+                "مسحوق أسماك فاخر (72%)": {"CP": 72.0, "lys": 5.40, "met": 2.10, "DC": 0.90, "SE": 72.0, "Ca": 4.50, "P": 2.80, "price": 850.0},
+                "مسحوق اللحم والعظم": {"CP": 50.0, "lys": 2.60, "met": 0.70, "DC": 0.75, "SE": 50.0, "Ca": 10.00, "P": 5.00, "price": 850.0},
+                "مركزات دواجن وسمان": {"CP": 40.0, "lys": 2.50, "met": 1.20, "DC": 0.85, "SE": 60.0, "Ca": 4.00, "P": 2.00, "price": 650.0},
+                "مركزات خيول ومجترات": {"CP": 36.0, "lys": 1.80, "met": 0.65, "DC": 0.80, "SE": 55.0, "Ca": 3.00, "P": 1.50, "price": 600.0},
             },
             "🧪 الأحماض الأمينية البلورية النقية": {
-                "ليسين نقي (L-Lysine)": {"CP": 94.0, "lys": 78.0, "met": 0.0, "DC": 1.00, "SE": 0.0, "price": 230.0},
-                "ميثيونين نقي (DL-Methionine)": {"CP": 58.0, "lys": 0.0, "met": 99.0, "DC": 1.00, "SE": 0.0, "price": 230.0},
-                "ثريونين نقي (L-Threonine)": {"CP": 72.0, "lys": 0.0, "met": 0.0, "DC": 1.00, "SE": 0.0, "price": 230.0},
-                "تريبتوفان نقي (L-Tryptophan)": {"CP": 85.0, "lys": 0.0, "met": 0.0, "DC": 1.00, "SE": 0.0, "price": 230.0},
-                "فالين نقي (L-Valine)": {"CP": 90.0, "lys": 0.0, "met": 0.0, "DC": 1.00, "SE": 0.0, "price": 230.0},
+                "ليسين نقي (L-Lysine)": {"CP": 94.0, "lys": 78.0, "met": 0.0, "DC": 1.00, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 230.0},
+                "ميثيونين نقي (DL-Methionine)": {"CP": 58.0, "lys": 0.0, "met": 99.0, "DC": 1.00, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 230.0},
+                "ثريونين نقي (L-Threonine)": {"CP": 72.0, "lys": 0.0, "met": 0.0, "DC": 1.00, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 230.0},
+                "تريبتوفان نقي (L-Tryptophan)": {"CP": 85.0, "lys": 0.0, "met": 0.0, "DC": 1.00, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 230.0},
+                "فالين نقي (L-Valine)": {"CP": 90.0, "lys": 0.0, "met": 0.0, "DC": 1.00, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 230.0},
             },
             "🔬 الإنزيمات والبريمكسات والإضافات التخصصية": {
-                "بريمكس تسمين دواجن (Premix)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
-                "بريمكس بياض وبشاير": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
-                "بريمكس أبقار حلابة ومجترات": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
-                "بريمكس خيول وفروسية": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
-                "إنزيم الفايتيز الزامي (Phytase Super-D)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
-                "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
-                "كبريتات الحديدوز (معادل الجوسيبول)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
-                "مستخلص الخمائر والجدر الخلوية (MOS)": {"CP": 12.0, "lys": 0.30, "met": 0.10, "DC": 0.50, "SE": 10.0, "price": 230.0},
+                "بريمكس تسمين دواجن (Premix)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 230.0},
+                "بريمكس بياض وبشاير": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 230.0},
+                "بريمكس أبقار حلابة ومجترات": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 230.0},
+                "بريمكس خيول وفروسية": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 230.0},
+                "إنزيم الفايتيز الزامي (Phytase Super-D)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 230.0},
+                "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 230.0},
+                "كبريتات الحديدوز (معادل الجوسيبول)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 230.0},
+                "مستخلص الخمائر والجدر الخلوية (MOS)": {"CP": 12.0, "lys": 0.30, "met": 0.10, "DC": 0.50, "SE": 10.0, "Ca": 0.0, "P": 0.0, "price": 230.0},
             },
             "🪨 الأملاح والمعادن ومنظمات الهضم": {
-                "الحجر الجيري (بودرة بلاط)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 40.0},
-                "فوسفات ثنائي الكالسيوم (DCP)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 280.0},
-                "ملح الطعام": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 30.0},
-                "مضاد سموم فطرية": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 950.0},
-                "بيكربونات الصوديوم (الصودا)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 340.0},
-                "أكسيد المغنيسيوم العلفي": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
-                "يوريا علفية محصنة (المجترات فقط)": {"CP": 287.0, "lys": 0.0, "met": 0.0, "DC": 0.95, "SE": 0.0, "price": 230.0},
+                "الحجر الجيري (بودرة بلاط)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "Ca": 38.0, "P": 0.0, "price": 40.0},
+                "فوسفات ثنائي الكالسيوم (DCP)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "Ca": 22.0, "P": 18.0, "price": 280.0},
+                "ملح الطعام": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 30.0},
+                "مضاد سموم فطرية": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 950.0},
+                "بيكربونات الصوديوم (الصودا)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 340.0},
+                "أكسيد المغنيسيوم العلفي": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 230.0},
+                "يوريا علفية محصنة (المجترات فقط)": {"CP": 287.0, "lys": 0.0, "met": 0.0, "DC": 0.95, "SE": 0.0, "Ca": 0.0, "P": 0.0, "price": 230.0},
             }
         }
         for cat, items in raw_library.items():
             for name, nut in items.items():
                 cursor.execute("INSERT OR IGNORE INTO Ingredients (name, category, price_per_ton) VALUES (?, ?, ?)", (name, cat, nut["price"]))
                 ing_id = cursor.lastrowid if cursor.lastrowid else cursor.execute("SELECT id FROM Ingredients WHERE name=?", (name,)).fetchone()[0]
-                cursor.execute("INSERT INTO Nutrient_Matrix VALUES (?, ?, ?, ?, ?, ?)", (ing_id, nut["CP"], nut["lys"], nut["met"], nut["DC"], nut["SE"]))
+                cursor.execute("INSERT INTO Nutrient_Matrix VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (ing_id, nut["CP"], nut["lys"], nut["met"], nut["DC"], nut["SE"], nut["Ca"], nut["P"]))
         conn.commit()
     conn.close()
 
@@ -142,7 +143,7 @@ def load_feeds_from_db():
     conn = sqlite3.connect(DB_NAME)
     query = """
     SELECT i.name, i.category, i.price_per_ton, i.max_limit, i.min_limit,
-           n.crude_protein, n.lysine, n.methionine, n.digestibility_coeff, n.starch_equivalent
+           n.crude_protein, n.lysine, n.methionine, n.digestibility_coeff, n.starch_equivalent, n.calcium, n.phosphorus
     FROM Ingredients i JOIN Nutrient_Matrix n ON i.id = n.ingredient_id
     """
     df = pd.read_sql_query(query, conn)
@@ -156,6 +157,7 @@ def load_feeds_from_db():
             structured_library[cat][row['name']] = {
                 "CP": row['crude_protein'], "lys": row['lysine'], "met": row['methionine'],
                 "DC": row['digestibility_coeff'], "SE": row['starch_equivalent'], 
+                "Ca": row['calcium'], "P": row['phosphorus'],
                 "price": row['price_per_ton'], "max": row['max_limit'], "min": row['min_limit']
             }
     return structured_library
@@ -169,16 +171,14 @@ st.set_page_config(
     layout="wide",
 )
 
-# الأكواد المعتمدة لنظام الصلاحيات الثلاثي
 CODES_DB = {
-    "202687": "owner",  # المالك تاور - صلاحية واسعة
-    "2020": "specialist",  # المختص والزملاء
-    "2026": "breeder",  # المربي - الحدود العملية فقط
+    "202687": "owner",  
+    "2020": "specialist",  
+    "2026": "breeder",  
 }
 
 PHOTO_OPTIONS = ["14686.jpg", "1000069464.jpg", "14686.JPG", "1000069464.JPG"]
 
-# 🔒 إعدادات خادم البريد الإلكتروني الحصرية للمالك
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SENDER_EMAIL = "abukram128@gmail.com"
@@ -244,14 +244,12 @@ def send_code_to_mail(receiver_email):
         return False
 
 
-# دالة لتشكيل النصوص العربية وإصلاح اتجاهها للـ PDF
 def fix_arabic_text(text):
     reshaped_text = arabic_reshaper.reshape(text)
     bidi_text = get_display(reshaped_text)
     return bidi_text
 
 
-# دالة توليد تقارير PDF الفنية الاحترافية للمنظومة العلفية باسم المنصة الجديد
 def generate_pdf_report(
     formula,
     target_protein,
@@ -345,7 +343,6 @@ def generate_pdf_report(
     return buffer.getvalue()
 
 
-# --- تحسين الـ CSS لضمان التباين وقابلية القراءة الفخمة الحداثية ---
 st.markdown(
     """
     <style>
@@ -536,7 +533,6 @@ if not st.session_state["login_welcome_shown"]:
         st.toast("🚜 أهلاً وسهلاً بإخواننا المربين، شركاء النجاح.", icon="🌾")
     st.session_state["login_welcome_shown"] = True
 
-# تحميل البيانات حياً من قاعدة البيانات (الخطوة 2 المدمجة)
 BIG_FEEDS_LIBRARY = load_feeds_from_db()
 
 if "inventory" not in st.session_state:
@@ -688,7 +684,6 @@ with col_title:
 
 st.markdown("<hr style='border-top: 2px solid #2e7d32;'>", unsafe_allow_html=True)
 
-# --- زر المشاركة والدعاية والتسويق الاحترافي ---
 st.markdown("### 📢 المشاركة التسويقية والدعوة العلمية")
 share_text_payload = """📢 دعوة علمية وتسويقية من منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف
 
@@ -715,7 +710,6 @@ if st.button("📋 نسخ الرابط والنص للدعاية والتسوي�
     )
 st.markdown("---")
 
-# نظام الترحيب الديناميكي المحدث
 if st.session_state["user_role"] == "owner":
     st.markdown(
         "<div style='background-color: #eff6ff; padding: 15px; border-radius: 8px; border-right: 5px solid #1d4ed8; text-align: right; direction: rtl; margin-bottom: 20px;'>"
@@ -738,7 +732,6 @@ elif st.session_state["user_role"] == "breeder":
         unsafe_allow_html=True,
     )
 
-# تفعيل نظام التبويبات بناءً على مستوى الصلاحيات المدخلة
 if st.session_state["user_role"] in ["owner", "specialist"]:
     tabs_titles = [
         "🔬 النمذجة والحسابات العلفية الكبرى",
@@ -758,7 +751,7 @@ else:
 tabs = st.tabs(tabs_titles)
 
 # -------------------------------------------------------------------------
-# التبويب الأول: الحسابات والتركيبات (متاح للجميع)
+# التبويب الأول: الحسابات والتركيبات 
 # -------------------------------------------------------------------------
 with tabs[0]:
     sub_tab_formulator, sub_tab_analyzer = st.tabs([
@@ -766,7 +759,6 @@ with tabs[0]:
         "🔬 مختبر تحليل وفحص الأعلاف الجاهزة",
     ])
 
-    # --- النافذة الأولى: تركيب العلفة النموذجية المستندة لـ DP و SE ---
     with sub_tab_formulator:
         st.markdown(
             '<div class="section-title">🌍 أولاً: تحديد الموقع الجغرافي وبورصة الأسعار بالعملتين المحلية والأجنبية</div>',
@@ -896,7 +888,7 @@ with tabs[0]:
             dynamic_img_key,
             chosen_concentrate,
         ) = False, 10000, 0.02, 11.0, 60.0, "عام", None
-        default_lys, default_met = 1.10, 0.45  # الاحتياجات الافتراضية المضافة للأحماض الأمينية
+        default_lys, default_met = 1.10, 0.45  
 
         gender_option = "إناث"
         if main_sector in ["الأغنام وسلالاتها 🐏", "الماعز وسلالاتها"]:
@@ -1131,9 +1123,6 @@ with tabs[0]:
                 f"💡 نظام المعالجة التلقائي: تم تحييد شريط القياس الجسدي لعدم ملاءمته حَقلياً للطيور والأسماك."
             )
 
-        # 🔄 =========================================================================
-        # إضافة خيار التبديل الفني بين البروتين الخام والبروتين المهضوم للمختصين
-        # =========================================================================
         st.markdown(
             '<div class="section-title">⚙️ نظام الحساب والتحسين النشط بالمنصة</div>',
             unsafe_allow_html=True,
@@ -1152,9 +1141,7 @@ with tabs[0]:
         )
         mode_key = "digestible" if is_digestible_mode else "crude"
 
-        # موائمة القيود الاسترشادية حسب اختيار النظام التلقائي
         if is_digestible_mode and main_sector == "الطيور والسمان":
-            # خفض استرشادي طبيعي للقيم المستهدفة في كتالوجات الهضم للتسمين
             default_dp = default_dp * 0.87
             default_lys = default_lys * 0.85
             default_met = default_met * 0.88
@@ -1312,24 +1299,22 @@ with tabs[0]:
         all_fixed_additives = {**fixed_additives, **auto_added_enzymes}
         for item in all_fixed_additives:
             if item not in selected_ingredients:
-                if item in live_prices: # تأمين الفحص لمنع الـ KeyError
+                if item in live_prices: 
                     selected_ingredients.append(item)
                     ingredient_prices[item] = live_prices.get(item, 40.0)
 
         st.markdown("---")
 
-        nz_placeholder = st.empty()
+        # تفعيل آلية التحكم بالوقت عبر الحالة الجلسية لمنع تجمد الواجهة بالكامل
+        if "warning_timestamp" not in st.session_state:
+            st.session_state["warning_timestamp"] = 0
 
         if st.button(
             "🚀 تشغيل محرك الاستمثال الخطي للأعلاف (بالبروتين والأحماض المحددة)",
             type="primary",
             use_container_width=True,
         ):
-
-            with nz_placeholder.container():
-                st.warning(
-                    "⚠️ **إشعار هام بشأن الإنزيمات ومضافات الأعلاف:** يرجى التأكد التام والحرص الشديد على موازنة درجات حرارة كبس العلف أثناء التصنيع لضمان عدم تثبيط الإنزيمات والفيتامينات الدقيقة المضافة حيوياً. (سيختفي هذا الإشعار تلقائياً بعد 40 ثانية)"
-                )
+            st.session_state["warning_timestamp"] = time.time()
 
             c_vector = [ingredient_prices[ing] for ing in selected_ingredients]
             bounds = []
@@ -1338,7 +1323,6 @@ with tabs[0]:
                     val = all_fixed_additives[ing]
                     bounds.append((val, val))
                 else:
-                    # سحب الحدود القصوى والدنيا من قاعدة البيانات مباشرة
                     for cat in BIG_FEEDS_LIBRARY.values():
                         if ing in cat:
                             bounds.append((cat[ing]["min"], cat[ing]["max"]))
@@ -1399,7 +1383,7 @@ with tabs[0]:
             ]
             if sum(grain_indicators) > 0:
                 A_ub.append([-1.0 * x for x in grain_indicators])
-                b_ub.append(-45.0) # تخفيف القيد المرن لضمان وجود حل مستقر
+                b_ub.append(-45.0) 
 
             if "نخالة قمح (ردة)" in selected_ingredients:
                 fiber_indicators = [
@@ -1549,10 +1533,13 @@ with tabs[0]:
                     "❌ تعذر إيجاد حل رياضي متزن تماماً ضمن المحددات الحالية للمركبات الضيقة. يرجى إتاحة وتفعيل خامات إضافية ككسب فول صويا أو أمباز الفول لتوسيع مساحة الحل للمعالج الخطي المستند للقيم المحددة."
                 )
 
-            time.sleep(40)
-            nz_placeholder.empty()
+        # عرض الإشعار الزمني بدون تجميد كامل المنظومة
+        if time.time() - st.session_state["warning_timestamp"] < 40:
+            st.warning(
+                "⚠️ **إشعار هام بشأن الإنزيمات ومضافات الأعلاف:** يرجى التأكد التام والحرص الشديد على موازنة درجات حرارة كبس العلف أثناء التصنيع لضمان عدم تثبيط الإنزيمات والفيتامينات الدقيقة المضافة حيوياً. (سيختفي هذا الإشعار تلقائياً بعد 40 ثانية)"
+            )
 
-    # --- النافذة الثانية: مختبر فحص وتحليل الأعلاف الجاهزة يدوياً بناء على معامل الهضم ومعادل النشاء ---
+    # --- النافذة الثانية: مختبر فحص وتحليل الأعلاف الجاهزة يدوياً ---
     with sub_tab_analyzer:
         st.markdown(
             '<div class="section-title">🔬 مختبر فحص وتحليل الخلطات الجاهزة يدوياً بالقيم المهضومة وطاقة النشاء</div>',
@@ -1640,6 +1627,10 @@ with tabs[0]:
             else:
                 calculated_total_dp = 0.0
                 calculated_total_se = 0.0
+                calculated_total_lys = 0.0
+                calculated_total_met = 0.0
+                calculated_total_ca = 0.0
+                calculated_total_p = 0.0
                 entered_components_summary = []
 
                 for ing_name, weight in lab_user_inputs.items():
@@ -1648,14 +1639,27 @@ with tabs[0]:
                         ing_cp = 0.0
                         ing_dc = 0.0
                         ing_se = 0.0
+                        ing_lys = 0.0
+                        ing_met = 0.0
+                        ing_ca = 0.0
+                        ing_p = 0.0
                         for cat, items in BIG_FEEDS_LIBRARY.items():
                             if ing_name in items:
                                 ing_cp = items[ing_name].get("CP", 0.0)
                                 ing_dc = items[ing_name].get("DC", 0.0)
                                 ing_se = items[ing_name].get("SE", 0.0)
+                                ing_lys = items[ing_name].get("lys", 0.0)
+                                ing_met = items[ing_name].get("met", 0.0)
+                                ing_ca = items[ing_name].get("Ca", 0.0)
+                                ing_p = items[ing_name].get("P", 0.0)
 
                         calculated_total_dp += pct * (ing_cp * ing_dc)
                         calculated_total_se += pct * ing_se
+                        calculated_total_lys += pct * (ing_lys * ing_dc)
+                        calculated_total_met += pct * (ing_met * ing_dc)
+                        calculated_total_ca += pct * ing_ca
+                        calculated_total_p += pct * ing_p
+                        
                         entered_components_summary.append({
                             "المادة العلفية": ing_name,
                             "الوزن المدخل": f"{weight:.1f} كجم",
@@ -1664,7 +1668,7 @@ with tabs[0]:
 
                 st.success("🔬 تم فحص عينة العلف وتحليل المحتوى النيتروجيني الاستقلابي بنجاح!")
                 st.markdown(f"### ⚖️ إجمالي وزن الخلطة الجاهزة المختبرة: **{lab_total_weight:.1f} كجم**")
-                st.write("#### 📊 نسب توزيع المكونات in العينة المدخلة:")
+                st.write("#### 📊 نسب توزيع المكونات في العينة المدخلة:")
                 st.table(pd.DataFrame(entered_components_summary))
 
                 st.markdown("---")
@@ -1685,6 +1689,18 @@ with tabs[0]:
                         "الاحتياج الاسترشادي القياسي": "مرن حسب الفصيل",
                         "التقييم المخبري": "تحليل طاقة كلي",
                     },
+                    {
+                        "العنصر الغذائي الفني": "الاحماض الامينية (Lysine / Methionine)",
+                        "القيمة المحسوبة برمجياً": f"Lys: {calculated_total_lys:.2f}% | Met: {calculated_total_met:.2f}%",
+                        "الاحتياج الاسترشادي القياسي": "حسب الفئة العمرية",
+                        "التقييم المخبري": "تحليل أميني حيوي",
+                    },
+                    {
+                        "العنصر الغذائي الفني": "المعادن الكبرى الكلية (Calcium / Phosphorus)",
+                        "القيمة المحسوبة برمجياً": f"Ca: {calculated_total_ca:.2f}% | P: {calculated_total_p:.2f}%",
+                        "الاحتياج الاسترشادي القياسي": "متوازن",
+                        "التقييم المخبري": "تحليل معدني دقيق",
+                    }
                 ]
                 st.table(pd.DataFrame(lab_report_data))
 
@@ -1697,17 +1713,15 @@ with tabs[0]:
 # ====================================================================
 if st.session_state["user_role"] in ["owner", "specialist"]:
 
-    # تبويب البورصة المركزية وإدارة قاعدة البيانات (الخطوة 2 المدمجة بالكامل)
     with tabs[1]:
         st.markdown(
             '<div class="section-title">📊 لوحة التحكم وقاعدة بيانات الأعلاف والماشية المركزية</div>',
             unsafe_allow_html=True,
         )
         
-        # إضافة جزء إدارة قاعدة البيانات المباشر للمالك
         if st.session_state["user_role"] == "owner":
             with st.expander("🛠️ لوحة الإشراف المتطور: إضافة وتعديل خامات الأعلاف في قاعدة البيانات (SQLite)"):
-                st.write("يمكنك هنا تعديل التحليل الكيماوي لـ **كُسب عباد الشمس** أو أي خامة، أو إضافة خامة جديدة:")
+                st.write("يمكنك هنا تعديل التحليل الكيماوي والحيوي للخامات أو إضافة خامة جديدة:")
                 col_db_add1, col_db_add2, col_db_add3 = st.columns(3)
                 with col_db_add1:
                     new_ing_name = st.text_input("اسم الخامة العلفية الجديدة/الحالية للضبط:")
@@ -1739,7 +1753,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                         
                         cursor.execute("DELETE FROM Nutrient_Matrix WHERE ingredient_id=?", (ing_id,))
                         cursor.execute("""
-                            INSERT INTO Nutrient_Matrix VALUES (?, ?, 0.0, 0.0, ?, ?)
+                            INSERT INTO Nutrient_Matrix VALUES (?, ?, 0.0, 0.0, ?, ?, 0.0, 0.0)
                         """, (ing_id, new_ing_cp, new_ing_dc, new_ing_se))
                         conn.commit()
                         conn.close()
@@ -1780,7 +1794,6 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                 else:
                     st.markdown(f"▪️ {product}: **${price:.2f}**")
 
-    # تبويب إدارة المخازن والمستودعات
     with tabs[2]:
         st.markdown(
             '<div class="section-title">🏭 لوحة التحكم الذكية بالمخازن والمستودعات المركزية</div>',
@@ -1808,7 +1821,6 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                         key=f"inv_input_{ing_name}",
                     )
 
-    # تبويب المبيعات والخصم التلقائي
     with tabs[3]:
         st.markdown(
             '<div class="section-title">💰 نظام تسويق المنتجات وإصدار الفواتير مع الخصم التلقائي</div>',
@@ -1853,7 +1865,6 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                 "ℹ️ تأكيد الفواتير وحركات الخصم المالي والترحيل متاحة حصرياً لإدارة المالك المنفرد للمنصة."
             )
 
-    # تبويب مصمم ديباجات الطباعة
     with tabs[4]:
         st.markdown(
             '<div class="section-title">👑 مُصمم ديباجات الطباعة الفنية على جوالات الأعلاف</div>',
@@ -1875,7 +1886,6 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
             unsafe_allow_html=True,
         )
 
-    # خانة تعليقات المختصين والزملاء
     with tabs[5]:
         st.markdown(
             '<div class="section-title">💬 قناة التواصل والتعليقات الخاصة بالزملاء والمختصين</div>',
@@ -1904,7 +1914,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                 st.rerun()
 
 # ====================================================================
-# 🗂️ التبويب المطور: دليل المستخدم في شكل كتيب رقمي جميل ومنسق
+# 🗂️ دليل المستخدم في شكل كتيب رقمي
 # ====================================================================
 support_tab_index = (
     6 if st.session_state["user_role"] in ["owner", "specialist"] else 1
@@ -2007,7 +2017,7 @@ with tabs[support_tab_index]:
             )
 
 # ====================================================================
-# 1. نظام حفظ وأرشفة السورس كود - مؤمن بالكامل لبريد المالك فقط
+# 1. نظام حفظ وأرشفة السورس كود 
 # ====================================================================
 if st.session_state["user_role"] == "owner":
     st.markdown(
@@ -2040,7 +2050,6 @@ if st.session_state["user_role"] == "owner":
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# التوقيع المصغر الثابت بأسفل الشاشة بالمسمى الجديد
 st.markdown(
     """
     <div class="mini-left-signature">
