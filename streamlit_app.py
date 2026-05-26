@@ -5,6 +5,7 @@ import os
 import smtplib
 import time
 import urllib.parse
+import sqlite3 # تم الدمج لربط قاعدة البيانات
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -18,6 +19,146 @@ from reportlab.pdfbase.ttfonts import TTFont
 # استيراد مكتبات توليد الـ PDF المتقدمة ومعالجة اللغة العربية الصحيحة
 from reportlab.pdfgen import canvas
 from scipy.optimize import linprog
+
+# ==========================================
+# 0. تأسيس وإدارة قاعدة البيانات (الخطوة 2)
+# ==========================================
+DB_NAME = "tower_scientific.db"
+
+def init_database():
+    """إنشاء الجداول وضخ البيانات الأساسية إذا لم تكن موجودة مسبقاً"""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA foreign_keys = ON;")
+    
+    # جدول المكونات الأساسي
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS Ingredients (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        category TEXT NOT NULL,
+        price_per_ton REAL NOT NULL,
+        max_limit REAL DEFAULT 100.0,
+        min_limit REAL DEFAULT 0.0
+    )
+    ''')
+    
+    # جدول العناصر الغذائية ومعاملات الهضم (محدث لعام 2026)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS Nutrient_Matrix (
+        ingredient_id INTEGER,
+        crude_protein REAL DEFAULT 0.0,
+        lysine REAL DEFAULT 0.0,
+        methionine REAL DEFAULT 0.0,
+        digestibility_coeff REAL DEFAULT 1.0,
+        starch_equivalent REAL DEFAULT 0.0,
+        FOREIGN KEY (ingredient_id) REFERENCES Ingredients(id) ON DELETE CASCADE
+    )
+    ''')
+    conn.commit()
+    
+    # فحص ما إذا كانت قاعدة البيانات فارغة لضخ المكتبة الموسعة تلقائياً
+    cursor.execute("SELECT COUNT(*) FROM Ingredients")
+    if cursor.fetchone()[0] == 0:
+        raw_library = {
+            "🌾 الحبوب ومصادر الطاقة الكبرى": {
+                "ذرة صفراء": {"CP": 8.5, "lys": 0.24, "met": 0.17, "DC": 0.85, "SE": 80.0, "price": 230.0},
+                "ذرة بيضاء": {"CP": 8.8, "lys": 0.23, "met": 0.16, "DC": 0.83, "SE": 78.0, "price": 225.0},
+                "شعير مطحون": {"CP": 11.5, "lys": 0.36, "met": 0.19, "DC": 0.80, "SE": 71.0, "price": 210.0},
+                "سورجم (فتريتة)": {"CP": 10.0, "lys": 0.22, "met": 0.15, "DC": 0.78, "SE": 70.0, "price": 195.0},
+                "قمح محلي مصنّع": {"CP": 12.0, "lys": 0.32, "met": 0.21, "DC": 0.85, "SE": 75.0, "price": 240.0},
+                "جريش أرز رزاز": {"CP": 7.8, "lys": 0.28, "met": 0.20, "DC": 0.82, "SE": 82.0, "price": 230.0},
+                "دخن محلي غزير": {"CP": 11.0, "lys": 0.30, "met": 0.22, "DC": 0.75, "SE": 68.0, "price": 230.0},
+                "شوفان علفي": {"CP": 11.0, "lys": 0.40, "met": 0.18, "DC": 0.76, "SE": 62.0, "price": 230.0},
+            },
+            "🌱 الأكساب وأمبازات مصادر البروتين العالي": {
+                "أمباز الفول السوداني (كسب)": {"CP": 46.0, "lys": 1.60, "met": 0.52, "DC": 0.88, "SE": 73.0, "price": 460.0},
+                "كسب فول صويا 44%": {"CP": 44.0, "lys": 2.70, "met": 0.62, "DC": 0.90, "SE": 74.0, "price": 440.0},
+                "كسب فول صويا 48%": {"CP": 48.0, "lys": 2.90, "met": 0.67, "DC": 0.91, "SE": 76.0, "price": 480.0},
+                "كسب عباد الشمس 36%": {"CP": 36.0, "lys": 1.20, "met": 0.75, "DC": 0.76, "SE": 42.0, "price": 310.0},
+                "كسب بذور القطن (مقشور)": {"CP": 41.0, "lys": 1.75, "met": 0.64, "DC": 0.78, "SE": 55.0, "price": 290.0},
+                "كسب بذور الكتان": {"CP": 32.0, "lys": 1.15, "met": 0.60, "DC": 0.82, "SE": 65.0, "price": 350.0},
+                "كسب السمسم المحسن": {"CP": 42.0, "lys": 1.25, "met": 1.10, "DC": 0.84, "SE": 70.0, "price": 350.0},
+                "كسب جلوتين الذرة 60%": {"CP": 60.0, "lys": 1.02, "met": 1.45, "DC": 0.92, "SE": 85.0, "price": 350.0},
+                "كسب نواة النخيل": {"CP": 16.0, "lys": 0.62, "met": 0.31, "DC": 0.65, "SE": 52.0, "price": 350.0},
+            },
+            "🚜 المخلفات الزراعية والصناعية والمواد المالئة": {
+                "نخالة قمح (ردة)": {"CP": 15.0, "lys": 0.58, "met": 0.23, "DC": 0.72, "SE": 45.0, "price": 150.0},
+                "البرسيم الجاف (الدريس)": {"CP": 16.5, "lys": 0.75, "met": 0.28, "DC": 0.60, "SE": 35.0, "price": 170.0},
+                "مولاس قصب السكر": {"CP": 4.0, "lys": 0.05, "met": 0.02, "DC": 0.95, "SE": 50.0, "price": 120.0},
+                "تبن قمح ناعم": {"CP": 3.2, "lys": 0.08, "met": 0.04, "DC": 0.35, "SE": 18.0, "price": 230.0},
+                "قشر فول سوداني مطحون": {"CP": 5.0, "lys": 0.12, "met": 0.05, "DC": 0.30, "SE": 15.0, "price": 230.0},
+                "سرسة الأرز المطحونة": {"CP": 2.5, "lys": 0.06, "met": 0.03, "DC": 0.25, "SE": 12.0, "price": 230.0},
+                "بقايا تفل البنجر المجفف": {"CP": 8.0, "lys": 0.42, "met": 0.12, "DC": 0.75, "SE": 58.0, "price": 230.0},
+                "مخلفات مصانع البسكويت": {"CP": 9.5, "lys": 0.28, "met": 0.15, "DC": 0.88, "SE": 76.0, "price": 230.0},
+                "سيلاج ذرة كامل متكامل": {"CP": 8.0, "lys": 0.22, "met": 0.14, "DC": 0.68, "SE": 50.0, "price": 230.0},
+            },
+            "🧬 مصادر البروتين الحيواني والمركزات دقيقة الخلط": {
+                "مسحوق أسماك (Fishmeal 60%)": {"CP": 60.0, "lys": 4.50, "met": 1.65, "DC": 0.85, "SE": 65.0, "price": 850.0},
+                "مسحوق أسماك فاخر (72%)": {"CP": 72.0, "lys": 5.40, "met": 2.10, "DC": 0.90, "SE": 72.0, "price": 850.0},
+                "مسحوق اللحم والعظم": {"CP": 50.0, "lys": 2.60, "met": 0.70, "DC": 0.75, "SE": 50.0, "price": 850.0},
+                "مركزات دواجن وسمان": {"CP": 40.0, "lys": 2.50, "met": 1.20, "DC": 0.85, "SE": 60.0, "price": 650.0},
+                "مركزات خيول ومجترات": {"CP": 36.0, "lys": 1.80, "met": 0.65, "DC": 0.80, "SE": 55.0, "price": 600.0},
+            },
+            "🧪 الأحماض الأمينية البلورية النقية": {
+                "ليسين نقي (L-Lysine)": {"CP": 94.0, "lys": 78.0, "met": 0.0, "DC": 1.00, "SE": 0.0, "price": 230.0},
+                "ميثيونين نقي (DL-Methionine)": {"CP": 58.0, "lys": 0.0, "met": 99.0, "DC": 1.00, "SE": 0.0, "price": 230.0},
+                "ثريونين نقي (L-Threonine)": {"CP": 72.0, "lys": 0.0, "met": 0.0, "DC": 1.00, "SE": 0.0, "price": 230.0},
+                "تريبتوفان نقي (L-Tryptophan)": {"CP": 85.0, "lys": 0.0, "met": 0.0, "DC": 1.00, "SE": 0.0, "price": 230.0},
+                "فالين نقي (L-Valine)": {"CP": 90.0, "lys": 0.0, "met": 0.0, "DC": 1.00, "SE": 0.0, "price": 230.0},
+            },
+            "🔬 الإنزيمات والبريمكسات والإضافات التخصصية": {
+                "بريمكس تسمين دواجن (Premix)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
+                "بريمكس بياض وبشاير": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
+                "بريمكس أبقار حلابة ومجترات": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
+                "بريمكس خيول وفروسية": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
+                "إنزيم الفايتيز الزامي (Phytase Super-D)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
+                "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
+                "كبريتات الحديدوز (معادل الجوسيبول)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
+                "مستخلص الخمائر والجدر الخلوية (MOS)": {"CP": 12.0, "lys": 0.30, "met": 0.10, "DC": 0.50, "SE": 10.0, "price": 230.0},
+            },
+            "🪨 الأملاح والمعادن ومنظمات الهضم": {
+                "الحجر الجيري (بودرة بلاط)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 40.0},
+                "فوسفات ثنائي الكالسيوم (DCP)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 280.0},
+                "ملح الطعام": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 30.0},
+                "مضاد سموم فطرية": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 950.0},
+                "بيكربونات الصوديوم (الصودا)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 340.0},
+                "أكسيد المغنيسيوم العلفي": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0, "price": 230.0},
+                "يوريا علفية محصنة (المجترات فقط)": {"CP": 287.0, "lys": 0.0, "met": 0.0, "DC": 0.95, "SE": 0.0, "price": 230.0},
+            }
+        }
+        for cat, items in raw_library.items():
+            for name, nut in items.items():
+                cursor.execute("INSERT OR IGNORE INTO Ingredients (name, category, price_per_ton) VALUES (?, ?, ?)", (name, cat, nut["price"]))
+                ing_id = cursor.lastrowid if cursor.lastrowid else cursor.execute("SELECT id FROM Ingredients WHERE name=?", (name,)).fetchone()[0]
+                cursor.execute("INSERT INTO Nutrient_Matrix VALUES (?, ?, ?, ?, ?, ?)", (ing_id, nut["CP"], nut["lys"], nut["met"], nut["DC"], nut["SE"]))
+        conn.commit()
+    conn.close()
+
+init_database()
+
+def load_feeds_from_db():
+    """تحميل البيانات من DB لبناء القاموس التفاعلي للنظام"""
+    conn = sqlite3.connect(DB_NAME)
+    query = """
+    SELECT i.name, i.category, i.price_per_ton, i.max_limit, i.min_limit,
+           n.crude_protein, n.lysine, n.methionine, n.digestibility_coeff, n.starch_equivalent
+    FROM Ingredients i JOIN Nutrient_Matrix n ON i.id = n.ingredient_id
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    
+    structured_library = {}
+    for cat in df['category'].unique():
+        structured_library[cat] = {}
+        sub_df = df[df['category'] == cat]
+        for _, row in sub_df.iterrows():
+            structured_library[cat][row['name']] = {
+                "CP": row['crude_protein'], "lys": row['lysine'], "met": row['methionine'],
+                "DC": row['digestibility_coeff'], "SE": row['starch_equivalent'], 
+                "price": row['price_per_ton'], "max": row['max_limit'], "min": row['min_limit']
+            }
+    return structured_library
 
 # ==========================================
 # 1. إعدادات المنصة الرسمية والمظهر الفخم
@@ -395,77 +536,8 @@ if not st.session_state["login_welcome_shown"]:
         st.toast("🚜 أهلاً وسهلاً بإخواننا المربين، شركاء النجاح.", icon="🌾")
     st.session_state["login_welcome_shown"] = True
 
-# =========================================================================================
-# 3. المكتبة المحدثة والموسعة لعام 2026 مع تدقيق نسب البروتين الخام، معاملات الهضم، ومعادل النشاء والأحماض الأمينية
-# =========================================================================================
-# المكونات الكيميائية لضبط دالة الاستمثال: CP (بروتين خام), lys (ليسين خام), met (ميثيونين خام), DC (معامل هضم), SE (معادل نشاء)
-BIG_FEEDS_LIBRARY = {
-    "🌾 الحبوب ومصادر الطاقة الكبرى": {
-        "ذرة صفراء": {"CP": 8.5, "lys": 0.24, "met": 0.17, "DC": 0.85, "SE": 80.0},
-        "ذرة بيضاء": {"CP": 8.8, "lys": 0.23, "met": 0.16, "DC": 0.83, "SE": 78.0},
-        "شعير مطحون": {"CP": 11.5, "lys": 0.36, "met": 0.19, "DC": 0.80, "SE": 71.0},
-        "سورجم (فتريتة)": {"CP": 10.0, "lys": 0.22, "met": 0.15, "DC": 0.78, "SE": 70.0},
-        "قمح محلي مصنّع": {"CP": 12.0, "lys": 0.32, "met": 0.21, "DC": 0.85, "SE": 75.0},
-        "جريش أرز رزاز": {"CP": 7.8, "lys": 0.28, "met": 0.20, "DC": 0.82, "SE": 82.0},
-        "دخن محلي غزير": {"CP": 11.0, "lys": 0.30, "met": 0.22, "DC": 0.75, "SE": 68.0},
-        "شوفان علفي": {"CP": 11.0, "lys": 0.40, "met": 0.18, "DC": 0.76, "SE": 62.0},
-    },
-    "🌱 الأكساب وأمبازات مصادر البروتين العالي": {
-        "أمباز الفول السوداني (كسب)": {"CP": 46.0, "lys": 1.60, "met": 0.52, "DC": 0.88, "SE": 73.0},
-        "كسب فول صويا 44%": {"CP": 44.0, "lys": 2.70, "met": 0.62, "DC": 0.90, "SE": 74.0},
-        "كسب فول صويا 48%": {"CP": 48.0, "lys": 2.90, "met": 0.67, "DC": 0.91, "SE": 76.0},
-        "كسب عباد الشمس 36%": {"CP": 36.0, "lys": 1.20, "met": 0.75, "DC": 0.76, "SE": 42.0},
-        "كسب بذور القطن (مقشور)": {"CP": 41.0, "lys": 1.75, "met": 0.64, "DC": 0.78, "SE": 55.0},
-        "كسب بذور الكتان": {"CP": 32.0, "lys": 1.15, "met": 0.60, "DC": 0.82, "SE": 65.0},
-        "كسب السمسم المحسن": {"CP": 42.0, "lys": 1.25, "met": 1.10, "DC": 0.84, "SE": 70.0},
-        "كسب جلوتين الذرة 60%": {"CP": 60.0, "lys": 1.02, "met": 1.45, "DC": 0.92, "SE": 85.0},
-        "كسب نواة النخيل": {"CP": 16.0, "lys": 0.62, "met": 0.31, "DC": 0.65, "SE": 52.0},
-    },
-    "🚜 المخلفات الزراعية والصناعية والمواد المالئة": {
-        "نخالة قمح (ردة)": {"CP": 15.0, "lys": 0.58, "met": 0.23, "DC": 0.72, "SE": 45.0},
-        "البرسيم الجاف (الدريس)": {"CP": 16.5, "lys": 0.75, "met": 0.28, "DC": 0.60, "SE": 35.0},
-        "مولاس قصب السكر": {"CP": 4.0, "lys": 0.05, "met": 0.02, "DC": 0.95, "SE": 50.0},
-        "تبن قمح ناعم": {"CP": 3.2, "lys": 0.08, "met": 0.04, "DC": 0.35, "SE": 18.0},
-        "قشر فول سوداني مطحون": {"CP": 5.0, "lys": 0.12, "met": 0.05, "DC": 0.30, "SE": 15.0},
-        "سرسة الأرز المطحونة": {"CP": 2.5, "lys": 0.06, "met": 0.03, "DC": 0.25, "SE": 12.0},
-        "بقايا تفل البنجر المجفف": {"CP": 8.0, "lys": 0.42, "met": 0.12, "DC": 0.75, "SE": 58.0},
-        "m مخلفات مصانع البسكويت": {"CP": 9.5, "lys": 0.28, "met": 0.15, "DC": 0.88, "SE": 76.0},
-        "سیلاج ذرة كامل متكامل": {"CP": 8.0, "lys": 0.22, "met": 0.14, "DC": 0.68, "SE": 50.0},
-    },
-    "🧬 مصادر البروتين الحيواني والمركزات دقيقة الخلط": {
-        "مسحوق أسماك (Fishmeal 60%)": {"CP": 60.0, "lys": 4.50, "met": 1.65, "DC": 0.85, "SE": 65.0},
-        "مسحوق أسماك فاخر (72%)": {"CP": 72.0, "lys": 5.40, "met": 2.10, "DC": 0.90, "SE": 72.0},
-        "مسحوق اللحم والعظم": {"CP": 50.0, "lys": 2.60, "met": 0.70, "DC": 0.75, "SE": 50.0},
-        "مركزات دواجن وسمان": {"CP": 40.0, "lys": 2.50, "met": 1.20, "DC": 0.85, "SE": 60.0},
-        "مركزات خيول ومجترات": {"CP": 36.0, "lys": 1.80, "met": 0.65, "DC": 0.80, "SE": 55.0},
-    },
-    "🧪 الأحماض الأمينية البلورية النقية": {
-        "ليسين نقي (L-Lysine)": {"CP": 94.0, "lys": 78.0, "met": 0.0, "DC": 1.00, "SE": 0.0},
-        "ميثيونين نقي (DL-Methionine)": {"CP": 58.0, "lys": 0.0, "met": 99.0, "DC": 1.00, "SE": 0.0},
-        "ثريونين نقي (L-Threonine)": {"CP": 72.0, "lys": 0.0, "met": 0.0, "DC": 1.00, "SE": 0.0},
-        "تريبتوفان نقي (L-Tryptophan)": {"CP": 85.0, "lys": 0.0, "met": 0.0, "DC": 1.00, "SE": 0.0},
-        "فالين نقي (L-Valine)": {"CP": 90.0, "lys": 0.0, "met": 0.0, "DC": 1.00, "SE": 0.0},
-    },
-    "🔬 الإنزيمات والبريمكسات والإضافات التخصصية": {
-        "بريمكس تسمين دواجن (Premix)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0},
-        "بريمكس بياض وبشاير": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0},
-        "بريمكس أبقار حلابة ومجترات": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0},
-        "بريمكس خيول وفروسية": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0},
-        "إنزيم الفايتيز الزامي (Phytase Super-D)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0},
-        "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0},
-        "كبريتات الحديدوز (معادل الجوسيبول)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0},
-        "مستخلص الخمائر والجدر الخلوية (MOS)": {"CP": 12.0, "lys": 0.30, "met": 0.10, "DC": 0.50, "SE": 10.0},
-    },
-    "🪨 الأملاح والمعادن ومنظمات الهضم": {
-        "الحجر الجيري (بودرة بلاط)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0},
-        "فوسفات ثنائي الكالسيوم (DCP)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0},
-        "ملح الطعام": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0},
-        "مضاد سموم فطرية": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0},
-        "بيكربونات الصوديوم (الصودا)": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0},
-        "أكسيد المغنيسيوم العلفي": {"CP": 0.0, "lys": 0.0, "met": 0.0, "DC": 0.0, "SE": 0.0},
-        "يوريا علفية محصنة (المجترات فقط)": {"CP": 287.0, "lys": 0.0, "met": 0.0, "DC": 0.95, "SE": 0.0},
-    },
-}
+# تحميل البيانات حياً من قاعدة البيانات (الخطوة 2 المدمجة)
+BIG_FEEDS_LIBRARY = load_feeds_from_db()
 
 if "inventory" not in st.session_state:
     st.session_state["inventory"] = {}
@@ -512,43 +584,19 @@ EXCHANGE_RATES = {
 def get_adjusted_market_data(country, state_or_region, city):
     feed_prices = {}
     for cat in BIG_FEEDS_LIBRARY.values():
-        for ing in cat:
-            feed_prices[ing] = 230.0
-
-    feed_prices.update({
-        "ذرة صفراء": 230.0,
-        "ذرة بيضاء": 225.0,
-        "شعير مطحون": 210.0,
-        "سورجم (فتريتة)": 195.0,
-        "قمح محلي مصنّع": 240.0,
-        "أمباز الفول السوداني (كسب)": 460.0,
-        "كسب فول صويا 44%": 440.0,
-        "كسب فول صويا 48%": 480.0,
-        "كسب عباد الشمس 36%": 310.0,
-        "كسب بذور القطن (مقشور)": 290.0,
-        "نخالة قمح (ردة)": 150.0,
-        "البرسيم الجاف (الدريس)": 170.0,
-        "مولاس قصب السكر": 120.0,
-        "مسحوق أسماك (Fishmeal 60%)": 850.0,
-        "مركزات دواجن وسمان": 650.0,
-        "مركزات خيول ومجترات": 600.0,
-        "الحجر الجيري (بودرة بلاط)": 40.0,
-        "فوسفات ثنائي الكالسيوم (DCP)": 280.0,
-        "ملح الطعام": 30.0,
-        "مضاد سموم فطرية": 950.0,
-        "بيكربونات الصوديوم (الصودا)": 340.0,
-    })
+        for ing, data in cat.items():
+            feed_prices[ing] = data["price"]
 
     multiplier = 1.0
     if country == "السودان":
         multiplier = 1.15
         if "كردفان" in state_or_region or state_or_region == "إقليم النيل الأزرق":
             multiplier = 1.20
-            feed_prices["سورجم (فتريتة)"] *= 0.85
-            feed_prices["أمباز الفول السوداني (كسب)"] *= 0.85
+            if "سورجم (فتريتة)" in feed_prices: feed_prices["سورجم (فتريتة)"] *= 0.85
+            if "أمباز الفول السوداني (كسب)" in feed_prices: feed_prices["أمباز الفول السوداني (كسب)"] *= 0.85
         elif state_or_region in ["ولاية القضارف", "ولاية الجزيرة"]:
-            feed_prices["سورجم (فتريتة)"] *= 0.82
-            feed_prices["أمباز الفول السوداني (كسب)"] *= 0.88
+            if "سورجم (فتريتة)" in feed_prices: feed_prices["سورجم (فتريتة)"] *= 0.82
+            if "أمباز الفول السوداني (كسب)" in feed_prices: feed_prices["أمباز الفول السوداني (كسب)"] *= 0.88
     elif country == "LIBYA":
         multiplier = 1.10
         if city == "طبرق":
@@ -694,7 +742,7 @@ elif st.session_state["user_role"] == "breeder":
 if st.session_state["user_role"] in ["owner", "specialist"]:
     tabs_titles = [
         "🔬 النمذجة والحسابات العلفية الكبرى",
-        "📊 بورصة الأسعار المركزية للماشية",
+        "📊 بورصة الأسعار وإدارة الخامات",
         "🏭 إدارة المستودعات والخصم التلقائي",
         "🧾 التسويق وفواتير حركة البيع",
         "🖨️ مصمم بطاقات الديباجة والدعاية",
@@ -1185,7 +1233,7 @@ with tabs[0]:
                 expanded=True if "الحبوب" in cat_name or "الأكساب" in cat_name else False,
             ):
                 sub_cols = st.columns(3)
-                for idx, (ing_name, _) in enumerate(items.items()):
+                for idx, (ing_name, ing_data) in enumerate(items.items()):
                     with sub_cols[idx % 3]:
                         is_def = (
                             True
@@ -1206,7 +1254,7 @@ with tabs[0]:
                             else False
                         )
                         checked = st.checkbox(ing_name, value=is_def, key=f"feed_{ing_name}")
-                        current_live_price = live_prices.get(ing_name, 350.0)
+                        current_live_price = live_prices.get(ing_name, ing_data["price"])
 
                         if st.session_state["user_role"] == "owner":
                             price_input = st.number_input(
@@ -1250,7 +1298,7 @@ with tabs[0]:
         if "كسب بذور القطن (مقشور)" in selected_ingredients and main_sector == "الطيور والسمان":
             auto_added_enzymes["كبريتات الحديدوز (معادل الجوسيبول)"] = 0.15
             mandatory_warnings.append(
-                "⚠️ <b>معالجة الجوسيبول:</b> تم دمج كبريتات الحديدوز بنسبة 0.15% فورياً لربط <b>الجوسيبول الحر السام Toxic Gossypول</b> وإبطال مفعوله."
+                "⚠️ <b>معالجة الجوسيبول:</b> تم دمج كبريتات الحديدوز بنسبة 0.15% فورياً لربط <b>الجوسيبول الحر السام Toxic Gossypol</b> وإبطال مفعوله."
             )
 
         if main_sector == "الطيور والسمان" and (
@@ -1264,8 +1312,9 @@ with tabs[0]:
         all_fixed_additives = {**fixed_additives, **auto_added_enzymes}
         for item in all_fixed_additives:
             if item not in selected_ingredients:
-                selected_ingredients.append(item)
-                ingredient_prices[item] = live_prices.get(item, 40.0)
+                if item in live_prices: # تأمين الفحص لمنع الـ KeyError
+                    selected_ingredients.append(item)
+                    ingredient_prices[item] = live_prices.get(item, 40.0)
 
         st.markdown("---")
 
@@ -1289,12 +1338,15 @@ with tabs[0]:
                     val = all_fixed_additives[ing]
                     bounds.append((val, val))
                 else:
-                    bounds.append((0.0, 100.0))
+                    # سحب الحدود القصوى والدنيا من قاعدة البيانات مباشرة
+                    for cat in BIG_FEEDS_LIBRARY.values():
+                        if ing in cat:
+                            bounds.append((cat[ing]["min"], cat[ing]["max"]))
+                            break
 
             A_eq = [[1.0 for _ in selected_ingredients]]
             b_eq = [100.0]
 
-            # ⚙️ بناء صفوف القيود الديناميكية بناءً على اختيار نظام الحساب (خام أم مهضوم)
             protein_row = []
             lys_row = []
             met_row = []
@@ -1316,33 +1368,28 @@ with tabs[0]:
                         dc_val = cat[ing].get("DC", 1.0)
 
                 if mode_key == "digestible":
-                    # إذا اختار المختص "المهضوم"، يتم تفعيل معادلة الهضم الحيوي الفعلي على مصفوفة القيود
                     protein_row.append(cp_val * dc_val)
                     lys_row.append(lys_val * dc_val)
                     met_row.append(met_val * dc_val)
                 else:
-                    # الاعتماد على القيم الكيميائية الخام المجردة
                     protein_row.append(cp_val)
                     lys_row.append(lys_val)
                     met_row.append(met_val)
 
                 se_row.append(se_val)
 
-            # إضافة قيد البروتين الرئيسي كمعادلة مساواة مطلقة لتحقيق الدقة الكاملة
             A_eq.append(protein_row)
             b_eq.append(final_target_dp * 100.0)
 
             A_ub = []
             b_ub = []
 
-            # إضافة حدود الأحماض الأمينية كحد أدنى مطلوب (ضرب القيد في -1 لتصبح العلاقة أصغر من أو يساوي لـ linprog)
             A_ub.append([-1.0 * x for x in lys_row])
             b_ub.append(-1.0 * final_target_lys * 100.0)
 
             A_ub.append([-1.0 * x for x in met_row])
             b_ub.append(-1.0 * final_target_met * 100.0)
 
-            # قيد معادل النشاء كحد أدنى للطاقة الاستقلابية المحققة بالمعادلة
             A_ub.append([-1.0 * x for x in se_row])
             b_ub.append(-1.0 * final_target_se * 100.0)
 
@@ -1352,7 +1399,7 @@ with tabs[0]:
             ]
             if sum(grain_indicators) > 0:
                 A_ub.append([-1.0 * x for x in grain_indicators])
-                b_ub.append(-50.0)
+                b_ub.append(-45.0) # تخفيف القيد المرن لضمان وجود حل مستقر
 
             if "نخالة قمح (ردة)" in selected_ingredients:
                 fiber_indicators = [
@@ -1372,7 +1419,6 @@ with tabs[0]:
             )
 
             if not res.success:
-                # خوارزمية المرونة البديلة عند تعذر الحل المطلق
                 A_ub_flex = []
                 b_ub_flex = []
 
@@ -1417,7 +1463,6 @@ with tabs[0]:
                         for cat in BIG_FEEDS_LIBRARY.values():
                             if ing in cat:
                                 computed_se_total += (res.x[idx] / 100.0) * cat[ing].get("SE", 0.0)
-                                # حساب التوزيعات المعروضة بالتقرير النهائي
                                 base_dc = cat[ing].get("DC", 1.0) if mode_key == "digestible" else 1.0
                                 computed_lys_total += (res.x[idx] / 100.0) * cat[ing].get("lys", 0.0) * base_dc
                                 computed_met_total += (res.x[idx] / 100.0) * cat[ing].get("met", 0.0) * base_dc
@@ -1619,7 +1664,7 @@ with tabs[0]:
 
                 st.success("🔬 تم فحص عينة العلف وتحليل المحتوى النيتروجيني الاستقلابي بنجاح!")
                 st.markdown(f"### ⚖️ إجمالي وزن الخلطة الجاهزة المختبرة: **{lab_total_weight:.1f} كجم**")
-                st.write("#### 📊 نسب توزيع المكونات في العينة المدخلة:")
+                st.write("#### 📊 نسب توزيع المكونات in العينة المدخلة:")
                 st.table(pd.DataFrame(entered_components_summary))
 
                 st.markdown("---")
@@ -1652,12 +1697,56 @@ with tabs[0]:
 # ====================================================================
 if st.session_state["user_role"] in ["owner", "specialist"]:
 
-    # تبويب البورصة المركزية
+    # تبويب البورصة المركزية وإدارة قاعدة البيانات (الخطوة 2 المدمجة بالكامل)
     with tabs[1]:
         st.markdown(
-            '<div class="section-title">📊 لوحة تحكم بورصة تاور المركزية الشاملة (تحديث الأسعار المباشرة)</div>',
+            '<div class="section-title">📊 لوحة التحكم وقاعدة بيانات الأعلاف والماشية المركزية</div>',
             unsafe_allow_html=True,
         )
+        
+        # إضافة جزء إدارة قاعدة البيانات المباشر للمالك
+        if st.session_state["user_role"] == "owner":
+            with st.expander("🛠️ لوحة الإشراف المتطور: إضافة وتعديل خامات الأعلاف في قاعدة البيانات (SQLite)"):
+                st.write("يمكنك هنا تعديل التحليل الكيماوي لـ **كُسب عباد الشمس** أو أي خامة، أو إضافة خامة جديدة:")
+                col_db_add1, col_db_add2, col_db_add3 = st.columns(3)
+                with col_db_add1:
+                    new_ing_name = st.text_input("اسم الخامة العلفية الجديدة/الحالية للضبط:")
+                    new_ing_cat = st.selectbox("تصنيف الخامة:", list(BIG_FEEDS_LIBRARY.keys()))
+                with col_db_add2:
+                    new_ing_price = st.number_input("السعر الافتراضي للطن ($):", min_value=0.0, value=250.0)
+                    new_ing_cp = st.number_input("البروتين الخام % (CP):", min_value=0.0, max_value=100.0, value=15.0)
+                with col_db_add3:
+                    new_ing_dc = st.number_input("معامل الهضم (DC 0-1):", min_value=0.0, max_value=1.0, value=0.80)
+                    new_ing_se = st.number_input("معادل النشاء % (SE):", min_value=0.0, max_value=100.0, value=50.0)
+                
+                col_db_lim1, col_db_lim2, col_db_btn = st.columns([1,1,1])
+                with col_db_lim1:
+                    new_ing_max = st.number_input("الحد الأقصى للاستخدام %:", min_value=0.0, max_value=100.0, value=100.0)
+                with col_db_lim2:
+                    new_ing_min = st.number_input("الحد الأدنى للاستخدام %:", min_value=0.0, max_value=100.0, value=0.0)
+                with col_db_btn:
+                    st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
+                    if st.button("💾 حفظ وتحديث المكون في قاعدة البيانات", type="primary", use_container_width=True):
+                        conn = sqlite3.connect(DB_NAME)
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                            INSERT OR REPLACE INTO Ingredients (name, category, price_per_ton, max_limit, min_limit)
+                            VALUES (?, ?, ?, ?, ?)
+                        """, (new_ing_name, new_ing_cat, new_ing_price, new_ing_max, new_ing_min))
+                        
+                        cursor.execute("SELECT id FROM Ingredients WHERE name=?", (new_ing_name,))
+                        ing_id = cursor.fetchone()[0]
+                        
+                        cursor.execute("DELETE FROM Nutrient_Matrix WHERE ingredient_id=?", (ing_id,))
+                        cursor.execute("""
+                            INSERT INTO Nutrient_Matrix VALUES (?, ?, 0.0, 0.0, ?, ?)
+                        """, (ing_id, new_ing_cp, new_ing_dc, new_ing_se))
+                        conn.commit()
+                        conn.close()
+                        st.success(f"تم تحديث [{new_ing_name}] في قاعدة البيانات الحية بنجاح! يرجى إعادة تحميل الصفحة لرؤية التأثير.")
+                        time.sleep(1)
+                        st.rerun()
+
         if st.session_state["user_role"] == "specialist":
             st.warning(
                 "⚠️ حساب زميل/مختص: متاح لك استعراض أسعار البورصة فقط، تعديل وحفظ السجلات الأساسية محجوز لإدارة المنصة."
@@ -1744,7 +1833,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
         )
 
         if st.session_state["user_role"] == "owner":
-            if st.button("✅ تأكيد عملية البيع وخصم Mالمكونات من المستودع"):
+            if st.button("✅ تأكيد عملية البيع وخصم المكونات من المستودع"):
                 can_deduct = True
                 for name, pct in st.session_state["active_formula"].items():
                     if st.session_state["inventory"].get(name, 0.0) < (
@@ -1918,7 +2007,7 @@ with tabs[support_tab_index]:
             )
 
 # ====================================================================
-# 📨 نظام حفظ وأرشفة السورس كود - مؤمن بالكامل لبريد المالك فقط
+# 1. نظام حفظ وأرشفة السورس كود - مؤمن بالكامل لبريد المالك فقط
 # ====================================================================
 if st.session_state["user_role"] == "owner":
     st.markdown(
