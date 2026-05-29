@@ -2176,7 +2176,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
         with col_chart2:
             st.subheader("📈 اتجاه أسعار المواد الخام")
             # بيانات تجريبية
-            dates = pd.date_range(start='2024-01-01', periods=12, freq='M')
+            dates = pd.date_range(start='2024-01-01', periods=12, freq='ME')
             price_trend = pd.DataFrame({
                 'التاريخ': dates,
                 'الذرة': [220, 225, 230, 228, 235, 240, 238, 242, 245, 248, 250, 252],
