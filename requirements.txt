@@ -1,10 +1,1 @@
-streamlit
-scipy
-plotly
-pulp
-pandas
-numpy
-fpdf2
-reportlab
-arabic-reshaper
-python-bidi
+AttributeError: module 'streamlit' has no attribute 'toast'
