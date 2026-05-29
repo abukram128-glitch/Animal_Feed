@@ -367,9 +367,7 @@ class ProfessionalPDFGenerator:
     
     buffer.seek(0)
     return buffer.getvalue()
-        box-shadow: 0px 8px 25px rgba(0,0,0,0.1);
-    }
-    
+        
     .profile-img-style {
         width: 150px;
         height: 150px;
