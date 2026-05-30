@@ -337,37 +337,139 @@ class ProfessionalPDFGenerator:
         ingredients_data = [['الوزن (كجم/طن)', 'النسبة المئوية', 'المكون']]
         for ingredient, percentage in formula.items():
             ingredients_data.append([
-                def generate_comprehensive_report(
-    self, 
-    formula: Dict[str, float], 
-    target_dp: float, 
-    breed: str, 
-    cost: float, 
-    city: str, 
-    local_cost: float, 
-    local_sym: str, 
-    computed_se: float,
-    include_charts: bool = True
-) -> bytes:
-    """توليد تقرير PDF شامل مع رسوم بيانية وجداول"""
-    
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer, 
-        pagesize=A4,
-        rightMargin=72,
-        leftMargin=72,
-        topMargin=72,
-        bottomMargin=72
-    )
-    
-    story = []
-    
-    # ... (كل شيء بينهما) ...
-    
-    buffer.seek(0)
-    return buffer.getvalue()
+                f'{percentage * 10:.1f}',
+                f'{percentage:.2f}%',
+                ingredient
+            ])
         
+        ing_table = Table(ingredients_data, colWidths=[150, 150, 200])
+        ing_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#2e7d32')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), self.font_name),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 1, HexColor('#bdbdbd')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [HexColor('#ffffff'), HexColor('#f5f5f5')])
+        ]))
+        
+        story.append(ing_table)
+        
+        if include_charts and len(formula) > 1:
+            story.append(Spacer(1, 20))
+            
+            # إنشاء رسم بياني
+            fig, ax = plt.subplots(figsize=(8, 4))
+            ingredients = list(formula.keys())
+            values = list(formula.values())
+            
+            colors = ['#1b5e20', '#2e7d32', '#388e3c', '#43a047', '#4caf50', '#66bb6a']
+            ax.pie(values, labels=ingredients, autopct='%1.1f%%', colors=colors[:len(ingredients)])
+            ax.set_title('توزيع المكونات في الخلطة', fontsize=14, fontweight='bold')
+            
+            # حفظ الرسم في ملف مؤقت
+            chart_buffer = io.BytesIO()
+            plt.savefig(chart_buffer, format='png', dpi=150, bbox_inches='tight')
+            plt.close()
+            chart_buffer.seek(0)
+            
+            # إضافة الرسم للتقرير
+            img = Image(chart_buffer, width=400, height=200)
+            story.append(img)
+        
+        # إضافة تذييل
+        story.append(Spacer(1, 30))
+        story.append(HRFlowable(width="100%", thickness=1, color=HexColor('#2e7d32')))
+        story.append(Paragraph(
+            arabic_processor.fix_arabic_text(
+                "تم التوليد تلقائياً بواسطة منصة تاور العلمية © 2026 | تحت إشراف م. عبد القادر إسماعيل تاور"
+            ),
+            self.styles['small']
+        ))
+        
+        # بناء PDF
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+pdf_generator = ProfessionalPDFGenerator()
+
+# --- تحسين الـ CSS لضمان التباين وقابلية القراءة الفخمة الحداثية ---
+st.markdown(
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap');
+    
+    * {
+        font-family: 'Cairo', 'Tajawal', sans-serif;
+    }
+    
+    html, body, [data-testid="stAppViewContainer"] {
+        background-image: url("https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600&auto=format&fit=crop");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+    
+    .stApp { 
+        background: transparent; 
+    }
+    
+    .main-box {
+        background-color: rgba(255, 255, 255, 0.98);
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.18);
+        margin-bottom: 50px;
+        backdrop-filter: blur(10px);
+    }
+    
+    h1, h2, h3, h4, h5, p, span, li { 
+        font-family: 'Cairo', sans-serif; 
+    }
+    
+    .formula-item {
+        background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(232,245,233,0.9) 100%);
+        padding: 15px 20px;
+        border-radius: 12px;
+        margin-bottom: 10px;
+        font-weight: bold;
+        color: #1b5e20 !important;
+        border-right: 5px solid #2e7d32;
+        box-shadow: 0px 4px 15px rgba(0,0,0,0.1);
+        text-align: right;
+        transition: transform 0.3s ease;
+    }
+    
+    .formula-item:hover {
+        transform: translateX(-5px);
+        box-shadow: 0px 6px 20px rgba(0,0,0,0.15);
+    }
+    
+    .section-title {
+        color: #1b5e20;
+        border-right: 6px solid #2e7d32;
+        padding-right: 15px;
+        text-align: right;
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-top: 30px;
+        margin-bottom: 20px;
+        background: linear-gradient(to left, rgba(46,125,50,0.1), transparent);
+        padding: 10px 15px;
+        border-radius: 8px;
+    }
+    
+    .sack-tag {
+        border: 3px dashed #1b5e20;
+        padding: 30px;
+        border-radius: 15px;
+        background: linear-gradient(135deg, #f1f8e9 0%, #e8f5e9 100%);
+        direction: rtl;
+        text-align: right;
+        box-shadow: 0px 8px 25px rgba(0,0,0,0.1);
+    }
+    
     .profile-img-style {
         width: 150px;
         height: 150px;
