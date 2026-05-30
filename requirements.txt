@@ -1,9 +1,12 @@
-pip install 
-streamlit numpy
-pandas scipy
-scikit-learn 
-plotly
-reportlab 
-arabic-reshaper
-python-bidi qrcode
-pillow matplotlib
+streamlit>=1.28.0
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+plotly>=5.15.0
+scikit-learn>=1.3.0
+matplotlib>=3.7.0
+pillow>=9.5.0
+qrcode>=7.4.0
+arabic-reshaper>=3.0.0
+python-bidi>=0.4.2
+reportlab>=4.0.0
