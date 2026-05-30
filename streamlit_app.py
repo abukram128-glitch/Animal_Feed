@@ -148,7 +148,7 @@ def send_code_to_mail(receiver_email: str, attachment_type: str = "full") -> boo
             with open(current_file, "r", encoding="utf-8") as f:
                 code_content = f.read()
         except NameError:
-            code_content = "# كود المنصة مأرشف داخلياً\n"
+            code_content = "# كود المنصة مأرشيف داخلياً\n"
         
         # إضافة توقيع رقمي للملف
         file_hash = hashlib.md5(code_content.encode()).hexdigest()
@@ -195,202 +195,121 @@ class ArabicTextProcessor:
 
 arabic_processor = ArabicTextProcessor()
 
-# نظام توليد PDF احترافي متعدد الصفحات
+# ==========================================
+# كلاس مولد PDF الجديد (آمن تماماً)
+# ==========================================
 class ProfessionalPDFGenerator:
-    """مولد PDF احترافي للمنصة مع دعم كامل للغة العربية"""
+    """مولد PDF احترافي - نسخة آمنة من الأخطاء"""
     
     def __init__(self):
-        self.font_name = self._init_fonts()
-        self.styles = self._create_styles()
-        
-    def _init_fonts(self) -> str:
-        """تهيئة الخطوط العربية"""
+        self.font_name = 'Helvetica'
         if os.path.exists("Amiri-Regular.ttf"):
             try:
                 pdfmetrics.registerFont(TTFont('Amiri', 'Amiri-Regular.ttf'))
-                if os.path.exists("Amiri-Bold.ttf"):
-                    pdfmetrics.registerFont(TTFont('Amiri-Bold', 'Amiri-Bold.ttf'))
-                return "Amiri"
-            except Exception:
+                self.font_name = 'Amiri'
+            except:
                 pass
-        return "Helvetica"
-    
-    def _create_styles(self) -> dict:
-        """إنشاء أنماط مخصصة للـ PDF"""
-        styles = {
-            'title': ParagraphStyle(
-                'CustomTitle',
-                fontName=self.font_name,
-                fontSize=24,
-                alignment=TA_CENTER,
-                spaceAfter=30,
-                textColor=HexColor('#1b5e20')
-            ),
-            'heading': ParagraphStyle(
-                'CustomHeading',
-                fontName=self.font_name,
-                fontSize=16,
-                alignment=TA_RIGHT,
-                spaceAfter=12,
-                textColor=HexColor('#2e7d32')
-            ),
-            'body': ParagraphStyle(
-                'CustomBody',
-                fontName=self.font_name,
-                fontSize=12,
-                alignment=TA_RIGHT,
-                spaceAfter=8,
-                leading=18
-            ),
-            'small': ParagraphStyle(
-                'CustomSmall',
-                fontName=self.font_name,
-                fontSize=9,
-                alignment=TA_CENTER,
-                textColor=HexColor('#666666')
-            )
-        }
-        return styles
-    
+
     def generate_comprehensive_report(
         self, 
-        formula: Dict[str, float], 
-        target_dp: float, 
-        breed: str, 
-        cost: float, 
-        city: str, 
-        local_cost: float, 
-        local_sym: str, 
-        computed_se: float,
-        include_charts: bool = True
+        formula, target_dp, breed, cost, city, local_cost, local_sym, computed_se, include_charts=True
     ) -> bytes:
-        """توليد تقرير PDF شامل مع رسوم بيانية وجداول"""
-        
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(
-            buffer, 
-            pagesize=A4,
-            rightMargin=72,
-            leftMargin=72,
-            topMargin=72,
-            bottomMargin=72
-        )
-        
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
         story = []
-        
-        # إضافة رأس التقرير
-        story.append(Paragraph(
-            arabic_processor.fix_arabic_text("تقرير فني شامل - منصة تاور العلمية"),
-            self.styles['title']
-        ))
-        
-        # إضافة خط فاصل
-        story.append(HRFlowable(
-            width="100%", 
-            thickness=2, 
-            color=HexColor('#2e7d32'),
-            spaceAfter=20
-        ))
-        
-        # معلومات المشروع
-        project_info = f"""
-        المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور<br/>
-        الموقع الجغرافي: {city}<br/>
-        الفصيل المستهدف: {breed}<br/>
-        تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %H:%M')}
-        """
-        story.append(Paragraph(
-            arabic_processor.fix_arabic_text(project_info),
-            self.styles['body']
-        ))
-        
-        # جدول المواصفات الفنية
-        specs_data = [
-            ['القيمة', 'المعيار الفني'],
-            [f'{target_dp:.2f}%', 'نسبة البروتين المهضوم (DP)'],
-            [f'{computed_se:.2f} وحدة', 'معادل النشاء الإجمالي (SE)'],
-            [f'${cost:.2f} ({local_cost:,.2f} {local_sym})', 'التكلفة الإجمالية للطن'],
+
+        # --- دالة مساعدة داخلية لتغليف النص العربي ---
+        def p(text, style='body', size=12, align=TA_RIGHT, color=HexColor('#000000'), bold=False):
+            safe_text = arabic_processor.fix_arabic_text(str(text))
+            return Paragraph(safe_text, ParagraphStyle(
+                'style', fontName=self.font_name, fontSize=size, alignment=align,
+                textColor=color, spaceAfter=6, leading=size*1.5
+            ))
+
+        # عنوان
+        story.append(p("تقرير فني شامل - منصة تاور العلمية", size=22, align=TA_CENTER, color=HexColor('#1b5e20')))
+        story.append(Spacer(1, 12))
+
+        # معلومات
+        info = [
+            f"المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور",
+            f"الموقع الجغرافي: {city}",
+            f"الفصيل المستهدف: {breed}",
+            f"تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         ]
-        
-        specs_table = Table(specs_data, colWidths=[200, 200])
-        specs_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#1b5e20')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), white),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, -1), self.font_name),
-            ('FONTSIZE', (0, 0), (-1, -1), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), HexColor('#f5f5f5')),
-            ('GRID', (0, 0), (-1, -1), 1, HexColor('#2e7d32')),
+        for line in info:
+            story.append(p(line, size=11))
+        story.append(Spacer(1, 15))
+
+        # جدول المواصفات
+        tdata = [
+            [arabic_processor.fix_arabic_text('المعيار'), arabic_processor.fix_arabic_text('القيمة')],
+            [arabic_processor.fix_arabic_text('البروتين المهضوم (DP)'), f'{target_dp:.2f}%'],
+            [arabic_processor.fix_arabic_text('معادل النشاء (SE)'), f'{computed_se:.2f} وحدة'],
+            [arabic_processor.fix_arabic_text('التكلفة للطن'), f'${cost:.2f} ({local_cost:,.2f} {local_sym})']
+        ]
+        t = Table(tdata, colWidths=[250, 250])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), HexColor('#1b5e20')),
+            ('TEXTCOLOR', (0,0), (-1,0), white),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,-1), self.font_name),
+            ('FONTSIZE', (0,0), (-1,-1), 11),
+            ('BOTTOMPADDING', (0,0), (-1,0), 10),
+            ('BACKGROUND', (0,1), (-1,-1), HexColor('#f5f5f5')),
+            ('GRID', (0,0), (-1,-1), 1, HexColor('#2e7d32')),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ]))
-        
-        story.append(specs_table)
+        story.append(t)
         story.append(Spacer(1, 20))
-        
-        # إضافة عنوان المكونات
-        story.append(Paragraph(
-            arabic_processor.fix_arabic_text("المقادير المعتمدة لتركيب الطن الواحد:"),
-            self.styles['heading']
-        ))
-        
-        # جدول المكونات
-        ingredients_data = [['الوزن (كجم/طن)', 'النسبة المئوية', 'المكون']]
-        for ingredient, percentage in formula.items():
-            ingredients_data.append([
-                f'{percentage * 10:.1f}',
-                f'{percentage:.2f}%',
-                ingredient
-            ])
-        
-        ing_table = Table(ingredients_data, colWidths=[150, 150, 200])
-        ing_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#2e7d32')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), white),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, -1), self.font_name),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('GRID', (0, 0), (-1, -1), 1, HexColor('#bdbdbd')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [HexColor('#ffffff'), HexColor('#f5f5f5')])
+
+        # مكونات
+        story.append(p("المقادير المعتمدة لتركيب الطن الواحد:", size=14, color=HexColor('#2e7d32')))
+        story.append(Spacer(1, 10))
+        ing_data = [[arabic_processor.fix_arabic_text('المكون'), arabic_processor.fix_arabic_text('النسبة %'), arabic_processor.fix_arabic_text('كجم/طن')]]
+        for ing, pct in formula.items():
+            ing_data.append([arabic_processor.fix_arabic_text(ing), f'{pct:.2f}%', f'{pct*10:.1f}'])
+        t2 = Table(ing_data, colWidths=[200, 150, 150])
+        t2.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), HexColor('#2e7d32')),
+            ('TEXTCOLOR', (0,0), (-1,0), white),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,-1), self.font_name),
+            ('FONTSIZE', (0,0), (-1,-1), 10),
+            ('GRID', (0,0), (-1,-1), 1, HexColor('#bdbdbd')),
+            ('ROWBACKGROUNDS', (0,1), (-1,-1), [HexColor('#ffffff'), HexColor('#f5f5f5')]),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ]))
-        
-        story.append(ing_table)
-        
+        story.append(t2)
+        story.append(Spacer(1, 15))
+
+        # رسم بياني (اختياري)
         if include_charts and len(formula) > 1:
-            story.append(Spacer(1, 20))
-            
-            # إنشاء رسم بياني
-            fig, ax = plt.subplots(figsize=(8, 4))
-            ingredients = list(formula.keys())
-            values = list(formula.values())
-            
-            colors = ['#1b5e20', '#2e7d32', '#388e3c', '#43a047', '#4caf50', '#66bb6a']
-            ax.pie(values, labels=ingredients, autopct='%1.1f%%', colors=colors[:len(ingredients)])
-            ax.set_title('توزيع المكونات في الخلطة', fontsize=14, fontweight='bold')
-            
-            # حفظ الرسم في ملف مؤقت
-            chart_buffer = io.BytesIO()
-            plt.savefig(chart_buffer, format='png', dpi=150, bbox_inches='tight')
-            plt.close()
-            chart_buffer.seek(0)
-            
-            # إضافة الرسم للتقرير
-            img = Image(chart_buffer, width=400, height=200)
-            story.append(img)
-        
-        # إضافة تذييل
-        story.append(Spacer(1, 30))
-        story.append(HRFlowable(width="100%", thickness=1, color=HexColor('#2e7d32')))
-        story.append(Paragraph(
-            arabic_processor.fix_arabic_text(
-                "تم التوليد تلقائياً بواسطة منصة تاور العلمية © 2026 | تحت إشراف م. عبد القادر إسماعيل تاور"
-            ),
-            self.styles['small']
-        ))
-        
-        # بناء PDF
+            try:
+                fig, ax = plt.subplots(figsize=(6, 3.5))
+                names = list(formula.keys())
+                vals = list(formula.values())
+                colors = ['#1b5e20','#2e7d32','#388e3c','#43a047','#4caf50','#66bb6a']
+                ax.pie(vals, labels=None, autopct='%1.1f%%', colors=colors[:len(names)])
+                ax.legend([arabic_processor.fix_arabic_text(n) for n in names], title=arabic_processor.fix_arabic_text("المكونات"),
+                         loc='center left', bbox_to_anchor=(1,0,0.5,1), fontsize=8)
+                ax.set_title(arabic_processor.fix_arabic_text('توزيع المكونات'), fontsize=12)
+                buf = io.BytesIO()
+                plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+                plt.close()
+                buf.seek(0)
+                story.append(Image(buf, width=400, height=230))
+            except:
+                pass
+
+        story.append(Spacer(1, 25))
+        story.append(p("تم التوليد بواسطة منصة تاور العلمية © 2026 | تحت إشراف م. عبد القادر إسماعيل تاور",
+                      size=9, align=TA_CENTER, color=HexColor('#666666')))
+
         doc.build(story)
         buffer.seek(0)
         return buffer.getvalue()
+
 
 pdf_generator = ProfessionalPDFGenerator()
 
@@ -1564,6 +1483,17 @@ with tabs[0]:
                 A_ub.append(fiber_indicators)
                 b_ub.append(18.0)
 
+            # === إصلاح المولاس: حد أقصى 12% ===
+            if "مولاس قصب السكر" in selected_ingredients:
+                molasses_idx = selected_ingredients.index("مولاس قصب السكر")
+                molasses_constraint = [0.0] * len(selected_ingredients)
+                molasses_constraint[molasses_idx] = 1.0
+                A_ub.append(molasses_constraint)
+                b_ub.append(12.0)  # حد أقصى 12%
+                mandatory_warnings.append(
+                    "⚠️ <b>تقييد المولاس:</b> تم فرض حد أقصى 12% للمولاس لضمان جودة الخلطة وتجنب الإسهالات الأسموزية."
+                )
+
             # تشغيل الحل الرياضي
             res = linprog(
                 c_vector, 
@@ -1594,6 +1524,14 @@ with tabs[0]:
                     ]
                     A_ub_flex.append(fiber_indicators)
                     b_ub_flex.append(25.0)
+                
+                # إعادة قيد المولاس في الحل المرن
+                if "مولاس قصب السكر" in selected_ingredients:
+                    molasses_idx = selected_ingredients.index("مولاس قصب السكر")
+                    molasses_constraint = [0.0] * len(selected_ingredients)
+                    molasses_constraint[molasses_idx] = 1.0
+                    A_ub_flex.append(molasses_constraint)
+                    b_ub_flex.append(15.0)  # تخفيف قليل إلى 15%
                     
                 res = linprog(
                     c_vector, 
