@@ -1,3 +1,6 @@
+# Digital Signature: 3495cb0eef8355d2f9b0ff82e16e98fb
+# Generated: 2026-05-30T22:57:38.541717
+
 # Digital Signature: (سيتم توليده تلقائياً)
 # Generated: 2026-05-31T12:00:00
 
@@ -114,13 +117,14 @@ def send_code_to_mail(receiver_email: str, attachment_type: str = "full") -> boo
     body = """السلام عليكم م. عبد القادر،
 
 مرفق مع هذه الرسالة النسخة البرمجية الكاملة والمستقرة لمنصتكم الذكية (منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف) 
-بعد تحديث الدليل والواجهات بالكامل وتضمين معايير البروتين المهضوم ومعادل النشاء.
+بعد تحديث الدليل والواجهات بالكامل وتضمين معايير البروتين المهضوم ومعادل النشاء ونظام إدارة مزارع الدجاج اللاحم.
 
 التحسينات الجديدة:
 - نظام تحليلات متقدم مع رسوم بيانية تفاعلية
 - لوحة تحكم ذكية للمخازن
 - نظام تنبؤات الأسعار
 - محسن PDF متعدد الصفحات
+- إدارة مزارع الدجاج اللاحم (خاص بالمالك) مع حساب KPIs و EPEF
 
 تحياتي الهندسية."""
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
@@ -249,6 +253,84 @@ class ProfessionalPDFGenerator:
         return buffer.getvalue()
 
 pdf_generator = ProfessionalPDFGenerator()
+
+# ==========================================
+# كلاس إدارة مزارع الدجاج اللاحم (جديد - خاص بالمالك)
+# ==========================================
+class BroilerFarmManager:
+    @staticmethod
+    def calculate_adg(current_weight_g: float, initial_weight_g: float, age_days: int) -> float:
+        """معدل النمو اليومي (ADG) بالجرام"""
+        if age_days <= 0:
+            return 0.0
+        return (current_weight_g - initial_weight_g) / age_days
+
+    @staticmethod
+    def calculate_fcr(total_feed_kg: float, total_weight_gain_kg: float) -> float:
+        """معامل التحويل الغذائي (FCR)"""
+        if total_weight_gain_kg <= 0:
+            return 0.0
+        return total_feed_kg / total_weight_gain_kg
+
+    @staticmethod
+    def calculate_mortality_rate(dead_count: int, initial_count: int) -> float:
+        """نسبة النفوق المئوية"""
+        if initial_count <= 0:
+            return 0.0
+        return (dead_count / initial_count) * 100.0
+
+    @staticmethod
+    def calculate_cull_rate(culled_count: int, initial_count: int) -> float:
+        """نسبة الاستبعاد المئوية"""
+        if initial_count <= 0:
+            return 0.0
+        return (culled_count / initial_count) * 100.0
+
+    @staticmethod
+    def calculate_livability(initial_count: int, dead_count: int) -> float:
+        """الحيوية (Livability) = 100 - نسبة النفوق"""
+        return 100.0 - BroilerFarmManager.calculate_mortality_rate(dead_count, initial_count)
+
+    @staticmethod
+    def calculate_epef(livability: float, body_weight_kg: float, age_days: int, fcr: float) -> float:
+        """مؤشر الأداء الأوروبي EPEF"""
+        if age_days <= 0 or fcr <= 0:
+            return 0.0
+        return (livability * body_weight_kg) / (age_days * fcr) * 100.0
+
+    @staticmethod
+    def get_temp_humidity_table():
+        """جدول الحرارة والرطوبة الموصى بها حسب عمر الطيور (أيام)"""
+        data = {
+            "العمر (يوم)": [1, 7, 14, 21, 28, 35, 42],
+            "درجة الحرارة (مئوي)": [33, 30, 28, 26, 24, 22, 21],
+            "الرطوبة النسبية (%)": [65, 65, 65, 60, 60, 55, 55]
+        }
+        return pd.DataFrame(data)
+
+# ==========================================
+# تهيئة حالة جلسة إدارة الدجاج اللاحم (خاص بالمالك)
+# ==========================================
+if "broiler_farm_data" not in st.session_state:
+    st.session_state["broiler_farm_data"] = {
+        "farm_name": "مزرعة الدجاج اللاحم",
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "flock_age_days": 21,
+        "initial_birds": 10000,
+        "current_weight_kg": 0.950,
+        "initial_weight_kg": 0.045,
+        "total_feed_consumed_kg": 18500.0,
+        "total_water_consumed_l": 0.0,
+        "dead_birds": 120,
+        "culled_birds": 15,
+        "temperature_c": 26.0,
+        "humidity_percent": 60.0,
+        "ventilation_status": "جيدة",
+        "litter_quality": "جيدة",
+        "notes": ""
+    }
+if "broiler_cycles_history" not in st.session_state:
+    st.session_state["broiler_cycles_history"] = []  # قائمة لتخزين الدورات السابقة
 
 # --- CSS (بدون تغيير) ---
 st.markdown(
@@ -569,7 +651,7 @@ if not st.session_state["login_welcome_shown"]:
     st.session_state["login_welcome_shown"] = True
 
 # =========================================================================================
-# 3. المكتبة والمتغيرات
+# 3. المكتبة والمتغيرات (نفس السابق)
 # =========================================================================================
 BIG_FEEDS_LIBRARY = {
     "🌾 الحبوب ومصادر الطاقة الكبرى": {
@@ -815,6 +897,7 @@ share_text_payload = """📢 دعوة علمية وتسويقية من منصة 
 • أدوات دقيقة لحساب الاحتياجات الغذائية بما يضمن أعلى معدلات نمو وإنتاجية.
 • دعم كامل للعمل الميداني والبحث العلمي والخصم التلقائي للمستودعات في مكان واحد.
 • نظام تحليلات متقدم وتقارير PDF احترافية
+• إدارة مزارع الدجاج اللاحم مع حساب KPIs و EPEF (خاص بالمالك)
 
 🔗 رابط المنصة: [ضع رابط موقعك هنا]"""
 st.text_area("النص الدعائي والإعلامي الجاهز للنشر:", value=share_text_payload, height=140, key="top_share_box")
@@ -829,22 +912,25 @@ with col_share:
 st.markdown("---")
 
 welcome_messages = {
-    "owner": {"bg": "#eff6ff", "border": "#1d4ed8", "text": "👑 أهلاً بك في منصتك، الاختصاصي م. عبد القادر إسماعيل تاور. نظام التوازن الدقيق بالبروتين المهضوم ومعادل النشاء قيد التشغيل الآن بكفاءة متناهية."},
+    "owner": {"bg": "#eff6ff", "border": "#1d4ed8", "text": "👑 أهلاً بك في منصتك، الاختصاصي م. عبد القادر إسماعيل تاور. نظام التوازن الدقيق بالبروتين المهضوم ومعادل النشاء قيد التشغيل الآن بكفاءة متناهية. كما تم تفعيل إدارة مزارع الدجاج اللاحم."},
     "specialist": {"bg": "#f0fdf4", "border": "#16a34a", "text": "🔬 مرحباً بكم في منصة تركيب وتحليل الأعلاف الذكية. يسعد الاختصاصي م. عبد القادر إسماعيل تاور بالترحيب بالزملاء من الأطباء البيطريين ومختصي الإنتاج الحيواني."},
     "breeder": {"bg": "#fffbeb", "border": "#d97706", "text": "🚜 أهلاً وسهلاً بكم في منصة تاور العلمية. نرحب بإخواننا المربين. نوفر لكم خلطات مبنية على القيمة الغذائية الحقيقية الممتصة لضمان التوفير المالي العالي."}
 }
 current_welcome = welcome_messages.get(st.session_state["user_role"], welcome_messages["breeder"])
 st.markdown(f"""<div style='background-color: {current_welcome["bg"]}; padding: 15px; border-radius: 8px; border-right: 5px solid {current_welcome["border"]}; text-align: right; direction: rtl; margin-bottom: 20px;'><b>{current_welcome["text"]}</b></div>""", unsafe_allow_html=True)
 
-if st.session_state["user_role"] in ["owner", "specialist"]:
+# تحديد التبويبات (مع إضافة تبويب إدارة الدجاج اللاحم للمالك فقط)
+if st.session_state["user_role"] == "owner":
+    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📊 بورصة الأسعار المركزية", "🏭 إدارة المستودعات الذكية", "🧾 التسويق وفواتير البيع", "🖨️ مصمم الديباجة والدعاية", "📈 التحليلات المتقدمة", "🐔 إدارة مزارع الدجاج اللاحم (Broiler) – خاص بالمالك", "💬 تعليقات المختصين", "📖 دليل المستخدم"]
+elif st.session_state["user_role"] == "specialist":
     tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📊 بورصة الأسعار المركزية", "🏭 إدارة المستودعات الذكية", "🧾 التسويق وفواتير البيع", "🖨️ مصمم الديباجة والدعاية", "📈 التحليلات المتقدمة", "💬 تعليقات المختصين", "📖 دليل المستخدم"]
-else:
+else:  # breeder
     tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📖 دليل المستخدم"]
 
 tabs = st.tabs(tabs_titles)
 
 # -------------------------------------------------------------------------
-# التبويب الأول: الحسابات والتركيبات
+# التبويب الأول: الحسابات والتركيبات (نفس السابق)
 # -------------------------------------------------------------------------
 with tabs[0]:
     sub_tab_formulator, sub_tab_analyzer = st.tabs(["🎯 تركيب علفة نموذجية (أقل تكلفة بالبروتين المهضوم)", "🔬 مختبر تحليل وفحص الأعلاف الجاهزة"])
@@ -1500,7 +1586,203 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
         fig = px.scatter(heatmap_data, x='البروتين', y='التكلفة', size='الكفاءة', color='القطاع', hover_name='القطاع', title='علاقة البروتين بالتكلفة حسب القطاع', size_max=30)
         st.plotly_chart(fig, use_container_width=True)
 
+# -----------------------------------------------------------------
+# تبويب إدارة مزارع الدجاج اللاحم (خاص بالمالك فقط)
+# -----------------------------------------------------------------
+if st.session_state["user_role"] == "owner":
+    # التبويب رقم 6 للمالك (حسب ترتيب tabs_titles أعلاه)
     with tabs[6]:
+        st.markdown('<div class="section-title">🐔 إدارة مزارع الدجاج اللاحم (Broiler Management) – خاص بالمالك</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div style='background-color: #f0fdf4; padding: 15px; border-radius: 12px; border-right: 5px solid #16a34a; margin-bottom: 20px;'>
+        <b>📘 دليل سريع:</b> استخدم هذا التبويب لتسجيل ومتابعة مؤشرات الأداء الرئيسية (KPIs) لدورة التسمين. أدخل البيانات الحالية لقطيعك وسيقوم النظام بحساب ADG، FCR، EPEF، ونسب النفوق والاستبعاد تلقائياً. هذا القسم متاح فقط لمالك المنصة.
+        </div>
+        """, unsafe_allow_html=True)
+
+        # عمودان رئيسيان: المدخلات (يمين) والمخرجات (يسار)
+        col_inputs, col_outputs = st.columns([0.5, 0.5])
+
+        with col_inputs:
+            st.markdown("#### 📝 بيانات القطيع الحالية")
+            farm_name = st.text_input("اسم المزرعة / الدورة", value=st.session_state["broiler_farm_data"]["farm_name"], key="bf_farm_name")
+            flock_age = st.number_input("عمر القطيع (يوم)", min_value=1, max_value=60, value=st.session_state["broiler_farm_data"]["flock_age_days"], step=1, key="bf_age")
+            initial_birds = st.number_input("عدد الكتاكيت المستلمة (طير)", min_value=1, value=st.session_state["broiler_farm_data"]["initial_birds"], step=100, key="bf_initial")
+            dead_birds = st.number_input("عدد الطيور النافقة حتى الآن", min_value=0, value=st.session_state["broiler_farm_data"]["dead_birds"], step=1, key="bf_dead")
+            culled_birds = st.number_input("الطيور المستبعدة (مريضة / ضعيفة)", min_value=0, value=st.session_state["broiler_farm_data"]["culled_birds"], step=1, key="bf_culled")
+
+            st.markdown("#### ⚖️ الأوزان والاستهلاك")
+            avg_weight_kg = st.number_input("متوسط الوزن الحي الحالي (كجم)", min_value=0.0, value=st.session_state["broiler_farm_data"]["current_weight_kg"], step=0.05, format="%.3f", key="bf_weight")
+            initial_weight_kg = st.number_input("متوسط وزن الكتكوت عند الاستلام (كجم)", min_value=0.030, value=st.session_state["broiler_farm_data"]["initial_weight_kg"], step=0.005, format="%.3f", key="bf_init_wt")
+            total_feed_kg = st.number_input("إجمالي العلف المستهلك حتى الآن (كجم)", min_value=0.0, value=st.session_state["broiler_farm_data"]["total_feed_consumed_kg"], step=100.0, key="bf_feed")
+            water_consumption_l = st.number_input("استهلاك المياه التراكمي (لتر) - اختياري", min_value=0.0, value=st.session_state["broiler_farm_data"]["total_water_consumed_l"], step=100.0, key="bf_water")
+
+            st.markdown("#### 🌡️ الظروف البيئية")
+            temp_c = st.number_input("درجة الحرارة داخل العنبر (مئوي)", min_value=10.0, max_value=45.0, value=st.session_state["broiler_farm_data"]["temperature_c"], step=0.5, key="bf_temp")
+            humidity = st.number_input("الرطوبة النسبية (%)", min_value=20.0, max_value=90.0, value=st.session_state["broiler_farm_data"]["humidity_percent"], step=1.0, key="bf_hum")
+            ventilation = st.selectbox("حالة التهوية", ["سيئة", "مقبولة", "جيدة", "ممتازة"], index=["سيئة", "مقبولة", "جيدة", "ممتازة"].index(st.session_state["broiler_farm_data"]["ventilation_status"]), key="bf_vent")
+            litter = st.selectbox("جودة الفرشة", ["سيئة", "مقبولة", "جيدة", "ممتازة"], index=["سيئة", "مقبولة", "جيدة", "ممتازة"].index(st.session_state["broiler_farm_data"]["litter_quality"]), key="bf_litter")
+
+            notes = st.text_area("ملاحظات إضافية (الأمراض، الأدوية، إلخ)", value=st.session_state["broiler_farm_data"]["notes"], key="bf_notes")
+
+            # حفظ التغييرات في الجلسة
+            if st.button("💾 حفظ بيانات القطيع", use_container_width=True, type="primary", key="bf_save"):
+                st.session_state["broiler_farm_data"].update({
+                    "farm_name": farm_name,
+                    "flock_age_days": flock_age,
+                    "initial_birds": initial_birds,
+                    "dead_birds": dead_birds,
+                    "culled_birds": culled_birds,
+                    "current_weight_kg": avg_weight_kg,
+                    "initial_weight_kg": initial_weight_kg,
+                    "total_feed_consumed_kg": total_feed_kg,
+                    "total_water_consumed_l": water_consumption_l,
+                    "temperature_c": temp_c,
+                    "humidity_percent": humidity,
+                    "ventilation_status": ventilation,
+                    "litter_quality": litter,
+                    "notes": notes,
+                    "date": datetime.now().strftime("%Y-%m-%d %H:%M")
+                })
+                st.success("تم حفظ بيانات الدورة الحالية بنجاح!")
+                st.rerun()
+
+        with col_outputs:
+            # استخراج البيانات المحفوظة
+            data = st.session_state["broiler_farm_data"]
+            age = data["flock_age_days"]
+            initial = data["initial_birds"]
+            dead = data["dead_birds"]
+            culled = data["culled_birds"]
+            current_wt = data["current_weight_kg"]
+            init_wt = data["initial_weight_kg"]
+            total_feed = data["total_feed_consumed_kg"]
+            water = data["total_water_consumed_l"]
+
+            # حساب المؤشرات
+            total_birds_alive = initial - dead - culled
+            total_weight_gain_kg = total_birds_alive * (current_wt - init_wt) if total_birds_alive > 0 else 0
+            adg_g = BroilerFarmManager.calculate_adg(current_wt * 1000, init_wt * 1000, age) if age > 0 else 0.0
+            fcr = BroilerFarmManager.calculate_fcr(total_feed, total_weight_gain_kg) if total_weight_gain_kg > 0 else 0.0
+            mortality_rate = BroilerFarmManager.calculate_mortality_rate(dead, initial)
+            cull_rate = BroilerFarmManager.calculate_cull_rate(culled, initial)
+            livability = BroilerFarmManager.calculate_livability(initial, dead)
+            epef = BroilerFarmManager.calculate_epef(livability, current_wt, age, fcr)
+
+            # عرض بطاقات KPIs
+            st.markdown("#### 📊 مؤشرات الأداء الرئيسية (KPIs)")
+            kpi_cols = st.columns(3)
+            kpi_cols[0].metric("📈 الوزن الحي الحالي (كجم)", f"{current_wt:.3f}", delta=f"{((current_wt - init_wt)/init_wt*100):.1f}% منذ الاستلام")
+            kpi_cols[1].metric("📅 معدل النمو اليومي ADG (جم)", f"{adg_g:.1f}", delta=None)
+            kpi_cols[2].metric("🔄 معامل التحويل FCR", f"{fcr:.2f}", delta=None if fcr == 0 else ("ممتاز" if fcr < 1.6 else "جيد" if fcr < 1.8 else "مرتفع"))
+            
+            kpi_cols2 = st.columns(3)
+            kpi_cols2[0].metric("💀 نسبة النفوق (%)", f"{mortality_rate:.2f}%", delta=f"-{mortality_rate:.1f}%")
+            kpi_cols2[1].metric("🚫 نسبة الاستبعاد (%)", f"{cull_rate:.2f}%", delta=None)
+            kpi_cols2[2].metric("❤️ الحيوية (Livability)", f"{livability:.1f}%", delta=None)
+            
+            kpi_cols3 = st.columns(2)
+            kpi_cols3[0].metric("🏆 مؤشر الأداء الأوروبي EPEF", f"{epef:.0f}", delta="مرجع: >300 ممتاز" if epef > 300 else "تحتاج تحسين")
+            if water > 0:
+                water_to_feed = water / total_feed if total_feed > 0 else 0
+                kpi_cols3[1].metric("💧 نسبة الماء إلى العلف", f"{water_to_feed:.2f}", delta="مثالي 1.6-2.0" if 1.6 <= water_to_feed <= 2.0 else "مرتفع/منخفض")
+            else:
+                kpi_cols3[1].metric("💧 استهلاك الماء", "لم يدخل", delta=None)
+
+            # جدول الحرارة والرطوبة المرجعي
+            st.markdown("#### 🌡️ جدول الحرارة والرطوبة المرجعي حسب العمر")
+            temp_hum_df = BroilerFarmManager.get_temp_humidity_table()
+            st.dataframe(temp_hum_df, use_container_width=True, hide_index=True)
+            
+            # تقييم الظروف الحالية مقابل الجدول
+            closest_age = temp_hum_df.iloc[(temp_hum_df['العمر (يوم)'] - age).abs().argsort()[:1]].iloc[0]
+            rec_temp = closest_age['درجة الحرارة (مئوي)']
+            rec_hum = closest_age['الرطوبة النسبية (%)']
+            temp_ok = abs(temp_c - rec_temp) <= 2
+            hum_ok = abs(humidity - rec_hum) <= 10
+            if not temp_ok or not hum_ok:
+                st.warning(f"⚠️ درجة الحرارة الحالية ({temp_c}°C) أو الرطوبة ({humidity}%) خارج النطاق الموصى به لعمر {age} يوم (موصى: {rec_temp}°C, {rec_hum}% رطوبة).")
+
+            # تقرير يومي للمزرعة
+            st.markdown("#### 📋 تقرير يومي للمزرعة (Daily Farm Report)")
+            report_lines = [
+                f"📅 التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                f"🏷️ اسم المزرعة: {data['farm_name']}",
+                f"📊 عمر القطيع: {age} يوم",
+                f"🐔 عدد الطيور الحية: {total_birds_alive:,} من أصل {initial:,}",
+                f"⚖️ متوسط الوزن: {current_wt:.3f} كجم",
+                f"📈 معدل النمو اليومي: {adg_g:.1f} جم/يوم",
+                f"🔄 معامل التحويل: {fcr:.2f}",
+                f"💀 النفوق التراكمي: {dead} طير ({mortality_rate:.2f}%)",
+                f"🚫 الاستبعاد: {culled} طير ({cull_rate:.2f}%)",
+                f"❤️ الحيوية: {livability:.1f}%",
+                f"🏆 مؤشر EPEF: {epef:.0f}",
+                f"🌡️ درجة الحرارة: {temp_c}°C (الموصى: {rec_temp}°C)",
+                f"💧 الرطوبة: {humidity}% (الموصى: {rec_hum}%)",
+                f"💨 التهوية: {ventilation}",
+                f"🌾 جودة الفرشة: {litter}",
+                f"📝 ملاحظات: {notes if notes else 'لا توجد'}"
+            ]
+            report_text = "\n".join(report_lines)
+            st.text_area("نص التقرير", value=report_text, height=300, disabled=True)
+            
+            col_report_share, col_report_save = st.columns(2)
+            with col_report_share:
+                encoded_report = urllib.parse.quote(report_text[:1500])  # واتساب حد أقصى
+                st.link_button("📲 مشاركة التقرير عبر واتساب", f"https://wa.me/?text={encoded_report}", use_container_width=True)
+            with col_report_save:
+                if st.button("➕ حفظ الدورة الحالية في السجل", use_container_width=True):
+                    # إضافة نسخة من البيانات الحالية مع timestamp
+                    cycle_copy = data.copy()
+                    cycle_copy["saved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    cycle_copy["kpis"] = {
+                        "ADG_g": adg_g,
+                        "FCR": fcr,
+                        "Mortality_%": mortality_rate,
+                        "Cull_%": cull_rate,
+                        "Livability_%": livability,
+                        "EPEF": epef
+                    }
+                    st.session_state["broiler_cycles_history"].insert(0, cycle_copy)  # الأحدث أولاً
+                    if len(st.session_state["broiler_cycles_history"]) > 10:
+                        st.session_state["broiler_cycles_history"] = st.session_state["broiler_cycles_history"][:10]
+                    st.success("تم حفظ الدورة في سجل التاريخ!")
+                    st.rerun()
+            
+            # عرض تاريخ الدورات السابقة
+            if st.session_state["broiler_cycles_history"]:
+                st.markdown("#### 📜 تاريخ الدورات السابقة (آخر 10)")
+                history_df = pd.DataFrame([{
+                    "التاريخ": c["saved_at"],
+                    "المزرعة": c["farm_name"],
+                    "العمر": c["flock_age_days"],
+                    "الوزن كجم": c["current_weight_kg"],
+                    "FCR": c["kpis"]["FCR"],
+                    "EPEF": c["kpis"]["EPEF"],
+                    "نسبة النفوق%": c["kpis"]["Mortality_%"]
+                } for c in st.session_state["broiler_cycles_history"]])
+                st.dataframe(history_df, use_container_width=True, hide_index=True)
+                
+                # زر لتحميل دورة سابقة
+                selected_cycle = st.selectbox("تحميل دورة سابقة للاطلاع", range(len(st.session_state["broiler_cycles_history"])), format_func=lambda i: f"{st.session_state['broiler_cycles_history'][i]['farm_name']} - {st.session_state['broiler_cycles_history'][i]['saved_at']}")
+                if st.button("تحميل الدورة المحددة"):
+                    st.session_state["broiler_farm_data"] = st.session_state["broiler_cycles_history"][selected_cycle].copy()
+                    # إزالة المفاتيح الإضافية التي لا نحتاجها في المدخلات
+                    for k in ["saved_at", "kpis"]:
+                        if k in st.session_state["broiler_farm_data"]:
+                            del st.session_state["broiler_farm_data"][k]
+                    st.success("تم تحميل الدورة، قم بمراجعة البيانات واستخدم زر الحفظ إذا أردت التعديل.")
+                    st.rerun()
+
+# -----------------------------------------------------------------
+# تبويب تعليقات المختصين (للمالك والمختص)
+# -----------------------------------------------------------------
+if st.session_state["user_role"] in ["owner", "specialist"]:
+    # تبويب تعليقات المختصين يختلف رقمه حسب وجود تبويب الدجاج من عدمه
+    if st.session_state["user_role"] == "owner":
+        comments_tab_index = 7
+    else:
+        comments_tab_index = 6
+    with tabs[comments_tab_index]:
         st.markdown('<div class="section-title">💬 قناة التواصل والتعليقات الفنية</div>', unsafe_allow_html=True)
         st.markdown("### 📝 دفتر الملاحظات الفنية المشتركة:")
         st.text_area("التعليقات الحالية:", value=st.session_state["shared_comments"], height=200, disabled=True)
@@ -1516,9 +1798,17 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                     time.sleep(0.5)
                     st.rerun()
 
-# دليل المستخدم
-support_tab_index = 7 if st.session_state["user_role"] in ["owner", "specialist"] else 1
-with tabs[support_tab_index]:
+# -----------------------------------------------------------------
+# تبويب دليل المستخدم (آخر تبويب)
+# -----------------------------------------------------------------
+if st.session_state["user_role"] == "owner":
+    guide_tab_index = 8
+elif st.session_state["user_role"] == "specialist":
+    guide_tab_index = 7
+else:
+    guide_tab_index = 2
+
+with tabs[guide_tab_index]:
     st.markdown('<div class="section-title">📖 كتيب دليل المستخدم والتقانة الفنية</div>', unsafe_allow_html=True)
     col_guide, col_actions = st.columns([0.65, 0.35])
     with col_guide:
@@ -1526,7 +1816,8 @@ with tabs[support_tab_index]:
         <div class="book-chapter">📌 الرؤية التقنية والهندسية للمنصة</div><div class="book-body">تعتمد <b>منصة تاور العلمية</b> على معايير التغذية الدقيقة المعتمدة عالمياً. يتم صياغة قيود الاستمثال الخطي عبر مكتبة <code>SciPy</code> بالاعتماد على <b>البروتين المهضوم الحقيقي (Digestible Protein)</b> كحاصل ضرب نسبة البروتين الخام في معامل الهضم العضوي لكل خامة، بالتكامل مع قيود <b>معادل النشاء (Starch Equivalent)</b> لتقييم كفاءة طاقة العلف.</div>
         <div class="book-chapter">📌 خارطة المكونات (Ingredients Matrix)</div><div class="book-body">تم تصنيف المواد العلفية داخل المنصة بمرونة تامة لتشمل:<br>1. <b>الحبوب ومصادر الطاقة:</b> الذرة البيضاء وسورجم الفتريتة.<br>2. <b>الأكساب والبروتينات:</b> كسب زهرة الشمس، كسب فول الصويا.<br>3. <b>الإضافات والأملاح:</b> بريمكسات، أحماض أمينية نقية.</div>
         <div class="book-chapter">📌 القطاعات الإنتاجية المتخصصة</div><div class="book-body">• <b>قطاع الأغنام والماعز:</b> فصل برمجي ذكي بين الذكور والإناث.<br>• <b>قطاع الدواجن:</b> دواجن التسمين، البياض، والسمان.<br>• <b>قطاع المجترات:</b> تسمين لحوم أو غزارة إدرار الألبان.<br>• <b>قطاع الخيول:</b> طاقة الجري أو أمهار نامية.</div>
-        <div class="book-chapter">📌 خطوات تشغيل المنصة</div><div class="book-body"><b>الخطوة 1:</b> حدد القطاع والنوع الإنتاجي.<br><b>الخطوة 2:</b> اختر الخامات المتوفرة وأسعار السوق.<br><b>الخطوة 3:</b> اضغط على زر التشغيل للحصول على الخلطة المثلى.<br><b>الخطوة 4:</b> استعرض التقرير وقم بطباعة الديباجة أو تصدير PDF.</div></div>""", unsafe_allow_html=True)
+        <div class="book-chapter">📌 إدارة مزارع الدجاج اللاحم (خاص بالمالك)</div><div class="book-body">• تسجيل بيانات الدورة اليومية (العمر، العدد، الأوزان، الاستهلاك، النافق، المستبعدين، الظروف البيئية).<br>• حساب تلقائي لمؤشرات ADG، FCR، EPEF، ونسب النفوق والاستبعاد.<br>• جدول الحرارة والرطوبة المرجعي حسب العمر.<br>• تقرير يومي شامل يمكن مشاركته عبر واتساب.<br>• حفظ تاريخ الدورات السابقة (حتى 10 دورات).</div>
+        <div class="book-chapter">📌 خطوات تشغيل المنصة</div><div class="book-body"><b>الخطوة 1:</b> حدد القطاع والنوع الإنتاجي.<br><b>الخطوة 2:</b> اختر الخامات المتوفرة وأسعار السوق.<br><b>الخطوة 3:</b> اضغط على زر التشغيل للحصول على الخلطة المثلى.<br><b>الخطوة 4:</b> استعرض التقرير وقم بطباعة الديباجة أو تصدير PDF.<br><b>الخطوة 5 (للمالك):</b> استخدم تبويب إدارة الدجاج اللاحم لتسجيل ومتابعة أداء دورات التسمين.</div></div>""", unsafe_allow_html=True)
     with col_actions:
         st.markdown("### 💬 قنوات التفاعل والاستشارات:")
         st.link_button("📝 إرسال تعليق أو استشارة (نموذج جوجل)", GOOGLE_FORM_URL, use_container_width=True)
@@ -1535,13 +1826,13 @@ with tabs[support_tab_index]:
         whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}?text={encoded_msg}"
         st.link_button("💬 تواصل واستشارة عبر الواتساب", whatsapp_link, use_container_width=True)
         st.markdown("<br><b>📢 انشر البرنامج وشارك المعرفة:</b>", unsafe_allow_html=True)
-        share_text_base = "أستخدم الآن منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف لحساب العلائق بأقل تكلفة ودقة علمية عالية، تحت إشراف م. عبد القادر إسماعيل تاور."
+        share_text_base = "أستخدم الآن منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف لحساب العلائق بأقل تكلفة ودقة علمية عالية، تحت إشراف م. عبد القادر إسماعيل تاور. كما تتضمن إدارة متقدمة لمزارع الدجاج اللاحم."
         encoded_share_text = urllib.parse.quote(share_text_base)
         col_wa, col_fb = st.columns(2)
         with col_wa: st.link_button("🟢 واتساب", f"https://wa.me/?text={encoded_share_text}", use_container_width=True)
         with col_fb: st.link_button("🔵 فيسبوك", f"https://www.facebook.com/sharer/sharer.php?u=https://yourplatform.com&quote={encoded_share_text}", use_container_width=True)
 
-# أرشفة السورس كود
+# أرشفة السورس كود للمالك فقط
 if st.session_state["user_role"] == "owner":
     st.markdown("<br><hr style='border-top: 1px dashed #2e7d32;'>", unsafe_allow_html=True)
     st.markdown("<h3 style='color: #1565C0; text-align:right;'>📨 أرشفة شفرة المصدر البرمجية</h3>", unsafe_allow_html=True)
