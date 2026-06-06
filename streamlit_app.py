@@ -312,10 +312,55 @@ class BroilerFarmManager:
         return pd.DataFrame(data)
 
 # ==========================================
-# توسيع حالة الجلسة لإدارة المزارع والجداول القياسية (خاصة بالمالك)
+# دوال حفظ وتحميل بيانات المزارع بشكل دائم (JSON)
 # ==========================================
-if "broiler_farms" not in st.session_state:
-    st.session_state["broiler_farms"] = {}
+BROILER_DATA_FILE = "broiler_farms_data.json"
+
+def load_broiler_farms():
+    if os.path.exists(BROILER_DATA_FILE):
+        try:
+            with open(BROILER_DATA_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def save_broiler_farms(data):
+    with open(BROILER_DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+# تحميل البيانات عند بدء التشغيل
+if "broiler_farms_loaded" not in st.session_state:
+    st.session_state["broiler_farms"] = load_broiler_farms()
+    st.session_state["broiler_farms_loaded"] = True
+
+# قائمة الأدوية المعروفة للدواجن
+KNOWN_MEDICATIONS = [
+    "لقاح نيوكاسل (Lasota)",
+    "لقاح Gumboro (Intermediate)",
+    "لقاح Gumboro Booster",
+    "لقاح التهاب الشعب الهوائية (IB)",
+    "لقاح الجدري (Fowl Pox)",
+    "مضاد كوكسيديا (Amprolium)",
+    "مضاد كوكسيديا (Toltrazuril)",
+    "مضاد حيوي (Enrofloxacin)",
+    "مضاد حيوي (Doxycycline)",
+    "مضاد حيوي (Tylosin)",
+    "مضاد حيوي (Colistin)",
+    "مضاد حيوي (Oxytetracycline)",
+    "فيتامين AD3E",
+    "فيتامين C + E",
+    "فيتامين B المركب",
+    "بروبيوتيك (Probiotic)",
+    "بريبايوتك (Prebiotic)",
+    "مضاد فطريات (Nystatin)",
+    "مضاد طفيليات (Levamisole)",
+    "مضاد طفيليات (Piperazine)",
+    "إلكتروليت (Electrolytes)",
+    "علاج تنفسي (Broncho-Solve)",
+    "أدوية أخرى (يرجى التوضيح)"
+]
+
 if "selected_farm" not in st.session_state:
     st.session_state["selected_farm"] = None
 if "standard_vacc_schedule" not in st.session_state:
@@ -353,11 +398,6 @@ def check_and_alert_medications(farm_name: str, farm_data: dict, current_age: in
         st.info(f"📢 تم إرسال {len(alerts)} تنبيه إلى المالك لليوم (العمر {current_age} يوم).")
     else:
         st.success("✅ لا توجد تحصينات أو أدوية مستحقة اليوم.")
-
-# ==========================================
-# تهيئة حالة جلسة إدارة الدجاج اللاحم (خاص بالمالك) - تم دمجها مع النظام الجديد
-# ==========================================
-# ملاحظة: لم نعد نستخدم broiler_farm_data و broiler_cycles_history بل نستخدم broiler_farms
 
 # --- CSS (بدون تغيير) ---
 st.markdown(
@@ -1612,10 +1652,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
         st.plotly_chart(fig, use_container_width=True)
 
 # -----------------------------------------------------------------
-# تبويب إدارة مزارع الدجاج اللاحم (خاص بالمالك فقط)
-# -----------------------------------------------------------------
-# -----------------------------------------------------------------
-# تبويب إدارة مزارع الدجاج اللاحم (خاص بالمالك فقط) - نسخة معدلة
+# تبويب إدارة مزارع الدجاج اللاحم (خاص بالمالك فقط) - النسخة النهائية مع حفظ تلقائي، قائمة أدوية، وتحسين السجلات
 # -----------------------------------------------------------------
 if st.session_state["user_role"] == "owner":
     with tabs[6]:
@@ -1640,6 +1677,7 @@ if st.session_state["user_role"] == "owner":
                     del st.session_state["broiler_farms"][selected]
                     if st.session_state["selected_farm"] == selected:
                         st.session_state["selected_farm"] = None
+                    save_broiler_farms(st.session_state["broiler_farms"])  # حفظ فوري
                     st.success(f"تم حذف مزرعة {selected}")
                     st.rerun()
 
@@ -1658,7 +1696,7 @@ if st.session_state["user_role"] == "owner":
                         "farm_name": new_name,
                         "date": datetime.now().strftime("%Y-%m-%d"),
                         "flock_age_days": 1,
-                        "initial_birds": 1,          # تم التعديل: 1 بدلاً من 0
+                        "initial_birds": 1,
                         "current_weight_kg": 0.045,
                         "initial_weight_kg": 0.045,
                         "total_feed_consumed_kg": 0.0,
@@ -1672,6 +1710,7 @@ if st.session_state["user_role"] == "owner":
                     },
                     "created_at": datetime.now().isoformat()
                 }
+                save_broiler_farms(st.session_state["broiler_farms"])  # حفظ فوري
                 st.session_state["selected_farm"] = new_name
                 st.session_state["show_add_farm"] = False
                 st.success("تمت إضافة المزرعة بنجاح!")
@@ -1687,7 +1726,6 @@ if st.session_state["user_role"] == "owner":
             st.markdown("#### 📝 بيانات اليوم الحالية")
             col_inputs, col_outputs = st.columns([0.5, 0.5])
             with col_inputs:
-                # استخدام max() لضمان أن القيمة لا تقل عن min_value
                 new_age = st.number_input("عمر القطيع (يوم)", min_value=1, max_value=60, value=max(current["flock_age_days"], 1), step=1, key="bf_age")
                 init_birds = st.number_input("عدد الكتاكيت المستلمة", min_value=1, value=max(current["initial_birds"], 1), step=100, key="bf_init")
                 dead = st.number_input("النافق حتى اليوم", min_value=0, value=current["dead_birds"], step=1, key="bf_dead")
@@ -1701,10 +1739,20 @@ if st.session_state["user_role"] == "owner":
                 litter = st.selectbox("جودة الفرشة", ["سيئة","مقبولة","جيدة","ممتازة"], index=["سيئة","مقبولة","جيدة","ممتازة"].index(current["litter_quality"]), key="bf_litter")
                 notes = st.text_area("ملاحظات", value=current["notes"], key="bf_notes")
 
-                st.markdown("#### 💊 السجل الصحي اليومي")
-                given_meds = st.text_area("الأدوية والفيتامينات والتحصينات التي تم إعطاؤها اليوم (اذكر الاسم والجرعة وطريقة الإعطاء)", 
-                                          placeholder="مثال: لقاح نيوكاسل - قطرة عين - الساعة 8 صباحاً")
+                st.markdown("#### 💊 السجل الصحي اليومي (اختر من القائمة أو اكتب دواء آخر)")
+                # قائمة الأدوية المعروفة مع خيار "أخرى"
+                med_options = KNOWN_MEDICATIONS + ["أخرى (اكتب الاسم بالأسفل)"]
+                selected_med = st.selectbox("اختر الدواء/اللقاح/الفيتامين:", med_options, key="med_select")
+                custom_med = ""
+                if selected_med == "أخرى (اكتب الاسم بالأسفل)":
+                    custom_med = st.text_input("اكتب اسم الدواء/العلاج:", key="custom_med")
+                med_name = custom_med if (selected_med == "أخرى (اكتب الاسم بالأسفل)" and custom_med) else selected_med
+                dose = st.text_input("الجرعة (مثال: 1 جم/لتر ماء)", key="dose", placeholder="مثل: 1 مل/لتر ماء")
+                route = st.selectbox("طريقة الإعطاء", ["مياه الشرب", "الخلط مع العلف", "حقن عضلي", "قطرة عين/أنف", "قطرة فم", "رذاذ", "أخرى"], key="route")
+                admin_notes = st.text_area("ملاحظات إضافية عن السجل الصحي (اختياري)", key="admin_notes", placeholder="مثل: تم الإعطاء في الساعة 8 صباحاً لجميع الطيور")
+
                 if st.button("💾 حفظ بيانات اليوم والسجل الصحي", use_container_width=True, type="primary"):
+                    # تحديث البيانات الأساسية
                     current.update({
                         "flock_age_days": new_age,
                         "initial_birds": init_birds,
@@ -1720,6 +1768,7 @@ if st.session_state["user_role"] == "owner":
                         "notes": notes,
                         "date": datetime.now().strftime("%Y-%m-%d %H:%M")
                     })
+                    # تسجيل اليوميات الأساسية
                     daily_record = {
                         "date": datetime.now().strftime("%Y-%m-%d"),
                         "age_days": new_age,
@@ -1732,14 +1781,20 @@ if st.session_state["user_role"] == "owner":
                         "notes": notes
                     }
                     farm["daily_logs"].append(daily_record)
-                    if given_meds.strip():
+                    # تسجيل السجل الصحي المفصل باستخدام القائمة المنسدلة
+                    if med_name and dose:
                         health_record = {
                             "date": datetime.now().strftime("%Y-%m-%d"),
                             "age_days": new_age,
-                            "medications_given": given_meds,
+                            "medication_name": med_name,
+                            "dose": dose,
+                            "route": route,
+                            "additional_notes": admin_notes,
                             "standard_required": st.session_state["standard_vacc_schedule"].get(new_age, None)
                         }
                         farm["health_log"].append(health_record)
+                    # حفظ البيانات إلى ملف JSON
+                    save_broiler_farms(st.session_state["broiler_farms"])
                     st.success("تم حفظ بيانات اليوم والسجل الصحي بنجاح!")
                     check_and_alert_medications(selected, farm, new_age)
                     st.rerun()
@@ -1779,19 +1834,36 @@ if st.session_state["user_role"] == "owner":
                             f"- طريقة الإعطاء: {standard_today['route']}")
 
             st.markdown("---")
-            with st.expander("📜 سجل اليوميات السابقة"):
+            # عرض السجلات بشكل حديث وجذاب
+            with st.expander("📜 سجل اليوميات السابقة (مؤشرات الأداء)", expanded=False):
                 if farm["daily_logs"]:
                     df_log = pd.DataFrame(farm["daily_logs"])
-                    st.dataframe(df_log, use_container_width=True)
+                    # إعادة تسمية الأعمدة للعربية
+                    df_log.rename(columns={
+                        "date": "التاريخ", "age_days": "العمر (يوم)", "avg_weight_kg": "متوسط الوزن (كجم)",
+                        "feed_consumed_kg": "العلف المستهلك (كجم)", "dead": "النافق", "culled": "المستبعد",
+                        "temperature": "درجة الحرارة", "humidity": "الرطوبة", "notes": "ملاحظات"
+                    }, inplace=True)
+                    st.dataframe(df_log, use_container_width=True, hide_index=True)
                 else:
                     st.info("لا توجد سجلات يومية بعد.")
-            with st.expander("💊 السجل الصحي (الأدوية والتحصينات)"):
+
+            with st.expander("💊 السجل الصحي المفصل (الأدوية واللقاحات)", expanded=False):
                 if farm["health_log"]:
                     df_health = pd.DataFrame(farm["health_log"])
-                    st.dataframe(df_health, use_container_width=True)
+                    df_health.rename(columns={
+                        "date": "التاريخ", "age_days": "العمر (يوم)", "medication_name": "اسم الدواء/اللقاح",
+                        "dose": "الجرعة", "route": "طريقة الإعطاء", "additional_notes": "ملاحظات إضافية",
+                        "standard_required": "المطلوب قياسياً"
+                    }, inplace=True)
+                    # تنسيق العمود المطلوب قياسياً ليسهل قراءته
+                    if "المطلوب قياسياً" in df_health.columns:
+                        df_health["المطلوب قياسياً"] = df_health["المطلوب قياسياً"].apply(lambda x: f"{x['type']}: {x['name']}" if isinstance(x, dict) else "لا يوجد")
+                    st.dataframe(df_health, use_container_width=True, hide_index=True)
                 else:
                     st.info("لا توجد سجلات صحية بعد.")
-            with st.expander("⚙️ تعديل البروتوكول القياسي (التحصينات والأدوية)"):
+
+            with st.expander("⚙️ تعديل البروتوكول القياسي (التحصينات والأدوية)", expanded=False):
                 st.markdown("يمكنك إضافة أو تعديل المواعيد القياسية حسب بروتوكولك الخاص.")
                 new_age_sch = st.number_input("عمر اليوم (للجدول)", min_value=0, max_value=60, value=1, step=1)
                 new_type = st.selectbox("النوع", ["لقاح", "دواء", "فيتامين"])
@@ -1810,6 +1882,7 @@ if st.session_state["user_role"] == "owner":
                 st.markdown("**الجدول الحالي:**")
                 st.json(st.session_state["standard_vacc_schedule"])
 
+            # زر التقرير
             if st.button("📄 إرسال التقرير اليومي مع اسم المزرعة", use_container_width=True):
                 report_lines = [
                     f"تقرير مزرعة {selected} - المالك: {farm.get('owner', 'غير مسجل')}",
@@ -1825,8 +1898,8 @@ if st.session_state["user_role"] == "owner":
                     f"💧 الرطوبة: {hum}% (موصى {rec_hum}%)",
                     f"📝 ملاحظات: {notes}"
                 ]
-                if given_meds.strip():
-                    report_lines.append(f"💊 السجل الصحي اليوم: {given_meds}")
+                if selected_med and dose:
+                    report_lines.append(f"💊 السجل الصحي اليوم: {med_name} - {dose} ({route})")
                 report_text = "\n".join(report_lines)
                 encoded = urllib.parse.quote(report_text[:1500])
                 st.markdown(f'<a href="https://wa.me/{farm.get("owner_phone", WHATSAPP_NUMBER)}?text={encoded}" target="_blank"><button style="background:#25D366; color:white; padding:10px; border-radius:5px;">📲 إرسال التقرير عبر واتساب باسم المزرعة</button></a>', unsafe_allow_html=True)
