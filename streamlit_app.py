@@ -1614,6 +1614,9 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
 # -----------------------------------------------------------------
 # تبويب إدارة مزارع الدجاج اللاحم (خاص بالمالك فقط)
 # -----------------------------------------------------------------
+# -----------------------------------------------------------------
+# تبويب إدارة مزارع الدجاج اللاحم (خاص بالمالك فقط) - نسخة معدلة
+# -----------------------------------------------------------------
 if st.session_state["user_role"] == "owner":
     with tabs[6]:
         st.markdown('<div class="section-title">🐔 إدارة مزارع الدجاج اللاحم (Broiler Management) – خاص بالمالك</div>', unsafe_allow_html=True)
@@ -1655,7 +1658,7 @@ if st.session_state["user_role"] == "owner":
                         "farm_name": new_name,
                         "date": datetime.now().strftime("%Y-%m-%d"),
                         "flock_age_days": 1,
-                        "initial_birds": 0,
+                        "initial_birds": 1,          # تم التعديل: 1 بدلاً من 0
                         "current_weight_kg": 0.045,
                         "initial_weight_kg": 0.045,
                         "total_feed_consumed_kg": 0.0,
@@ -1684,8 +1687,9 @@ if st.session_state["user_role"] == "owner":
             st.markdown("#### 📝 بيانات اليوم الحالية")
             col_inputs, col_outputs = st.columns([0.5, 0.5])
             with col_inputs:
-                new_age = st.number_input("عمر القطيع (يوم)", min_value=1, max_value=60, value=current["flock_age_days"], step=1, key="bf_age")
-                init_birds = st.number_input("عدد الكتاكيت المستلمة", min_value=1, value=current["initial_birds"], step=100, key="bf_init")
+                # استخدام max() لضمان أن القيمة لا تقل عن min_value
+                new_age = st.number_input("عمر القطيع (يوم)", min_value=1, max_value=60, value=max(current["flock_age_days"], 1), step=1, key="bf_age")
+                init_birds = st.number_input("عدد الكتاكيت المستلمة", min_value=1, value=max(current["initial_birds"], 1), step=100, key="bf_init")
                 dead = st.number_input("النافق حتى اليوم", min_value=0, value=current["dead_birds"], step=1, key="bf_dead")
                 culled = st.number_input("المستبعدين", min_value=0, value=current["culled_birds"], step=1, key="bf_culled")
                 avg_wt = st.number_input("متوسط الوزن الحي (كجم)", min_value=0.0, value=current["current_weight_kg"], step=0.05, key="bf_wt")
