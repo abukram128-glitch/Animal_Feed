@@ -1594,187 +1594,281 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
 # -----------------------------------------------------------------
 if st.session_state["user_role"] == "owner":
     # التبويب رقم 6 للمالك (حسب ترتيب tabs_titles أعلاه)
-    with tabs[6]:
-        st.markdown('<div class="section-title">🐔 إدارة مزارع الدجاج اللاحم (Broiler Management) – خاص بالمالك</div>', unsafe_allow_html=True)
-        st.markdown("""
-        <div style='background-color: #f0fdf4; padding: 15px; border-radius: 12px; border-right: 5px solid #16a34a; margin-bottom: 20px;'>
-        <b>📘 دليل سريع:</b> استخدم هذا التبويب لتسجيل ومتابعة مؤشرات الأداء الرئيسية (KPIs) لدورة التسمين. أدخل البيانات الحالية لقطيعك وسيقوم النظام بحساب ADG، FCR، EPEF، ونسب النفوق والاستبعاد تلقائياً. هذا القسم متاح فقط لمالك المنصة.
-        </div>
-        """, unsafe_allow_html=True)
+  # ==========================================================
+# توسيع حالة الجلسة لإدارة المزارع والجداول القياسية
+# ==========================================================
+if "broiler_farms" not in st.session_state:
+    st.session_state["broiler_farms"] = {}  # {farm_name: {owner, health_log, daily_logs, medications_given, ...}}
+if "selected_farm" not in st.session_state:
+    st.session_state["selected_farm"] = None
+if "standard_vacc_schedule" not in st.session_state:
+    # جدول قياسي للتحصينات والأدوية (عمر بالأيام)
+    st.session_state["standard_vacc_schedule"] = {
+        1:   {"type": "فيتامين", "name": "فيتامين AD3E", "dose": "1 مل/لتر ماء", "route": "مياه الشرب"},
+        7:   {"type": "لقاح", "name": "نيوكاسل (Lasota)", "dose": "قطرة عين", "route": "قطرة عين/أنف"},
+        14:  {"type": "لقاح", "name": "Gumboro (Intermediate)", "dose": "قطرة فم", "route": "مياه الشرب"},
+        21:  {"type": "دواء", "name": "مضاد كوكسيديا (Amprolium)", "dose": "1 جم/لتر", "route": "مياه الشرب لمدة 3 أيام"},
+        28:  {"type": "فيتامين", "name": "فيتامين C + E", "dose": "0.5 جم/لتر", "route": "مياه الشرب"},
+        35:  {"type": "لقاح", "name": "Gumboro booster", "dose": "قطرة فم", "route": "مياه الشرب"},
+    }
+if "whatsapp_alerts_sent" not in st.session_state:
+    st.session_state["whatsapp_alerts_sent"] = {}  # لتجنب التكرار
 
-        # عمودان رئيسيان: المدخلات (يمين) والمخرجات (يسار)
-        col_inputs, col_outputs = st.columns([0.5, 0.5])
+# دالة إرسال رسالة واتساب
+def send_whatsapp_broiler_alert(phone_number: str, message: str):
+    encoded_msg = urllib.parse.quote(message)
+    whatsapp_url = f"https://wa.me/{phone_number}?text={encoded_msg}"
+    # لا نفتح الرابط تلقائياً، بل نعرضه كرابط للمستخدم (حماية)
+    st.markdown(f"<div style='background:#e8f5e9; padding:10px; border-radius:8px; direction:ltr;'>📲 <b>تنبيه عبر واتساب:</b> <a href='{whatsapp_url}' target='_blank'>اضغط لإرسال الرسالة إلى {phone_number}</a><br>{message}</div>", unsafe_allow_html=True)
 
-        with col_inputs:
-            st.markdown("#### 📝 بيانات القطيع الحالية")
-            farm_name = st.text_input("اسم المزرعة / الدورة", value=st.session_state["broiler_farm_data"]["farm_name"], key="bf_farm_name")
-            flock_age = st.number_input("عمر القطيع (يوم)", min_value=1, max_value=60, value=st.session_state["broiler_farm_data"]["flock_age_days"], step=1, key="bf_age")
-            initial_birds = st.number_input("عدد الكتاكيت المستلمة (طير)", min_value=1, value=st.session_state["broiler_farm_data"]["initial_birds"], step=100, key="bf_initial")
-            dead_birds = st.number_input("عدد الطيور النافقة حتى الآن", min_value=0, value=st.session_state["broiler_farm_data"]["dead_birds"], step=1, key="bf_dead")
-            culled_birds = st.number_input("الطيور المستبعدة (مريضة / ضعيفة)", min_value=0, value=st.session_state["broiler_farm_data"]["culled_birds"], step=1, key="bf_culled")
+# دالة فحص المواعيد المستحقة وإرسال التنبيهات
+def check_and_alert_medications(farm_name: str, farm_data: dict, current_age: int):
+    phone = farm_data.get("owner_phone", WHATSAPP_NUMBER)  # استخدام رقم المالك أو الافتراضي
+    schedule = st.session_state["standard_vacc_schedule"]
+    alerts = []
+    for age_day, item in schedule.items():
+        if age_day == current_age:
+            key = f"{farm_name}_{age_day}_{item['type']}_{item['name']}"
+            if key not in st.session_state["whatsapp_alerts_sent"]:
+                alert_msg = f"🔔 تنبيه لمزرعة {farm_name} (العمر {age_day} يوم):\n{item['type']} {item['name']} - الجرعة: {item['dose']} - طريقة الإعطاء: {item['route']}"
+                send_whatsapp_broiler_alert(phone, alert_msg)
+                st.session_state["whatsapp_alerts_sent"][key] = datetime.now().isoformat()
+                alerts.append(alert_msg)
+    if alerts:
+        st.info(f"📢 تم إرسال {len(alerts)} تنبيه إلى المالك لليوم (العمر {current_age} يوم).")
+    else:
+        st.success("✅ لا توجد تحصينات أو أدوية مستحقة اليوم.")
 
-            st.markdown("#### ⚖️ الأوزان والاستهلاك")
-            avg_weight_kg = st.number_input("متوسط الوزن الحي الحالي (كجم)", min_value=0.0, value=st.session_state["broiler_farm_data"]["current_weight_kg"], step=0.05, format="%.3f", key="bf_weight")
-            initial_weight_kg = st.number_input("متوسط وزن الكتكوت عند الاستلام (كجم)", min_value=0.030, value=st.session_state["broiler_farm_data"]["initial_weight_kg"], step=0.005, format="%.3f", key="bf_init_wt")
-            total_feed_kg = st.number_input("إجمالي العلف المستهلك حتى الآن (كجم)", min_value=0.0, value=st.session_state["broiler_farm_data"]["total_feed_consumed_kg"], step=100.0, key="bf_feed")
-            water_consumption_l = st.number_input("استهلاك المياه التراكمي (لتر) - اختياري", min_value=0.0, value=st.session_state["broiler_farm_data"]["total_water_consumed_l"], step=100.0, key="bf_water")
+# ==========================================================
+# ترميم واجهة تبويب إدارة مزارع الدجاج اللاحم
+# ==========================================================
+st.markdown('<div class="section-title">🐔 إدارة مزارع الدجاج اللاحم (Broiler Management) – خاص بالمالك</div>', unsafe_allow_html=True)
+st.markdown("""
+<div style='background: #f0fdf4; padding:15px; border-radius:12px; border-right:5px solid #16a34a; margin-bottom:20px;'>
+<b>📘 الدليل الموسع:</b> يمكنك الآن تسجيل مزارع متعددة بأسماء ملاكها، وتدوين السجل الصحي اليومي (الأدوية، الفيتامينات، التحصينات). 
+يقوم النظام بمقارنة ما تم إعطاؤه فعلياً بالبروتوكول القياسي، ويرسل تنبيهات عبر واتساب في المواعيد المستحقة.
+</div>
+""", unsafe_allow_html=True)
 
-            st.markdown("#### 🌡️ الظروف البيئية")
-            temp_c = st.number_input("درجة الحرارة داخل العنبر (مئوي)", min_value=10.0, max_value=45.0, value=st.session_state["broiler_farm_data"]["temperature_c"], step=0.5, key="bf_temp")
-            humidity = st.number_input("الرطوبة النسبية (%)", min_value=20.0, max_value=90.0, value=st.session_state["broiler_farm_data"]["humidity_percent"], step=1.0, key="bf_hum")
-            ventilation = st.selectbox("حالة التهوية", ["سيئة", "مقبولة", "جيدة", "ممتازة"], index=["سيئة", "مقبولة", "جيدة", "ممتازة"].index(st.session_state["broiler_farm_data"]["ventilation_status"]), key="bf_vent")
-            litter = st.selectbox("جودة الفرشة", ["سيئة", "مقبولة", "جيدة", "ممتازة"], index=["سيئة", "مقبولة", "جيدة", "ممتازة"].index(st.session_state["broiler_farm_data"]["litter_quality"]), key="bf_litter")
+# ---------- إدارة المزارع ----------
+col_farms = st.columns([0.4, 0.6])
+with col_farms[0]:
+    st.markdown("#### 🏠 إدارة المزارع المسجلة")
+    farm_names = list(st.session_state["broiler_farms"].keys())
+    selected = st.selectbox("اختر مزرعة:", [""] + farm_names, format_func=lambda x: x if x else "-- أضف مزرعة جديدة --")
+    if st.button("➕ إضافة مزرعة جديدة", use_container_width=True):
+        st.session_state["show_add_farm"] = True
+    if st.button("🗑️ حذف المزرعة المختارة", use_container_width=True):
+        if selected and selected in st.session_state["broiler_farms"]:
+            del st.session_state["broiler_farms"][selected]
+            if st.session_state["selected_farm"] == selected:
+                st.session_state["selected_farm"] = None
+            st.success(f"تم حذف مزرعة {selected}")
+            st.rerun()
 
-            notes = st.text_area("ملاحظات إضافية (الأمراض، الأدوية، إلخ)", value=st.session_state["broiler_farm_data"]["notes"], key="bf_notes")
+if st.session_state.get("show_add_farm", False):
+    st.markdown("#### ✏️ بيانات المزرعة الجديدة")
+    new_name = st.text_input("اسم المزرعة")
+    new_owner = st.text_input("اسم المالك")
+    new_phone = st.text_input("رقم واتساب المالك (مثال: +249123533489)", value=WHATSAPP_NUMBER)
+    if st.button("💾 حفظ المزرعة الجديدة") and new_name:
+        st.session_state["broiler_farms"][new_name] = {
+            "owner": new_owner,
+            "owner_phone": new_phone,
+            "daily_logs": [],            # قائمة سجلات يومية
+            "health_log": [],            # قائمة سجلات صحية (أدوية وفيتامينات وتحصينات)
+            "current_data": {            # البيانات الحالية (مثل broiler_farm_data سابقاً)
+                "farm_name": new_name,
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "flock_age_days": 1,
+                "initial_birds": 0,
+                "current_weight_kg": 0.045,
+                "initial_weight_kg": 0.045,
+                "total_feed_consumed_kg": 0.0,
+                "dead_birds": 0,
+                "culled_birds": 0,
+                "temperature_c": 33.0,
+                "humidity_percent": 65.0,
+                "ventilation_status": "جيدة",
+                "litter_quality": "جيدة",
+                "notes": ""
+            },
+            "created_at": datetime.now().isoformat()
+        }
+        st.session_state["selected_farm"] = new_name
+        st.session_state["show_add_farm"] = False
+        st.success("تمت إضافة المزرعة بنجاح!")
+        st.rerun()
 
-            # حفظ التغييرات في الجلسة
-            if st.button("💾 حفظ بيانات القطيع", use_container_width=True, type="primary", key="bf_save"):
-                st.session_state["broiler_farm_data"].update({
-                    "farm_name": farm_name,
-                    "flock_age_days": flock_age,
-                    "initial_birds": initial_birds,
-                    "dead_birds": dead_birds,
-                    "culled_birds": culled_birds,
-                    "current_weight_kg": avg_weight_kg,
-                    "initial_weight_kg": initial_weight_kg,
-                    "total_feed_consumed_kg": total_feed_kg,
-                    "total_water_consumed_l": water_consumption_l,
-                    "temperature_c": temp_c,
-                    "humidity_percent": humidity,
-                    "ventilation_status": ventilation,
-                    "litter_quality": litter,
-                    "notes": notes,
-                    "date": datetime.now().strftime("%Y-%m-%d %H:%M")
-                })
-                st.success("تم حفظ بيانات الدورة الحالية بنجاح!")
-                st.rerun()
+# ---------- عرض بيانات المزرعة المختارة ----------
+if selected and selected in st.session_state["broiler_farms"]:
+    st.session_state["selected_farm"] = selected
+    farm = st.session_state["broiler_farms"][selected]
+    st.markdown(f"### 🏷️ المزرعة: **{selected}** (المالك: {farm.get('owner', 'غير مسجل')})")
 
-        with col_outputs:
-            # استخراج البيانات المحفوظة
-            data = st.session_state["broiler_farm_data"]
-            age = data["flock_age_days"]
-            initial = data["initial_birds"]
-            dead = data["dead_birds"]
-            culled = data["culled_birds"]
-            current_wt = data["current_weight_kg"]
-            init_wt = data["initial_weight_kg"]
-            total_feed = data["total_feed_consumed_kg"]
-            water = data["total_water_consumed_l"]
+    # تحديث البيانات الحالية (مشابه للجزء السابق)
+    current = farm["current_data"]
+    st.markdown("#### 📝 بيانات اليوم الحالية")
+    col_inputs, col_outputs = st.columns([0.5, 0.5])
+    with col_inputs:
+        new_age = st.number_input("عمر القطيع (يوم)", min_value=1, max_value=60, value=current["flock_age_days"], step=1, key="bf_age")
+        init_birds = st.number_input("عدد الكتاكيت المستلمة", min_value=1, value=current["initial_birds"], step=100, key="bf_init")
+        dead = st.number_input("النافق حتى اليوم", min_value=0, value=current["dead_birds"], step=1, key="bf_dead")
+        culled = st.number_input("المستبعدين", min_value=0, value=current["culled_birds"], step=1, key="bf_culled")
+        avg_wt = st.number_input("متوسط الوزن الحي (كجم)", min_value=0.0, value=current["current_weight_kg"], step=0.05, key="bf_wt")
+        init_wt = st.number_input("وزن الكتكوت عند الاستلام (كجم)", min_value=0.030, value=current["initial_weight_kg"], step=0.005, key="bf_init_wt")
+        feed = st.number_input("إجمالي العلف المستهلك (كجم)", min_value=0.0, value=current["total_feed_consumed_kg"], step=100.0, key="bf_feed")
+        temp = st.number_input("درجة الحرارة (مئوي)", min_value=10.0, max_value=45.0, value=current["temperature_c"], step=0.5, key="bf_temp")
+        hum = st.number_input("الرطوبة (%)", min_value=20.0, max_value=90.0, value=current["humidity_percent"], step=1.0, key="bf_hum")
+        vent = st.selectbox("التهوية", ["سيئة","مقبولة","جيدة","ممتازة"], index=["سيئة","مقبولة","جيدة","ممتازة"].index(current["ventilation_status"]), key="bf_vent")
+        litter = st.selectbox("جودة الفرشة", ["سيئة","مقبولة","جيدة","ممتازة"], index=["سيئة","مقبولة","جيدة","ممتازة"].index(current["litter_quality"]), key="bf_litter")
+        notes = st.text_area("ملاحظات", value=current["notes"], key="bf_notes")
 
-            # حساب المؤشرات
-            total_birds_alive = initial - dead - culled
-            total_weight_gain_kg = total_birds_alive * (current_wt - init_wt) if total_birds_alive > 0 else 0
-            adg_g = BroilerFarmManager.calculate_adg(current_wt * 1000, init_wt * 1000, age) if age > 0 else 0.0
-            fcr = BroilerFarmManager.calculate_fcr(total_feed, total_weight_gain_kg) if total_weight_gain_kg > 0 else 0.0
-            mortality_rate = BroilerFarmManager.calculate_mortality_rate(dead, initial)
-            cull_rate = BroilerFarmManager.calculate_cull_rate(culled, initial)
-            livability = BroilerFarmManager.calculate_livability(initial, dead)
-            epef = BroilerFarmManager.calculate_epef(livability, current_wt, age, fcr)
+        # ---- السجل الصحي اليومي (أدوية، فيتامينات، تحصينات) ----
+        st.markdown("#### 💊 السجل الصحي اليومي")
+        given_meds = st.text_area("الأدوية والفيتامينات والتحصينات التي تم إعطاؤها اليوم (اذكر الاسم والجرعة وطريقة الإعطاء)", 
+                                  placeholder="مثال: لقاح نيوكاسل - قطرة عين - الساعة 8 صباحاً")
+        if st.button("💾 حفظ بيانات اليوم والسجل الصحي", use_container_width=True, type="primary"):
+            # تحديث البيانات الحالية
+            current.update({
+                "flock_age_days": new_age,
+                "initial_birds": init_birds,
+                "dead_birds": dead,
+                "culled_birds": culled,
+                "current_weight_kg": avg_wt,
+                "initial_weight_kg": init_wt,
+                "total_feed_consumed_kg": feed,
+                "temperature_c": temp,
+                "humidity_percent": hum,
+                "ventilation_status": vent,
+                "litter_quality": litter,
+                "notes": notes,
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M")
+            })
+            # تسجيل اليومية في سجل daily_logs
+            daily_record = {
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "age_days": new_age,
+                "avg_weight_kg": avg_wt,
+                "feed_consumed_kg": feed,
+                "dead": dead,
+                "culled": culled,
+                "temperature": temp,
+                "humidity": hum,
+                "notes": notes
+            }
+            farm["daily_logs"].append(daily_record)
+            # تسجيل السجل الصحي
+            if given_meds.strip():
+                health_record = {
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "age_days": new_age,
+                    "medications_given": given_meds,
+                    "standard_required": st.session_state["standard_vacc_schedule"].get(new_age, None)
+                }
+                farm["health_log"].append(health_record)
+            st.success("تم حفظ بيانات اليوم والسجل الصحي بنجاح!")
+            # فحص المواعيد المستحقة وإرسال التنبيهات
+            check_and_alert_medications(selected, farm, new_age)
+            st.rerun()
 
-            # عرض بطاقات KPIs
-            st.markdown("#### 📊 مؤشرات الأداء الرئيسية (KPIs)")
-            kpi_cols = st.columns(3)
-            kpi_cols[0].metric("📈 الوزن الحي الحالي (كجم)", f"{current_wt:.3f}", delta=f"{((current_wt - init_wt)/init_wt*100):.1f}% منذ الاستلام")
-            kpi_cols[1].metric("📅 معدل النمو اليومي ADG (جم)", f"{adg_g:.1f}", delta=None)
-            kpi_cols[2].metric("🔄 معامل التحويل FCR", f"{fcr:.2f}", delta=None if fcr == 0 else ("ممتاز" if fcr < 1.6 else "جيد" if fcr < 1.8 else "مرتفع"))
-            
-            kpi_cols2 = st.columns(3)
-            kpi_cols2[0].metric("💀 نسبة النفوق (%)", f"{mortality_rate:.2f}%", delta=f"-{mortality_rate:.1f}%")
-            kpi_cols2[1].metric("🚫 نسبة الاستبعاد (%)", f"{cull_rate:.2f}%", delta=None)
-            kpi_cols2[2].metric("❤️ الحيوية (Livability)", f"{livability:.1f}%", delta=None)
-            
-            kpi_cols3 = st.columns(2)
-            kpi_cols3[0].metric("🏆 مؤشر الأداء الأوروبي EPEF", f"{epef:.0f}", delta="مرجع: >300 ممتاز" if epef > 300 else "تحتاج تحسين")
-            if water > 0:
-                water_to_feed = water / total_feed if total_feed > 0 else 0
-                kpi_cols3[1].metric("💧 نسبة الماء إلى العلف", f"{water_to_feed:.2f}", delta="مثالي 1.6-2.0" if 1.6 <= water_to_feed <= 2.0 else "مرتفع/منخفض")
-            else:
-                kpi_cols3[1].metric("💧 استهلاك الماء", "لم يدخل", delta=None)
+    with col_outputs:
+        # حساب المؤشرات وعرضها (نفس الكود السابق لكن باستخدام current)
+        total_alive = current["initial_birds"] - current["dead_birds"] - current["culled_birds"]
+        total_gain_kg = total_alive * (current["current_weight_kg"] - current["initial_weight_kg"])
+        adg = BroilerFarmManager.calculate_adg(current["current_weight_kg"]*1000, current["initial_weight_kg"]*1000, current["flock_age_days"])
+        fcr = BroilerFarmManager.calculate_fcr(current["total_feed_consumed_kg"], total_gain_kg) if total_gain_kg>0 else 0
+        mortality = BroilerFarmManager.calculate_mortality_rate(current["dead_birds"], current["initial_birds"])
+        cull_rate = BroilerFarmManager.calculate_cull_rate(current["culled_birds"], current["initial_birds"])
+        livability = BroilerFarmManager.calculate_livability(current["initial_birds"], current["dead_birds"])
+        epef = BroilerFarmManager.calculate_epef(livability, current["current_weight_kg"], current["flock_age_days"], fcr)
 
-            # جدول الحرارة والرطوبة المرجعي
-            st.markdown("#### 🌡️ جدول الحرارة والرطوبة المرجعي حسب العمر")
-            temp_hum_df = BroilerFarmManager.get_temp_humidity_table()
-            st.dataframe(temp_hum_df, use_container_width=True, hide_index=True)
-            
-            # تقييم الظروف الحالية مقابل الجدول
-            closest_age = temp_hum_df.iloc[(temp_hum_df['العمر (يوم)'] - age).abs().argsort()[:1]].iloc[0]
-            rec_temp = closest_age['درجة الحرارة (مئوي)']
-            rec_hum = closest_age['الرطوبة النسبية (%)']
-            temp_ok = abs(temp_c - rec_temp) <= 2
-            hum_ok = abs(humidity - rec_hum) <= 10
-            if not temp_ok or not hum_ok:
-                st.warning(f"⚠️ درجة الحرارة الحالية ({temp_c}°C) أو الرطوبة ({humidity}%) خارج النطاق الموصى به لعمر {age} يوم (موصى: {rec_temp}°C, {rec_hum}% رطوبة).")
+        st.metric("الوزن الحي (كجم)", f"{current['current_weight_kg']:.3f}")
+        st.metric("معدل النمو اليومي ADG (جم)", f"{adg:.1f}")
+        st.metric("معامل التحويل FCR", f"{fcr:.2f}")
+        st.metric("نسبة النفوق (%)", f"{mortality:.2f}%")
+        st.metric("الحيوية (%)", f"{livability:.1f}%")
+        st.metric("مؤشر EPEF", f"{epef:.0f}")
 
-            # تقرير يومي للمزرعة
-            st.markdown("#### 📋 تقرير يومي للمزرعة (Daily Farm Report)")
-            report_lines = [
-                f"📅 التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-                f"🏷️ اسم المزرعة: {data['farm_name']}",
-                f"📊 عمر القطيع: {age} يوم",
-                f"🐔 عدد الطيور الحية: {total_birds_alive:,} من أصل {initial:,}",
-                f"⚖️ متوسط الوزن: {current_wt:.3f} كجم",
-                f"📈 معدل النمو اليومي: {adg_g:.1f} جم/يوم",
-                f"🔄 معامل التحويل: {fcr:.2f}",
-                f"💀 النفوق التراكمي: {dead} طير ({mortality_rate:.2f}%)",
-                f"🚫 الاستبعاد: {culled} طير ({cull_rate:.2f}%)",
-                f"❤️ الحيوية: {livability:.1f}%",
-                f"🏆 مؤشر EPEF: {epef:.0f}",
-                f"🌡️ درجة الحرارة: {temp_c}°C (الموصى: {rec_temp}°C)",
-                f"💧 الرطوبة: {humidity}% (الموصى: {rec_hum}%)",
-                f"💨 التهوية: {ventilation}",
-                f"🌾 جودة الفرشة: {litter}",
-                f"📝 ملاحظات: {notes if notes else 'لا توجد'}"
-            ]
-            report_text = "\n".join(report_lines)
-            st.text_area("نص التقرير", value=report_text, height=300, disabled=True)
-            
-            col_report_share, col_report_save = st.columns(2)
-            with col_report_share:
-                encoded_report = urllib.parse.quote(report_text[:1500])  # واتساب حد أقصى
-                st.link_button("📲 مشاركة التقرير عبر واتساب", f"https://wa.me/?text={encoded_report}", use_container_width=True)
-            with col_report_save:
-                if st.button("➕ حفظ الدورة الحالية في السجل", use_container_width=True):
-                    # إضافة نسخة من البيانات الحالية مع timestamp
-                    cycle_copy = data.copy()
-                    cycle_copy["saved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    cycle_copy["kpis"] = {
-                        "ADG_g": adg_g,
-                        "FCR": fcr,
-                        "Mortality_%": mortality_rate,
-                        "Cull_%": cull_rate,
-                        "Livability_%": livability,
-                        "EPEF": epef
-                    }
-                    st.session_state["broiler_cycles_history"].insert(0, cycle_copy)  # الأحدث أولاً
-                    if len(st.session_state["broiler_cycles_history"]) > 10:
-                        st.session_state["broiler_cycles_history"] = st.session_state["broiler_cycles_history"][:10]
-                    st.success("تم حفظ الدورة في سجل التاريخ!")
-                    st.rerun()
-            
-            # عرض تاريخ الدورات السابقة
-            if st.session_state["broiler_cycles_history"]:
-                st.markdown("#### 📜 تاريخ الدورات السابقة (آخر 10)")
-                history_df = pd.DataFrame([{
-                    "التاريخ": c["saved_at"],
-                    "المزرعة": c["farm_name"],
-                    "العمر": c["flock_age_days"],
-                    "الوزن كجم": c["current_weight_kg"],
-                    "FCR": c["kpis"]["FCR"],
-                    "EPEF": c["kpis"]["EPEF"],
-                    "نسبة النفوق%": c["kpis"]["Mortality_%"]
-                } for c in st.session_state["broiler_cycles_history"]])
-                st.dataframe(history_df, use_container_width=True, hide_index=True)
-                
-                # زر لتحميل دورة سابقة
-                selected_cycle = st.selectbox("تحميل دورة سابقة للاطلاع", range(len(st.session_state["broiler_cycles_history"])), format_func=lambda i: f"{st.session_state['broiler_cycles_history'][i]['farm_name']} - {st.session_state['broiler_cycles_history'][i]['saved_at']}")
-                if st.button("تحميل الدورة المحددة"):
-                    st.session_state["broiler_farm_data"] = st.session_state["broiler_cycles_history"][selected_cycle].copy()
-                    # إزالة المفاتيح الإضافية التي لا نحتاجها في المدخلات
-                    for k in ["saved_at", "kpis"]:
-                        if k in st.session_state["broiler_farm_data"]:
-                            del st.session_state["broiler_farm_data"][k]
-                    st.success("تم تحميل الدورة، قم بمراجعة البيانات واستخدم زر الحفظ إذا أردت التعديل.")
-                    st.rerun()
+        # عرض الجدول القياسي للحرارة والرطوبة
+        st.markdown("#### 🌡️ جدول الحرارة والرطوبة القياسي")
+        st.dataframe(BroilerFarmManager.get_temp_humidity_table(), use_container_width=True, hide_index=True)
+
+        # مقارنة درجة الحرارة والرطوبة بالمعيار
+        temp_hum_df = BroilerFarmManager.get_temp_humidity_table()
+        closest = temp_hum_df.iloc[(temp_hum_df['العمر (يوم)'] - current["flock_age_days"]).abs().argsort()[:1]].iloc[0]
+        rec_temp = closest['درجة الحرارة (مئوي)']
+        rec_hum = closest['الرطوبة النسبية (%)']
+        if abs(temp - rec_temp) > 2 or abs(hum - rec_hum) > 10:
+            st.warning(f"⚠️ درجة الحرارة الحالية ({temp}°C) أو الرطوبة ({hum}%) خارج النطاق الموصى به لعمر {current['flock_age_days']} يوم (موصى: {rec_temp}°C, {rec_hum}% رطوبة).")
+
+        # عرض السجل الصحي القياسي المستحق اليوم
+        standard_today = st.session_state["standard_vacc_schedule"].get(current["flock_age_days"])
+        if standard_today:
+            st.info(f"📋 **البروتوكول القياسي لهذا اليوم (العمر {current['flock_age_days']} يوم):**\n"
+                    f"- {standard_today['type']}: {standard_today['name']}\n"
+                    f"- الجرعة: {standard_today['dose']}\n"
+                    f"- طريقة الإعطاء: {standard_today['route']}")
+
+    # ---------- عرض السجلات السابقة ----------
+    st.markdown("---")
+    with st.expander("📜 سجل اليوميات السابقة"):
+        if farm["daily_logs"]:
+            df_log = pd.DataFrame(farm["daily_logs"])
+            st.dataframe(df_log, use_container_width=True)
+        else:
+            st.info("لا توجد سجلات يومية بعد.")
+    with st.expander("💊 السجل الصحي (الأدوية والتحصينات)"):
+        if farm["health_log"]:
+            df_health = pd.DataFrame(farm["health_log"])
+            st.dataframe(df_health, use_container_width=True)
+        else:
+            st.info("لا توجد سجلات صحية بعد.")
+    with st.expander("⚙️ تعديل البروتوكول القياسي (التحصينات والأدوية)"):
+        st.markdown("يمكنك إضافة أو تعديل المواعيد القياسية حسب بروتوكولك الخاص.")
+        new_age_sch = st.number_input("عمر اليوم (للجدول)", min_value=0, max_value=60, value=1, step=1)
+        new_type = st.selectbox("النوع", ["لقاح", "دواء", "فيتامين"])
+        new_name = st.text_input("اسم المادة")
+        new_dose = st.text_input("الجرعة")
+        new_route = st.text_input("طريقة الإعطاء")
+        if st.button("➕ إضافة/تحديد موعد قياسي"):
+            st.session_state["standard_vacc_schedule"][new_age_sch] = {
+                "type": new_type,
+                "name": new_name,
+                "dose": new_dose,
+                "route": new_route
+            }
+            st.success(f"تم حفظ الموعد لعمر {new_age_sch} يوم")
+            st.rerun()
+        st.markdown("**الجدول الحالي:**")
+        st.json(st.session_state["standard_vacc_schedule"])
+
+    # ---------- زر إرسال التقرير اليومي مع اسم المزرعة ----------
+    if st.button("📄 إرسال التقرير اليومي مع اسم المزرعة", use_container_width=True):
+        report_lines = [
+            f"تقرير مزرعة {selected} - المالك: {farm.get('owner', 'غير مسجل')}",
+            f"📅 التاريخ: {datetime.now().strftime('%Y-%m-%d')}",
+            f"🐔 العمر: {current['flock_age_days']} يوم",
+            f"⚖️ متوسط الوزن: {current['current_weight_kg']:.3f} كجم",
+            f"📈 ADG: {adg:.1f} جم/يوم",
+            f"🔄 FCR: {fcr:.2f}",
+            f"💀 النافق: {current['dead_birds']} طير",
+            f"❤️ الحيوية: {livability:.1f}%",
+            f"🏆 EPEF: {epef:.0f}",
+            f"🌡️ درجة الحرارة: {temp}°C (موصى {rec_temp}°C)",
+            f"💧 الرطوبة: {hum}% (موصى {rec_hum}%)",
+            f"📝 ملاحظات: {notes}"
+        ]
+        if given_meds.strip():
+            report_lines.append(f"💊 السجل الصحي اليوم: {given_meds}")
+        report_text = "\n".join(report_lines)
+        encoded = urllib.parse.quote(report_text[:1500])
+        st.markdown(f'<a href="https://wa.me/{farm.get("owner_phone", WHATSAPP_NUMBER)}?text={encoded}" target="_blank"><button style="background:#25D366; color:white; padding:10px; border-radius:5px;">📲 إرسال التقرير عبر واتساب باسم المزرعة</button></a>', unsafe_allow_html=True)
+        st.text_area("معاينة التقرير:", report_text, height=250)
+
+else:
+    if not st.session_state.get("show_add_farm", False):
+        st.info("👈 يرجى إضافة مزرعة جديدة أو اختيار مزرعة مسجلة من القائمة.")
 
 # -----------------------------------------------------------------
 # تبويب تعليقات المختصين (للمالك والمختص)
