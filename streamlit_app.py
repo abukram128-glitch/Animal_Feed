@@ -1,3 +1,6 @@
+# Digital Signature: e3999213744c4bd3982dc1f7ea268534
+# Generated: 2026-06-07T21:19:38.669555
+
 # Digital Signature: 464b006be2995e5b7fe84f8ed5b9f320
 # Generated: 2026-06-06T21:03:28.623590
 
@@ -329,6 +332,16 @@ def save_broiler_farms(data):
 if "broiler_farms_loaded" not in st.session_state:
     st.session_state["broiler_farms"] = load_broiler_farms()
     st.session_state["broiler_farms_loaded"] = True
+
+# ==========================================
+# إدارة طلبات المختبر (تمت الإضافة)
+# ==========================================
+if "pending_lab_requests" not in st.session_state:
+    st.session_state["pending_lab_requests"] = []   # قائمة الطلبات الواردة
+if "lab_results" not in st.session_state:
+    st.session_state["lab_results"] = {}            # النتائج المحفوظة
+if "next_request_id" not in st.session_state:
+    st.session_state["next_request_id"] = 1
 
 # قائمة الأدوية المعروفة للدواجن
 KNOWN_MEDICATIONS = [
@@ -1118,6 +1131,30 @@ with tabs[0]:
                     st.session_state["computed_ton_cost"] = ton_cost
                     st.metric(f"💰 التكلفة الفعلية لإنتاج الطن في {user_city}: ", f"${ton_cost:.2f} (أو {ton_cost*local_rate:,.1f} {local_sym})")
 
+                    # ========== زر إرسال الخلطة للمختبر (تمت الإضافة) ==========
+                    col_send_lab = st.columns([1])
+                    with col_send_lab[0]:
+                        if st.button("🔬 إرسال هذه الخلطة إلى المختبر لتحليلها", key="send_to_lab_btn", use_container_width=True):
+                            new_request = {
+                                "request_id": st.session_state["next_request_id"],
+                                "request_date": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                "status": "pending",
+                                "user_role": st.session_state.get("user_role", ""),
+                                "target_species": sub_type,
+                                "production_stage": prod_stage,
+                                "target_dp": final_target_dp if not use_cp_basis else None,
+                                "target_se": final_target_se,
+                                "formula": formula_results.copy(),
+                                "city": user_city,
+                                "cost": ton_cost,
+                                "notes": ""
+                            }
+                            st.session_state["pending_lab_requests"].append(new_request)
+                            st.session_state["next_request_id"] += 1
+                            st.success(f"✅ تم إرسال الطلب رقم {new_request['request_id']} إلى المختبر بنجاح!")
+                            time.sleep(1.5)
+                            st.rerun()
+
                     col_share, col_pdf = st.columns(2)
                     with col_share:
                         share_message = f"منصة تاور العلمية - الخلطة المعتمدة: {sub_type} ({gender_option})، بتكلفة إنتاج {ton_cost:.2f}$ للطن. المشرف: الاختصاصي م. عبد القادر إسماعيل تاور."
@@ -1144,21 +1181,100 @@ with tabs[0]:
             time.sleep(40)
             nz_placeholder.empty()
 
-    # مختبر التحليل (مختصر)
+    # ====================================================================
+    # مختبر تحليل وفحص الأعلاف الجاهزة (تم التعديل والإضافة)
+    # ====================================================================
     with sub_tab_analyzer:
-        st.markdown('<div class="section-title">🔬 مختبر فحص وتحليل الخلطات الجاهزة</div>', unsafe_allow_html=True)
+        # ========== القسم الجديد: طلبات التحليل الواردة من تبويب التركيب ==========
+        st.markdown('<div class="section-title">📋 طلبات تحليل الخلطات الواردة</div>', unsafe_allow_html=True)
+
+        # عرض الطلبات المعلقة
+        pending_requests = [r for r in st.session_state["pending_lab_requests"] if r["status"] == "pending"]
+        if not pending_requests:
+            st.info("📭 لا توجد طلبات تحليل واردة حالياً.")
+        else:
+            for req in pending_requests:
+                with st.expander(f"🧪 طلب تحليل رقم {req['request_id']} - تاريخ: {req['request_date']}"):
+                    st.write(f"**السلالة/النوع:** {req['target_species']}")
+                    st.write(f"**مرحلة الإنتاج:** {req['production_stage']}")
+                    st.write(f"**البروتين المهضوم المستهدف:** {req['target_dp']}%")
+                    st.write(f"**معادل النشاء المستهدف:** {req['target_se']}")
+                    st.write(f"**المدينة:** {req.get('city', 'غير محدد')}")
+                    st.write("**الخلطة المطلوب تحليلها:**")
+                    for ing, pct in req["formula"].items():
+                        st.write(f"- {ing}: {pct:.2f}%")
+                    st.write(f"**التكلفة المقدرة للطن:** ${req.get('cost', 0):.2f}")
+
+                    # نموذج إدخال نتائج التحليل
+                    with st.form(key=f"lab_results_form_{req['request_id']}"):
+                        st.subheader("📊 نتائج التحليل المخبري")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            cp = st.number_input("البروتين الخام (CP) %", min_value=0.0, step=0.1, key=f"cp_{req['request_id']}")
+                            moisture = st.number_input("الرطوبة (Moisture) %", min_value=0.0, step=0.1, key=f"moisture_{req['request_id']}")
+                        with col2:
+                            fat = st.number_input("الدهن (Fat) %", min_value=0.0, step=0.1, key=f"fat_{req['request_id']}")
+                            fiber = st.number_input("الألياف الخام (Crude Fiber) %", min_value=0.0, step=0.1, key=f"fiber_{req['request_id']}")
+                        notes_lab = st.text_area("ملاحظات إضافية", key=f"lab_notes_{req['request_id']}")
+                        submitted = st.form_submit_button("💾 حفظ النتائج")
+                        if submitted:
+                            # تخزين النتائج
+                            st.session_state["lab_results"][req["request_id"]] = {
+                                "cp": cp,
+                                "moisture": moisture,
+                                "fat": fat,
+                                "fiber": fiber,
+                                "notes": notes_lab,
+                                "request_date": req["request_date"],
+                                "target_species": req["target_species"],
+                                "production_stage": req["production_stage"],
+                                "formula": req["formula"],
+                                "city": req.get("city", ""),
+                                "cost": req.get("cost", 0)
+                            }
+                            # تحديث حالة الطلب
+                            req["status"] = "completed"
+                            st.success(f"✅ تم حفظ نتائج التحليل للطلب رقم {req['request_id']} بنجاح!")
+                            st.rerun()
+
+        # ========== عرض نتائج التحاليل السابقة ==========
+        st.markdown('<div class="section-title">📊 سجل نتائج التحاليل السابقة</div>', unsafe_allow_html=True)
+        if st.session_state["lab_results"]:
+            results_list = []
+            for rid, data in st.session_state["lab_results"].items():
+                results_list.append({
+                    "رقم الطلب": rid,
+                    "تاريخ الطلب": data["request_date"],
+                    "السلالة/النوع": data["target_species"],
+                    "مرحلة الإنتاج": data["production_stage"],
+                    "CP %": data.get("cp", 0),
+                    "رطوبة %": data.get("moisture", 0),
+                    "دهن %": data.get("fat", 0),
+                    "ألياف %": data.get("fiber", 0),
+                    "الملاحظات": data.get("notes", "")
+                })
+            df_results = pd.DataFrame(results_list)
+            st.dataframe(df_results, use_container_width=True)
+        else:
+            st.info("📭 لا توجد نتائج تحاليل محفوظة بعد.")
+
+        # ========== القسم الأصلي: مختبر تحليل الخلطات اليدوي ==========
+        st.markdown("---")
+        st.markdown('<div class="section-title">🧪 تحليل خلطات يدوية (إدخال مباشر)</div>', unsafe_allow_html=True)
         st.write("اكتب مقادير خلطتك الحالية بالكيلوجرام، وسيقوم المختبر بتحليلها برمجياً لتقدير نسبة البروتين المهضوم ومعادل النشاء الإجمالي.")
+
         st.subheader("🎯 حدد الحيوان والغرض المستهدف للمقارنة:")
         col_lab_animal, col_lab_stage = st.columns(2)
         with col_lab_animal:
-            target_animal = st.selectbox("اختر الفصيل:", ["أبقار", "أغنام", "ماعز", "خيول", "دواجن لاحم", "دواجن بياض", "سمان", "أسماك"])
+            target_animal = st.selectbox("اختر الفصيل:", ["أبقار", "أغنام", "ماعز", "خيول", "دواجن لاحم", "دواجن بياض", "سمان", "أسماك"], key="target_animal_manual")
         with col_lab_stage:
             if target_animal in ["أبقار", "أغنام", "ماعز"]:
-                production_type = st.selectbox("مرحلة الإنتاج:", ["تسمين", "حليب/إدرار", "حمل/دفع غذائي", "صيانة"])
+                production_type = st.selectbox("مرحلة الإنتاج:", ["تسمين", "حليب/إدرار", "حمل/دفع غذائي", "صيانة"], key="prod_stage_manual")
             elif target_animal in ["دواجن لاحم", "دواجن بياض", "سمان"]:
-                production_type = st.selectbox("مرحلة الإنتاج:", ["بادي", "نامي", "ناهي", "بياض"])
+                production_type = st.selectbox("مرحلة الإنتاج:", ["بادي", "نامي", "ناهي", "بياض"], key="prod_stage_manual")
             else:
-                production_type = st.selectbox("مرحلة الإنتاج:", ["نمو", "تسمين نهائي"])
+                production_type = st.selectbox("مرحلة الإنتاج:", ["نمو", "تسمين نهائي"], key="prod_stage_manual")
+
         cp_requirements = {
             ("أبقار", "تسمين"): 12.0, ("أبقار", "حليب/إدرار"): 14.0, ("أبقار", "حمل/دفع غذائي"): 11.0, ("أبقار", "صيانة"): 9.0,
             ("أغنام", "تسمين"): 13.0, ("أغنام", "حليب/إدرار"): 14.5, ("أغنام", "حمل/دفع غذائي"): 11.5, ("أغنام", "صيانة"): 8.5,
@@ -1171,12 +1287,13 @@ with tabs[0]:
         }
         suggested_cp = cp_requirements.get((target_animal, production_type), 15.0)
         suggested_dp = suggested_cp * 0.80
-        analysis_basis = st.radio("أساس التحليل:", ["بروتين مهضوم (DP)", "بروتين خام (CP)"], horizontal=True)
+        analysis_basis = st.radio("أساس التحليل:", ["بروتين مهضوم (DP)", "بروتين خام (CP)"], horizontal=True, key="analysis_basis_manual")
         if analysis_basis == "بروتين مهضوم (DP)":
-            target_value = st.number_input("النسبة المستهدفة (DP %)", min_value=5.0, max_value=50.0, value=float(suggested_dp), step=0.1)
+            target_value = st.number_input("النسبة المستهدفة (DP %)", min_value=5.0, max_value=50.0, value=float(suggested_dp), step=0.1, key="target_dp_manual")
             st.caption(f"البروتين الخام المقترح ≈ {suggested_cp:.1f}%")
         else:
-            target_value = st.number_input("النسبة المستهدفة (CP %)", min_value=5.0, max_value=50.0, value=float(suggested_cp), step=0.1)
+            target_value = st.number_input("النسبة المستهدفة (CP %)", min_value=5.0, max_value=50.0, value=float(suggested_cp), step=0.1, key="target_cp_manual")
+
         st.markdown("---")
         st.subheader("📥 أدخل أوزان المكونات بالكيلوجرام:")
         lab_user_inputs = {}
@@ -1189,15 +1306,16 @@ with tabs[0]:
         segment = total_ing_count // 3 + 1
         with col_input1:
             for ing_name in all_library_ingredients[:segment]:
-                lab_user_inputs[ing_name] = st.number_input(f"وزن {ing_name} (كجم):", min_value=0.0, value=0.0, step=5.0, key=f"lab_in_{ing_name}")
+                lab_user_inputs[ing_name] = st.number_input(f"وزن {ing_name} (كجم):", min_value=0.0, value=0.0, step=5.0, key=f"lab_in_{ing_name}_manual")
         with col_input2:
             for ing_name in all_library_ingredients[segment:segment*2]:
-                lab_user_inputs[ing_name] = st.number_input(f"وزن {ing_name} (كجم):", min_value=0.0, value=0.0, step=5.0, key=f"lab_in_{ing_name}")
+                lab_user_inputs[ing_name] = st.number_input(f"وزن {ing_name} (كجم):", min_value=0.0, value=0.0, step=5.0, key=f"lab_in_{ing_name}_manual")
         with col_input3:
             for ing_name in all_library_ingredients[segment*2:]:
-                lab_user_inputs[ing_name] = st.number_input(f"وزن {ing_name} (كجم):", min_value=0.0, value=0.0, step=5.0, key=f"lab_in_{ing_name}")
+                lab_user_inputs[ing_name] = st.number_input(f"وزن {ing_name} (كجم):", min_value=0.0, value=0.0, step=5.0, key=f"lab_in_{ing_name}_manual")
+
         st.markdown("---")
-        if st.button("🧪 تشغيل التحليل المخبري", type="primary", use_container_width=True):
+        if st.button("🧪 تشغيل التحليل المخبري (للخلطة اليدوية)", type="primary", use_container_width=True, key="run_lab_manual"):
             lab_total_weight = sum(lab_user_inputs.values())
             if lab_total_weight <= 0:
                 st.warning("⚠️ الرجاء إدخال أوزان أكبر من الصفر.")
@@ -1217,6 +1335,7 @@ with tabs[0]:
                         calculated_total_dp += pct * (ing_cp * ing_dc)
                         calculated_total_se += pct * ing_se
                         entered_components_summary.append({"المادة العلفية": ing_name, "الوزن المدخل": f"{weight:.1f} كجم", "النسبة المئوية": f"{pct * 100:.2f}%"})
+
                 st.success("🔬 تم فحص العينة وتحليل المحتوى الغذائي بنجاح!")
                 st.markdown(f"### ⚖️ إجمالي وزن الخلطة: **{lab_total_weight:.1f} كجم**")
                 st.write("#### 📊 نسب توزيع المكونات:")
@@ -1233,17 +1352,20 @@ with tabs[0]:
                     status_label = "✅ مطابق وممتاز" if comparison_value >= target_value else "⚠️ ناقص البروتين الخام"
                     st.write(f"🔬 البروتين الخام (CP) المحسوب: **{calculated_total_cp:.2f}%**")
                     st.write(f"🔬 البروتين المهضوم (DP) المحسوب: **{calculated_total_dp:.2f}%**")
+
                 lab_report_data = [
                     {"العنصر الغذائي": "البروتين المهضوم (DP)", "القيمة المحسوبة": f"{calculated_total_dp:.2f}%", "الاحتياج القياسي": f"{target_value:.1f}%" if analysis_basis == "بروتين مهضوم (DP)" else "-", "التقييم": status_label},
                     {"العنصر الغذائي": "البروتين الخام (CP)", "القيمة المحسوبة": f"{calculated_total_cp:.2f}%", "الاحتياج القياسي": f"{target_value:.1f}%" if analysis_basis == "بروتين خام (CP)" else "-", "التقييم": "-"},
                     {"العنصر الغذائي": "معادل النشاء (SE)", "القيمة المحسوبة": f"{calculated_total_se:.2f} وحدة", "الاحتياج القياسي": "مرن حسب الفصيل", "التقييم": "تحليل طاقة كلي"}
                 ]
                 st.table(pd.DataFrame(lab_report_data))
+
                 st.write("📊 التمثيل البياني لتوزيع المواد المدخلة:")
                 graph_data = {k: v for k, v in lab_user_inputs.items() if v > 0}
                 if graph_data:
                     fig = px.bar(x=list(graph_data.keys()), y=list(graph_data.values()), labels={'x': 'المادة العلفية', 'y': 'الوزن (كجم)'}, title="توزيع أوزان المواد في الخلطة المختبرة")
                     st.plotly_chart(fig, use_container_width=True)
+
                 lab_share_text = f"نتيجة مختبر منصة تاور:\nالحيوان: {target_animal} - {production_type}\nالبروتين المحسوب: {comparison_value:.2f}%\nالمعيار: {target_value:.1f}%"
                 encoded_lab = urllib.parse.quote(lab_share_text)
                 st.markdown(f'<a href="https://wa.me/?text={encoded_lab}" target="_blank"><button style="background-color:#25D366; color:white; padding:10px; border-radius:5px;">📲 مشاركة النتيجة عبر واتساب</button></a>', unsafe_allow_html=True)
@@ -1425,13 +1547,11 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
         heatmap_data = pd.DataFrame({'القطاع': ['أبقار', 'أغنام', 'دواجن', 'أسماك', 'خيول'], 'البروتين': [12.5, 11.0, 20.0, 28.0, 12.0], 'التكلفة': [285, 265, 420, 580, 350], 'الكفاءة': [85, 82, 92, 88, 80]})
         fig = px.scatter(heatmap_data, x='البروتين', y='التكلفة', size='الكفاءة', color='القطاع', hover_name='القطاع', title='علاقة البروتين بالتكلفة حسب القطاع', size_max=30)
         st.plotly_chart(fig, use_container_width=True)
+
 # ====================================================================
 # تبويب إدارة مزارع الدواجن (لاحم/بياض) - نسخة كاملة مع دوال الحفظ
 # ====================================================================
 if st.session_state["user_role"] == "owner":
-    # تأكد من أن التبويب السادس موجود (حسب ترتيبك). قد يختلف الرقم.
-    # نستخدم tabs[6] إذا كان هو الترتيب، وإلا غير الرقم.
-    # لنفترض أن tabs[6] هو تبويب الدواجن.
     with tabs[6]:
         st.markdown('<div class="section-title">🐔 إدارة مزارع الدواجن المتكاملة</div>', unsafe_allow_html=True)
         st.markdown("""
@@ -1818,6 +1938,7 @@ if st.session_state["user_role"] == "owner":
         else:
             if not st.session_state.get("show_add_poultry", False):
                 st.info("👈 يرجى إضافة مزرعة جديدة أو اختيار مزرعة مسجلة من القائمة.")
+
 # -----------------------------------------------------------------
 # تبويب تعليقات المختصين
 # -----------------------------------------------------------------
