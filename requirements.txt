@@ -11,3 +11,9 @@ arabic-reshaper>=3.0.0
 python-bidi>=0.4.2
 reportlab>=4.0.0
 
+# تثبيت المكتبات الإضافية
+pip install python-dotenv cryptography
+
+# إنشاء ملف .env
+echo "SMTP_PASSWORD=your_password" > .env
+echo "SECRET_KEY=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> .env
