@@ -10,7 +10,6 @@ qrcode>=7.4.0
 arabic-reshaper>=3.0.0
 python-bidi>=0.4.2
 reportlab>=4.0.0
-
 # تثبيت المكتبات الإضافية
 pip install python-dotenv cryptography
 
