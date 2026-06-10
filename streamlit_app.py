@@ -1188,6 +1188,7 @@ with tabs[0]:
     # مختبر تحليل وفحص الأعلاف الجاهزة (تم التعديل والإضافة)
     # ====================================================================
     with sub_tab_analyzer:
+        st.write("Debug - pending_lab_requests:", st.session_state["pending_lab_requests"])
         # ========== القسم الجديد: طلبات التحليل الواردة من تبويب التركيب ==========
         st.markdown('<div class="section-title">📋 طلبات تحليل الخلطات الواردة</div>', unsafe_allow_html=True)
 
