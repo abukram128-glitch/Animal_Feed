@@ -1191,7 +1191,7 @@ with tabs[0]:
         st.write("Debug - pending_lab_requests:", st.session_state["pending_lab_requests"])
         # ========== القسم الجديد: طلبات التحليل الواردة من تبويب التركيب ==========
         st.markdown('<div class="section-title">📋 طلبات تحليل الخلطات الواردة</div>', unsafe_allow_html=True)
-
+    st.write("Debug - pending_lab_requests:", st.session_state["pending_lab_requests"])
         # عرض الطلبات المعلقة
         pending_requests = [r for r in st.session_state["pending_lab_requests"] if r["status"] == "pending"]
         if not pending_requests:
