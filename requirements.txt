@@ -17,3 +17,8 @@ pip install python-dotenv cryptography
 # إنشاء ملف .env
 echo "SMTP_PASSWORD=your_password" > .env
 echo "SECRET_KEY=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> .env
+# تثبيت المكتبات المطلوبة
+pip install streamlit pandas numpy scipy plotly reportlab arabic-reshaper python-bidi qrcode Pillow python-dotenv cryptography openpyxl
+
+# تشغيل المنصة
+streamlit run tower_platform.py
