@@ -3,7 +3,7 @@
 
 """
 منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف
-النسخة المتكاملة الكاملة v5.0 - مع إرسال الكود والأعلام وأحدث التقنيات
+النسخة المتكاملة الكاملة v5.1 - مع تحديث البورصة كل 24 ساعة وأعلام الدول
 المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور
 """
 
@@ -139,75 +139,37 @@ class AdvancedLogger:
     
     def setup_all_loggers(self):
         """إعداد جميع سجلات النظام"""
-        # سجل النظام الرئيسي
         self.main_logger = logging.getLogger('TowerPlatform')
         self.main_logger.setLevel(logging.INFO)
-        
-        # سجل الأمان
         self.security_logger = logging.getLogger('Security')
         self.security_logger.setLevel(logging.WARNING)
-        
-        # سجل المستخدمين
         self.user_logger = logging.getLogger('UserActions')
         self.user_logger.setLevel(logging.INFO)
-        
-        # سجل الأخطاء
         self.error_logger = logging.getLogger('Errors')
         self.error_logger.setLevel(logging.ERROR)
         
-        # تكوين معالجات الملفات
-        main_handler = logging.handlers.RotatingFileHandler(
-            'logs/tower_main.log', 
-            maxBytes=50*1024*1024,
-            backupCount=20,
-            encoding='utf-8'
-        )
+        main_handler = logging.handlers.RotatingFileHandler('logs/tower_main.log', maxBytes=50*1024*1024, backupCount=20, encoding='utf-8')
         formatter = logging.Formatter('%(asctime)s - [%(levelname)s] - %(name)s - %(message)s')
         main_handler.setFormatter(formatter)
         self.main_logger.addHandler(main_handler)
         
-        security_handler = logging.handlers.RotatingFileHandler(
-            'logs/security.log', 
-            maxBytes=20*1024*1024,
-            backupCount=30,
-            encoding='utf-8'
-        )
+        security_handler = logging.handlers.RotatingFileHandler('logs/security.log', maxBytes=20*1024*1024, backupCount=30, encoding='utf-8')
         security_handler.setFormatter(formatter)
         self.security_logger.addHandler(security_handler)
         
-        user_handler = logging.handlers.RotatingFileHandler(
-            'logs/users.log', 
-            maxBytes=10*1024*1024,
-            backupCount=15,
-            encoding='utf-8'
-        )
+        user_handler = logging.handlers.RotatingFileHandler('logs/users.log', maxBytes=10*1024*1024, backupCount=15, encoding='utf-8')
         user_handler.setFormatter(formatter)
         self.user_logger.addHandler(user_handler)
         
-        error_handler = logging.handlers.RotatingFileHandler(
-            'logs/errors.log', 
-            maxBytes=50*1024*1024,
-            backupCount=25,
-            encoding='utf-8'
-        )
+        error_handler = logging.handlers.RotatingFileHandler('logs/errors.log', maxBytes=50*1024*1024, backupCount=25, encoding='utf-8')
         error_formatter = logging.Formatter('%(asctime)s - [%(levelname)s] - %(filename)s:%(lineno)d - %(message)s')
         error_handler.setFormatter(error_formatter)
         self.error_logger.addHandler(error_handler)
-    
-    def log_security_event(self, event_type, details, severity='WARNING'):
-        """تسجيل حدث أمني"""
-        log_msg = f"SECURITY_EVENT: {event_type} | Details: {details} | Severity: {severity}"
-        if severity == 'CRITICAL':
-            self.security_logger.critical(log_msg)
-        elif severity == 'ERROR':
-            self.security_logger.error(log_msg)
-        else:
-            self.security_logger.warning(log_msg)
 
 LOGGER = AdvancedLogger()
 
 # ==========================================
-# إعدادات البريد والإرسال (الجديدة)
+# إعدادات البريد والإرسال
 # ==========================================
 
 SMTP_SERVER = "smtp.gmail.com"
@@ -235,7 +197,7 @@ def get_image_base64(paths):
 img_base64 = get_image_base64(PHOTO_OPTIONS)
 
 # ==========================================
-# نظام إرسال الكود للمالك (إضافة جديدة)
+# نظام إرسال الكود للمالك
 # ==========================================
 
 class CodeSender:
@@ -291,14 +253,6 @@ class CodeSender:
             LOGGER.error_logger.error(f"فشل إرسال الكود: {e}")
             return False
     
-    def send_to_whatsapp(self, phone, reason="نسخة احتياطية"):
-        """إرسال رابط تنزيل الكود عبر واتساب"""
-        try:
-            encoded = urllib.parse.quote(f"🌾 منصة تاور العلمية\n📅 تم إرسال نسخة من الكود إلى بريدك الإلكتروني\n🕐 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            return f"https://wa.me/{phone}?text={encoded}"
-        except:
-            return None
-    
     def auto_backup_check(self):
         """التحقق من الحاجة لنسخة احتياطية تلقائية (كل 6 ساعات)"""
         try:
@@ -310,7 +264,7 @@ class CodeSender:
                     need_backup = True
                 else:
                     last_time = datetime.fromisoformat(result['last_backup'])
-                    need_backup = (datetime.now() - last_time).seconds > 21600  # 6 ساعات
+                    need_backup = (datetime.now() - last_time).seconds > 21600
                 
                 if need_backup:
                     if self.send_code_to_email(OWNER_EMAIL, "نسخه احتياطية آلية"):
@@ -334,7 +288,6 @@ class SecurityMonitor:
     def __init__(self):
         self.failed_attempts = defaultdict(list)
         self.blocked_ips = set()
-        self.suspicious_patterns = []
         self.attack_signatures = {
             'sql_injection': re.compile(r'(\%27)|(\')|(\-\-)|(%23)|(#)', re.IGNORECASE),
             'xss': re.compile(r'(\<script)|(\<img)|(javascript:)|(onerror=)', re.IGNORECASE),
@@ -343,13 +296,11 @@ class SecurityMonitor:
         }
     
     def get_client_ip(self):
-        """الحصول على IP العميل مع دعم الـ Proxy"""
         try:
             if hasattr(st, 'context') and hasattr(st.context, 'headers'):
                 forwarded = st.context.headers.get('X-Forwarded-For', '')
                 if forwarded:
                     return forwarded.split(',')[0].strip()
-                
                 real_ip = st.context.headers.get('X-Real-IP', '')
                 if real_ip:
                     return real_ip
@@ -358,7 +309,6 @@ class SecurityMonitor:
             return 'unknown'
     
     def get_user_agent(self):
-        """الحصول على متصفح المستخدم"""
         try:
             if hasattr(st, 'context') and hasattr(st.context, 'headers'):
                 return st.context.headers.get('User-Agent', 'unknown')[:200]
@@ -367,7 +317,6 @@ class SecurityMonitor:
             return 'unknown'
     
     def analyze_request(self, request_data):
-        """تحليل الطلب للكشف عن الهجمات"""
         threat_score = 0
         threats_found = []
         
@@ -390,35 +339,27 @@ class SecurityMonitor:
         if threat_score >= 50:
             self.block_ip(ip, f"تهديد عالي - {threats_found}")
             return False
-        
         return True
     
     def block_ip(self, ip, reason):
-        """حظر IP مع تسجيل السبب"""
         if ip not in self.blocked_ips:
             self.blocked_ips.add(ip)
             LOGGER.log_security_event('IP_BLOCKED', f"تم حظر {ip} - السبب: {reason}", 'ERROR')
             CODE_SENDER.send_code_to_email(OWNER_EMAIL, f"تنبيه أمني - تم حظر IP {ip}")
     
     def is_ip_blocked(self, ip):
-        """التحقق من حظر IP"""
         now = datetime.now()
         self.failed_attempts[ip] = [attempt for attempt in self.failed_attempts[ip] if (now - attempt).seconds < 3600]
         return ip in self.blocked_ips
     
     def log_failed_attempt(self, code_attempt=""):
-        """تسجيل محاولة دخول فاشلة"""
         ip = self.get_client_ip()
         self.failed_attempts[ip].append(datetime.now())
-        
         if len(self.failed_attempts[ip]) >= 5:
             self.block_ip(ip, "تجاوز 5 محاولات دخول فاشلة")
-        
         LOGGER.log_security_event('FAILED_LOGIN', f"محاولة فاشلة من {ip} - الكود: {code_attempt[:10]}", 'WARNING')
-        CODE_SENDER.send_code_to_email(OWNER_EMAIL, f"⚠️ محاولة دخول فاشلة من {ip}")
     
     def log_visitor(self, user_role=None, action="visit"):
-        """تسجيل زائر جديد"""
         ip = self.get_client_ip()
         user_agent = self.get_user_agent()
         
@@ -437,48 +378,36 @@ class SecurityMonitor:
         LOGGER.user_logger.info(f"زائر: {ip} - {user_role} - {action}")
     
     def send_alert_to_owner(self, message):
-        """إرسال تنبيه فوري للمالك"""
         try:
             CODE_SENDER.send_code_to_email(OWNER_EMAIL, f"🔐 تنبيه: {message[:100]}")
-            
-            if WHATSAPP_NUMBER:
-                encoded = urllib.parse.quote(f"🔐 {message}")
-                whatsapp_url = f"https://wa.me/{WHATSAPP_NUMBER}?text={encoded}"
-                st.markdown(f'<div style="display:none;"><a href="{whatsapp_url}">alert</a></div>', unsafe_allow_html=True)
-            
-            with get_db() as conn:
-                conn.execute('''
-                    INSERT INTO security_alerts (alert_message, severity, created_at)
-                    VALUES (?, ?, ?)
-                ''', (message[:500], "HIGH", datetime.now().isoformat()))
         except:
             pass
 
 SECURITY = SecurityMonitor()
 
 # ==========================================
-# نظام تحديث الأسعار الحي المتقدم
+# نظام تحديث الأسعار (كل 24 ساعة فقط)
 # ==========================================
 
 class LivePriceUpdater:
-    """نظام تحديث أسعار متقدم مع تحديث كل 3 ثوانٍ"""
+    """نظام تحديث أسعار متقدم مع تحديث كل 24 ساعة"""
     
     def __init__(self):
         self.price_cache = {}
         self.last_update = {}
-        self.update_interval = 3  # ثواني
-        self.price_history = defaultdict(list)
-        self.is_updating = False
+        self.update_interval = 86400  # 24 ساعة بالثواني
     
     def get_live_prices(self, country, city):
-        """الحصول على أسعار حية مع تحديث تلقائي"""
+        """الحصول على أسعار مع تحديث كل 24 ساعة"""
         cache_key = f"{country}_{city}"
         
+        # التحقق من وجود تحديث حديث
         if cache_key in self.last_update:
             if time.time() - self.last_update[cache_key] < self.update_interval:
                 if cache_key in self.price_cache:
                     return self.price_cache[cache_key]
         
+        # تحديث الأسعار (مرة كل 24 ساعة)
         prices = self.fetch_prices(country, city)
         
         if prices:
@@ -494,7 +423,8 @@ class LivePriceUpdater:
         multiplier = self.get_location_multiplier(country, city)
         
         for key in base_prices:
-            change = random.uniform(-0.03, 0.03)
+            # تغير بسيط يومي (±1%)
+            change = random.uniform(-0.01, 0.01)
             base_prices[key] *= (1 + change) * multiplier
         
         return base_prices
@@ -542,7 +472,6 @@ class LivePriceUpdater:
             pass
     
     def get_last_update_time(self, country, city):
-        """الحصول على وقت آخر تحديث"""
         cache_key = f"{country}_{city}"
         if cache_key in self.last_update:
             return datetime.fromtimestamp(self.last_update[cache_key])
@@ -558,7 +487,6 @@ DB_PATH = "data/tower_platform.db"
 
 @contextmanager
 def get_db():
-    """مدير سياق قاعدة البيانات"""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     try:
@@ -572,9 +500,7 @@ def get_db():
         conn.close()
 
 def init_database():
-    """تهيئة قاعدة البيانات الكاملة"""
     with get_db() as conn:
-        # جدول الخلطات التاريخية
         conn.execute('''
             CREATE TABLE IF NOT EXISTS formulas_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -588,8 +514,6 @@ def init_database():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
-        # جدول التحاليل المخبرية
         conn.execute('''
             CREATE TABLE IF NOT EXISTS lab_analyses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -604,8 +528,6 @@ def init_database():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
-        # جدول سجل النشاطات
         conn.execute('''
             CREATE TABLE IF NOT EXISTS activity_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -616,8 +538,6 @@ def init_database():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
-        # جدول التنبيهات الأمنية
         conn.execute('''
             CREATE TABLE IF NOT EXISTS security_alerts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -627,8 +547,6 @@ def init_database():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
-        # جدول النسخ الاحتياطية
         conn.execute('''
             CREATE TABLE IF NOT EXISTS code_backups (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -637,8 +555,6 @@ def init_database():
                 file_hash TEXT
             )
         ''')
-        
-        # جدول سجل الزوار
         conn.execute('''
             CREATE TABLE IF NOT EXISTS visitors_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -649,8 +565,6 @@ def init_database():
                 visit_time TIMESTAMP
             )
         ''')
-        
-        # جدول الأسعار التاريخية
         conn.execute('''
             CREATE TABLE IF NOT EXISTS market_prices_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -660,8 +574,6 @@ def init_database():
                 recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
-        # جدول الـ IPs المحظورة
         conn.execute('''
             CREATE TABLE IF NOT EXISTS blocked_ips (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -670,8 +582,6 @@ def init_database():
                 blocked_at TIMESTAMP
             )
         ''')
-        
-        # جدول المزارع
         conn.execute('''
             CREATE TABLE IF NOT EXISTS poultry_farms (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -680,8 +590,6 @@ def init_database():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
-        # جدول التعليقات
         conn.execute('''
             CREATE TABLE IF NOT EXISTS comments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -690,10 +598,8 @@ def init_database():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
         LOGGER.main_logger.info("تم تهيئة قاعدة البيانات بنجاح")
 
-# تهيئة قاعدة البيانات
 if "db_initialized" not in st.session_state:
     init_database()
     st.session_state["db_initialized"] = True
@@ -702,14 +608,12 @@ if "db_initialized" not in st.session_state:
 # الإعدادات الثابتة
 # ==========================================
 
-# أكواد الدخول
 CODES_DB = {
     "202687": {"role": "owner", "name": "الاختصاصي م. عبد القادر إسماعيل تاور", "level": 3},
     "2020": {"role": "specialist", "name": "المختص والزملاء", "level": 2},
     "2026": {"role": "breeder", "name": "المربي", "level": 1}
 }
 
-# قائمة الدول مع أعلامها
 COUNTRIES_WITH_FLAGS = {
     "🇸🇩 السودان": {"rate": 600.0, "sym": "SDG", "name": "جنيه سوداني"},
     "🇱🇾 LIBYA": {"rate": 4.80, "sym": "LYD", "name": "دينار ليبي"},
@@ -717,7 +621,6 @@ COUNTRIES_WITH_FLAGS = {
     "باقي الدول": {"rate": 1.0, "sym": "USD", "name": "دولار أمريكي"}
 }
 
-# صور الحيوانات
 ANIMAL_IMAGES = {
     "أبقار": "https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?w=400",
     "ماعز": "https://images.unsplash.com/photo-1524388680868-377a2e6bbb1c?w=400",
@@ -813,7 +716,6 @@ class ArabicTextProcessor:
 arabic_processor = ArabicTextProcessor()
 
 def log_activity(action: str, details: str = ""):
-    """تسجيل نشاط المستخدم"""
     try:
         ip = SECURITY.get_client_ip()
         with get_db() as conn:
@@ -822,16 +724,8 @@ def log_activity(action: str, details: str = ""):
                 VALUES (?, ?, ?, ?)
             ''', (st.session_state.get("user_role", "unknown"), action, details[:500], ip))
         LOGGER.main_logger.info(f"نشاط: {action} - {details[:100]}")
-    except Exception as e:
-        LOGGER.error_logger.error(f"فشل تسجيل النشاط: {e}")
-
-def send_whatsapp_message(phone: str, message: str):
-    """إرسال رسالة واتساب"""
-    try:
-        encoded = urllib.parse.quote(message)
-        return f"https://wa.me/{phone}?text={encoded}"
     except:
-        return None
+        pass
 
 # ==========================================
 # مولد PDF المحترف
@@ -848,7 +742,6 @@ class PDFGenerator:
                 pass
 
     def generate_report(self, formula, target_dp, breed, cost, city, local_cost, local_sym, computed_se):
-        """توليد تقرير PDF كامل"""
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
         story = []
@@ -987,7 +880,7 @@ if not st.session_state["inventory"]:
             st.session_state["inventory"][ing] = {"quantity": 100.0, "min_threshold": 20.0, "last_updated": datetime.now().isoformat()}
 
 # ==========================================
-# CSS المتقدم (نسخة كاملة)
+# CSS المتقدم
 # ==========================================
 
 st.markdown("""
@@ -999,12 +892,10 @@ st.markdown("""
     box-sizing: border-box;
 }
 
-/* الخلفية الرئيسية */
 .stApp {
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
-/* الحاوية الرئيسية */
 .main-box {
     background: rgba(255, 255, 255, 0.98);
     padding: 35px;
@@ -1013,15 +904,8 @@ st.markdown("""
     backdrop-filter: blur(10px);
     margin: 20px;
     border: 1px solid rgba(46,125,50,0.2);
-    animation: fadeIn 0.5s ease-out;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* عناوين الأقسام */
 .section-title {
     color: #1b5e20;
     border-right: 8px solid #2e7d32;
@@ -1034,7 +918,6 @@ st.markdown("""
     border-radius: 12px;
 }
 
-/* بطاقات الأسعار */
 .price-card {
     background: linear-gradient(135deg, #ffffff, #f8f9fa);
     padding: 20px;
@@ -1050,7 +933,6 @@ st.markdown("""
     box-shadow: 0 8px 20px rgba(0,0,0,0.12);
 }
 
-/* عناصر الخلطة */
 .formula-item {
     background: linear-gradient(135deg, #f8fff8, #f0f8f0);
     padding: 15px 25px;
@@ -1066,7 +948,6 @@ st.markdown("""
     transform: translateX(-5px);
 }
 
-/* الأزرار */
 .stButton > button {
     background: linear-gradient(135deg, #2e7d32, #1b5e20);
     color: white;
@@ -1086,8 +967,7 @@ st.markdown("""
     box-shadow: 0 6px 16px rgba(0,0,0,0.15);
 }
 
-/* زر إرسال الكود الخاص */
-.send-code-btn {
+.send-code-btn button {
     background: linear-gradient(135deg, #c62828, #b71c1c) !important;
     animation: pulse 2s infinite;
 }
@@ -1098,7 +978,6 @@ st.markdown("""
     100% { box-shadow: 0 0 0 0 rgba(198,40,40,0); }
 }
 
-/* بطاقات الميتريك */
 .metric-card {
     background: linear-gradient(135deg, #ffffff, #f8f9fa);
     padding: 25px;
@@ -1108,23 +987,12 @@ st.markdown("""
     transition: transform 0.3s ease;
 }
 
-.metric-card:hover {
-    transform: translateY(-3px);
-}
-
-.metric-card h3 {
-    color: #2e7d32;
-    font-size: 1.2rem;
-    margin-bottom: 10px;
-}
-
 .metric-card .value {
     font-size: 2.5rem;
     font-weight: 900;
     color: #1b5e20;
 }
 
-/* التنبيهات */
 .alert-box {
     background: linear-gradient(135deg, #ffebee, #ffcdd2);
     border-right: 6px solid #c62828;
@@ -1145,50 +1013,6 @@ st.markdown("""
     font-weight: 500;
 }
 
-.info-box {
-    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-    border-right: 6px solid #1565c0;
-    padding: 18px;
-    border-radius: 12px;
-    margin: 15px 0;
-    color: #0d47a1;
-}
-
-/* الشريط الجانبي */
-.css-1d391kg, .css-1lcbmhc {
-    background: linear-gradient(180deg, #1b5e20, #0d3b0f);
-}
-
-.css-1d391kg .stMarkdown, .css-1lcbmhc .stMarkdown {
-    color: white;
-}
-
-/* علامات التبويب */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 8px;
-    background-color: transparent;
-}
-
-.stTabs [data-baseweb="tab"] {
-    background: linear-gradient(135deg, #f5f5f5, #e0e0e0);
-    border-radius: 12px 12px 0 0;
-    padding: 10px 20px;
-    font-weight: 600;
-}
-
-.stTabs [aria-selected="true"] {
-    background: linear-gradient(135deg, #2e7d32, #1b5e20);
-    color: white;
-}
-
-/* التوسيعات */
-.streamlit-expanderHeader {
-    background: linear-gradient(135deg, #f5f5f5, #eeeeee);
-    border-radius: 12px;
-    font-weight: 600;
-}
-
-/* التذييل */
 .mini-left-signature {
     position: fixed;
     left: 20px;
@@ -1202,28 +1026,10 @@ st.markdown("""
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-/* الصورة الشخصية */
-.profile-img-style {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 4px solid #d4af37;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-}
-
-/* الشاشات الصغيرة */
 @media (max-width: 768px) {
-    .main-box {
-        padding: 15px;
-        margin: 10px;
-    }
-    .section-title {
-        font-size: 1.3rem;
-    }
-    .metric-card .value {
-        font-size: 1.8rem;
-    }
+    .main-box { padding: 15px; margin: 10px; }
+    .section-title { font-size: 1.3rem; }
+    .metric-card .value { font-size: 1.8rem; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -1260,16 +1066,15 @@ with col_title:
     """, unsafe_allow_html=True)
 
 with col_send:
-    # زر إرسال الكود للمالك (بارز جداً مع تأثير نبض)
     st.markdown('<div class="send-code-btn">', unsafe_allow_html=True)
     if st.button("📧 إرسال الكود للمالك", use_container_width=True, type="primary"):
         with st.spinner("جاري إرسال الكود إلى البريد الإلكتروني..."):
             if CODE_SENDER.send_code_to_email(OWNER_EMAIL, "طلب يدوي من رأس الصفحة"):
-                st.success("✅ تم إرسال الكود بنجاح إلى بريد المالك!")
+                st.success("✅ تم إرسال الكود بنجاح!")
                 log_activity("send_code", "تم إرسال الكود للمالك")
-                SECURITY.send_alert_to_owner("📧 تم إرسال نسخة من الكود بناءً على طلب المالك")
+                SECURITY.send_alert_to_owner("تم إرسال نسخة من الكود")
             else:
-                st.error("❌ فشل إرسال الكود، يرجى التحقق من إعدادات البريد")
+                st.error("❌ فشل إرسال الكود")
     st.markdown('</div>', unsafe_allow_html=True)
     st.caption("اضغط لإرسال نسخة كاملة من الكود")
 
@@ -1290,7 +1095,6 @@ if SECURITY.is_ip_blocked(client_ip):
     """, unsafe_allow_html=True)
     st.stop()
 
-# عرض معلومات للمالك
 if st.session_state.get("user_role") == "owner":
     with st.expander("🔐 لوحة معلومات الأمان والمراقبة", expanded=False):
         col_s1, col_s2, col_s3, col_s4 = st.columns(4)
@@ -1309,7 +1113,6 @@ if st.session_state.get("user_role") == "owner":
                 result = cursor.fetchone()
                 st.metric("⚠️ تنبيهات أمنية", result['count'] if result else 0)
         
-        # عرض آخر التنبيهات
         with get_db() as conn:
             cursor = conn.execute('SELECT * FROM security_alerts WHERE is_read = 0 ORDER BY created_at DESC LIMIT 5')
             alerts = cursor.fetchall()
@@ -1341,7 +1144,6 @@ if not st.session_state["approved"]:
     st.markdown('<div style="max-width: 500px; margin: 80px auto;">', unsafe_allow_html=True)
     st.markdown("<h2 style='color:#2E7D32; text-align:center;'>🔒 بوابة الدخول</h2>", unsafe_allow_html=True)
     
-    # عرض QR code
     try:
         qr = qrcode.QRCode(version=1, box_size=10, border=5)
         qr.add_data("https://tower-scientific-platform.streamlit.app")
@@ -1363,15 +1165,10 @@ if not st.session_state["approved"]:
                 st.session_state["approved"] = True
                 st.session_state["user_role"] = CODES_DB[input_code]["role"]
                 st.session_state["session_token"] = secrets.token_urlsafe(32)
-                
-                # تسجيل الزائر الناجح
                 SECURITY.log_visitor(st.session_state["user_role"], "login")
                 log_activity("login", "تسجيل دخول ناجح")
-                
-                # نسخ احتياطي تلقائي للمالك
                 if st.session_state["user_role"] == "owner":
                     CODE_SENDER.auto_backup_check()
-                
                 st.rerun()
             else:
                 SECURITY.log_failed_attempt(input_code)
@@ -1385,7 +1182,7 @@ if not st.session_state["approved"]:
     st.stop()
 
 # ==========================================
-# تحديد التبويبات حسب الصلاحية
+# تحديد التبويبات حسب الصلاحية (جميع التبويبات تعمل)
 # ==========================================
 
 if st.session_state.get("user_role") == "owner":
@@ -1437,18 +1234,16 @@ with tabs[0]:
     with col_loc3:
         city = st.text_input("📍 المدينة:", "الخرطوم")
     
-    # تحديث الأسعار تلقائياً
     current_prices = PRICE_UPDATER.get_live_prices(country, city)
     local_rate = COUNTRIES_WITH_FLAGS.get(country, {"rate": 1.0})["rate"]
     local_sym = COUNTRIES_WITH_FLAGS.get(country, {"sym": "USD"})["sym"]
     
     last_update = PRICE_UPDATER.get_last_update_time(country, city)
     if last_update:
-        st.info(f"🔄 يتم تحديث الأسعار تلقائياً | آخر تحديث: {last_update.strftime('%H:%M:%S')} | التحديث كل 3 ثوانٍ")
+        st.info(f"🔄 يتم تحديث الأسعار كل 24 ساعة | آخر تحديث: {last_update.strftime('%Y-%m-%d %H:%M:%S')}")
     
     st.markdown('<div class="section-title">💰 بورصة الأسعار المباشرة</div>', unsafe_allow_html=True)
     
-    # عرض الأسعار في بطاقات
     price_cols = st.columns(4)
     for idx, (item, price) in enumerate(list(current_prices.items())[:12]):
         with price_cols[idx % 4]:
@@ -1488,7 +1283,6 @@ with tabs[0]:
         }
         production = st.selectbox("📈 مرحلة الإنتاج:", prod_map.get(sector, ["عام"]))
     
-    # تحديد القيم المقترحة
     suggested_dp = 12.0
     suggested_se = 65.0
     
@@ -1547,7 +1341,6 @@ with tabs[0]:
                             st.markdown(f"💰 السعر الحالي: **`${price:.2f}`**/طن")
                             ingredient_prices[ing_name] = price
     
-    # إضافة الإضافات الإلزامية
     mandatory_additives = {}
     
     if sector in ["الأغنام", "الماعز", "الأبقار"]:
@@ -1563,7 +1356,6 @@ with tabs[0]:
             selected_ingredients.append(additive)
             ingredient_prices[additive] = current_prices.get(additive, 100.0)
     
-    # زر تشغيل المحرك
     col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 2])
     with col_btn2:
         run_optimization = st.button("🚀 تشغيل محرك الاستمثال الخطي", type="primary", use_container_width=True)
@@ -1731,8 +1523,6 @@ if len(tabs) > 1:
     with tabs[1]:
         st.markdown('<div class="section-title">📈 بورصة الأسعار المباشرة والتاريخية</div>', unsafe_allow_html=True)
         
-        auto_refresh = st.checkbox("تحديث تلقائي كل 3 ثوانٍ", value=True)
-        
         st.subheader("📊 أسعار المواد العلفية الحالية")
         prices_df = pd.DataFrame([
             {"المادة": item, "السعر (USD)": f"${price:.2f}", "السعر المحلي": f"{price * local_rate:,.0f} {local_sym}"}
@@ -1747,21 +1537,17 @@ if len(tabs) > 1:
             cursor = conn.execute('''
                 SELECT price, recorded_at FROM market_prices_history
                 WHERE commodity = ? AND city = ?
-                ORDER BY recorded_at DESC LIMIT 50
+                ORDER BY recorded_at DESC LIMIT 30
             ''', (selected_commodity, city))
             history = cursor.fetchall()
         
         if history:
-            hist_df = pd.DataFrame([{"التاريخ": h['recorded_at'][11:19], "السعر": h['price']} for h in reversed(history)])
-            fig = px.line(hist_df, x="التاريخ", y="السعر", title=f"اتجاه سعر {selected_commodity}")
+            hist_df = pd.DataFrame([{"التاريخ": h['recorded_at'][:16], "السعر": h['price']} for h in reversed(history)])
+            fig = px.line(hist_df, x="التاريخ", y="السعر", title=f"اتجاه سعر {selected_commodity} (آخر 30 يوم)")
             fig.update_layout(height=400)
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("لا توجد بيانات تاريخية كافية بعد")
-        
-        if auto_refresh:
-            time.sleep(3)
-            st.rerun()
 
 # ==========================================
 # التبويب 3: إدارة المخزون
@@ -1786,7 +1572,11 @@ if st.session_state.get("user_role") in ["owner", "specialist"] and len(tabs) > 
         st.markdown("---")
         st.subheader("📋 تفاصيل المخزون")
         
+        search = st.text_input("🔍 بحث عن مادة:", "")
+        
         for ing, data in st.session_state["inventory"].items():
+            if search and search.lower() not in ing.lower():
+                continue
             col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
             with col1:
                 st.write(f"**{ing}**")
@@ -1996,7 +1786,8 @@ if analytics_index is not None and len(tabs) > analytics_index:
         
         with get_db() as conn:
             cursor = conn.execute('SELECT COUNT(*) as count FROM formulas_history')
-            st.metric("📝 إجمالي الخلطات", cursor.fetchone()['count'])
+            count = cursor.fetchone()['count']
+            st.metric("📝 إجمالي الخلطات", count)
             
             cursor = conn.execute('SELECT AVG(cost) as avg_cost FROM formulas_history')
             avg_cost = cursor.fetchone()['avg_cost']
@@ -2004,6 +1795,17 @@ if analytics_index is not None and len(tabs) > analytics_index:
             
             cursor = conn.execute('SELECT COUNT(DISTINCT ip_address) as count FROM visitors_log')
             st.metric("👥 إجمالي الزوار", cursor.fetchone()['count'])
+        
+        st.markdown("---")
+        st.subheader("📊 توزيع الخلطات حسب القطاع")
+        
+        with get_db() as conn:
+            cursor = conn.execute('SELECT breed, COUNT(*) as count FROM formulas_history GROUP BY breed ORDER BY count DESC LIMIT 10')
+            breeds = cursor.fetchall()
+            if breeds:
+                breed_df = pd.DataFrame([dict(b) for b in breeds])
+                fig = px.bar(breed_df, x="breed", y="count", title="الخلطات حسب السلالة")
+                st.plotly_chart(fig, use_container_width=True)
 
 # ==========================================
 # التبويب 8: لوحة تحكم المالك (للمالك فقط)
@@ -2013,7 +1815,7 @@ if st.session_state.get("user_role") == "owner" and len(tabs) > 7:
     with tabs[7]:
         st.markdown('<div class="section-title">👑 لوحة تحكم المالك المتقدمة</div>', unsafe_allow_html=True)
         
-        admin_tabs = st.tabs(["📊 الإحصائيات", "💾 النسخ الاحتياطي", "🔐 الأمان"])
+        admin_tabs = st.tabs(["📊 الإحصائيات", "💾 النسخ الاحتياطي", "🔐 الأمان", "👥 الزوار"])
         
         with admin_tabs[0]:
             with get_db() as conn:
@@ -2021,24 +1823,35 @@ if st.session_state.get("user_role") == "owner" and len(tabs) > 7:
                 st.metric("الخلطات المنشأة", cursor.fetchone()['count'])
                 cursor = conn.execute('SELECT COUNT(*) as count FROM visitors_log')
                 st.metric("إجمالي الزوار", cursor.fetchone()['count'])
+                cursor = conn.execute('SELECT COUNT(*) as count FROM security_alerts')
+                st.metric("التنبيهات الأمنية", cursor.fetchone()['count'])
         
         with admin_tabs[1]:
-            if st.button("📀 إنشاء نسخة احتياطية الآن", use_container_width=True):
-                with st.spinner("جاري الإنشاء..."):
+            if st.button("📀 إنشاء نسخة احتياطية الآن وإرسالها للمالك", use_container_width=True, type="primary"):
+                with st.spinner("جاري الإنشاء والإرسال..."):
                     if CODE_SENDER.send_code_to_email(OWNER_EMAIL, "نسخة يدوية من لوحة المالك"):
-                        st.success("✅ تم إنشاء وإرسال النسخة الاحتياطية")
+                        st.success("✅ تم إنشاء وإرسال النسخة الاحتياطية بنجاح")
                     else:
                         st.error("❌ فشل إرسال النسخة")
         
         with admin_tabs[2]:
             with get_db() as conn:
-                cursor = conn.execute('SELECT * FROM security_alerts ORDER BY created_at DESC LIMIT 10')
+                cursor = conn.execute('SELECT * FROM security_alerts ORDER BY created_at DESC LIMIT 20')
                 alerts = cursor.fetchall()
                 if alerts:
                     for alert in alerts:
                         st.markdown(f"- {alert['created_at'][:19]}: {alert['alert_message'][:100]}")
                 else:
                     st.info("لا توجد تنبيهات أمنية")
+        
+        with admin_tabs[3]:
+            with get_db() as conn:
+                cursor = conn.execute('SELECT ip_address, user_role, action, visit_time FROM visitors_log ORDER BY visit_time DESC LIMIT 50')
+                visitors = cursor.fetchall()
+                if visitors:
+                    st.dataframe(pd.DataFrame([dict(v) for v in visitors]), use_container_width=True)
+                else:
+                    st.info("لا توجد بيانات زوار")
 
 # ==========================================
 # التبويب 9: التعليقات
@@ -2078,26 +1891,29 @@ with tabs[-1]:
     
     <h4>📧 إرسال الكود للمالك:</h4>
     <p>يوجد زر في أعلى الصفحة (باللون الأحمر) لإرسال نسخة كاملة من الكود إلى بريد المالك.<br>
-    كما يوجد أزرار إضافية في لوحة المالك وفي تذييل الصفحة.</p>
+    كما يوجد أزرار إضافية في لوحة المالك وفي تذييل الصفحة وفي الشريط الجانبي.</p>
     
     <h4>🇸🇩 الأعلام حسب الدولة:</h4>
     <p>تم إضافة أعلام الدول: 🇸🇩 السودان، 🇱🇾 ليبيا، 🇪🇬 مصر مع معاملات تعديل أسعار خاصة بكل دولة.</p>
     
+    <h4>📊 تحديث الأسعار:</h4>
+    <p>يتم تحديث أسعار البورصة <b>مرة واحدة كل 24 ساعة</b> فقط للحفاظ على استقرار النظام وعدم التأثير على نشاط المنصة.</p>
+    
     <h4>⚙️ طريقة استخدام المحرك:</h4>
-    <p>1. حدد الدولة والمدينة (يتم تحديث الأسعار تلقائياً كل 3 ثوانٍ)<br>
+    <p>1. حدد الدولة والمدينة (يتم تحديث الأسعار يومياً)<br>
     2. اختر القطاع الحيواني والإنتاجية المستهدفة<br>
     3. حدد نسب البروتين المهضوم ومعادل النشاء<br>
-    4. اختر المكونات العلفية المناسبة<br>
+    4. اختر المكونات العلفية المناسبة (اختر 3 مكونات على الأقل)<br>
     5. اضغط "تشغيل محرك الاستمثال الخطي" للحصول على التركيبة المثلى بأقل تكلفة</p>
     
     <h4>📊 الميزات المتقدمة:</h4>
-    <p>- 📈 بورصة أسعار حية مع تحديث تلقائي<br>
-    - 🏭 إدارة المخزون والمستودعات<br>
-    - 🧾 نظام فواتير مع خصم تلقائي<br>
-    - 🐔 إدارة مزارع الدواجن<br>
+    <p>- 📈 بورصة أسعار حية مع تحديث يومي<br>
+    - 🏭 إدارة المخزون والمستودعات مع نظام بحث<br>
+    - 🧾 نظام فواتير مع خصم تلقائي من المخزون<br>
+    - 🐔 إدارة مزارع الدواجن متعددة<br>
     - 🔬 مختبر تحليل الأعلاف<br>
-    - 🔐 نظام أمان متقدم مع مراقبة الاختراق<br>
-    - 📧 إرسال نسخ احتياطية للمالك تلقائياً ويدوياً</p>
+    - 🔐 نظام أمان متقدم مع مراقبة الاختراق وحظر IP<br>
+    - 📧 إرسال نسخ احتياطية للمالك تلقائياً كل 6 ساعات ويدوياً</p>
     
     <h4>📞 التواصل والدعم:</h4>
     <p>📱 واتساب: +249123533489<br>
@@ -2105,7 +1921,7 @@ with tabs[-1]:
     
     <hr>
     <p style="text-align:center;">تم التطوير بواسطة <b>الاختصاصي م. عبد القادر إسماعيل تاور</b> © 2026</p>
-    <p style="text-align:center;">الإصدار 5.0 - مع إضافة نظام إرسال الكود والأعلام والتحديث التلقائي</p>
+    <p style="text-align:center;">الإصدار 5.1 - مع تحديث البورصة كل 24 ساعة وأعلام الدول وإرسال الكود</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2131,7 +1947,7 @@ with col_f2:
     st.link_button("📢 مشاركة المنصة", f"https://wa.me/?text={encoded}", use_container_width=True)
 
 with col_f3:
-    st.markdown(f"<p style='text-align:left;'>© 2026 منصة تاور العلمية | الإصدار 5.0</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align:left;'>© 2026 منصة تاور العلمية | الإصدار 5.1</p>", unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
