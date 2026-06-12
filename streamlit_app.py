@@ -3,8 +3,7 @@
 
 """
 منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف
-النسخة المتكاملة الكاملة v6.0 - أكثر من 2200 سطر
-مع شريط القياس المتقدم والمختبر المتكامل وأحدث التقنيات
+النسخة المتكاملة الكاملة v6.1 - أكثر من 2250 سطر - مع إصلاح قاعدة البيانات
 المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور
 """
 
@@ -141,7 +140,6 @@ class AdvancedLogger:
         self.setup_all_loggers()
     
     def setup_all_loggers(self):
-        """إعداد جميع سجلات النظام"""
         self.main_logger = logging.getLogger('TowerPlatform')
         self.main_logger.setLevel(logging.INFO)
         self.security_logger = logging.getLogger('Security')
@@ -651,7 +649,7 @@ class LivePriceUpdater:
 PRICE_UPDATER = LivePriceUpdater()
 
 # ==========================================
-# نظام قاعدة البيانات المتقدم
+# نظام قاعدة البيانات المتقدم مع إصلاح الأخطاء
 # ==========================================
 
 DB_PATH = "data/tower_platform.db"
@@ -670,6 +668,49 @@ def get_db():
         raise
     finally:
         conn.close()
+
+def column_exists(conn, table_name, column_name):
+    """التحقق من وجود عمود في جدول"""
+    cursor = conn.execute(f"PRAGMA table_info({table_name})")
+    columns = [row[1] for row in cursor.fetchall()]
+    return column_name in columns
+
+def upgrade_database():
+    """ترقية قاعدة البيانات إلى الإصدار الأحدث"""
+    with get_db() as conn:
+        # إضافة الأعمدة المفقودة في جدول lab_analyses
+        if column_exists(conn, 'lab_analyses', 'id'):
+            # إضافة عمود created_at إذا كان مفقوداً
+            if not column_exists(conn, 'lab_analyses', 'created_at'):
+                try:
+                    conn.execute('ALTER TABLE lab_analyses ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+                    LOGGER.main_logger.info("تم إضافة عمود created_at إلى lab_analyses")
+                except:
+                    pass
+            
+            # إضافة عمود analyzed_at إذا كان مفقوداً
+            if not column_exists(conn, 'lab_analyses', 'analyzed_at'):
+                try:
+                    conn.execute('ALTER TABLE lab_analyses ADD COLUMN analyzed_at TIMESTAMP')
+                    LOGGER.main_logger.info("تم إضافة عمود analyzed_at إلى lab_analyses")
+                except:
+                    pass
+            
+            # إضافة عمود lysine إذا كان مفقوداً
+            if not column_exists(conn, 'lab_analyses', 'lysine'):
+                try:
+                    conn.execute('ALTER TABLE lab_analyses ADD COLUMN lysine REAL')
+                    LOGGER.main_logger.info("تم إضافة عمود lysine إلى lab_analyses")
+                except:
+                    pass
+            
+            # إضافة عمود methionine إذا كان مفقوداً
+            if not column_exists(conn, 'lab_analyses', 'methionine'):
+                try:
+                    conn.execute('ALTER TABLE lab_analyses ADD COLUMN methionine REAL')
+                    LOGGER.main_logger.info("تم إضافة عمود methionine إلى lab_analyses")
+                except:
+                    pass
 
 def init_database():
     """تهيئة قاعدة البيانات الكاملة"""
@@ -693,7 +734,7 @@ def init_database():
             )
         ''')
         
-        # جدول التحاليل المخبرية المتكامل
+        # جدول التحاليل المخبرية المتكامل (مع جميع الأعمدة)
         conn.execute('''
             CREATE TABLE IF NOT EXISTS lab_analyses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -813,6 +854,9 @@ def init_database():
         ''')
         
         LOGGER.main_logger.info("تم تهيئة قاعدة البيانات بنجاح")
+        
+        # ترقية قاعدة البيانات
+        upgrade_database()
 
 # تهيئة قاعدة البيانات
 if "db_initialized" not in st.session_state:
@@ -2039,7 +2083,7 @@ if len(tabs) > 1:
             with col_stats3:
                 st.metric("متوسط السعر", f"${hist_df['السعر'].mean():.2f}")
             with col_stats4:
-                change = ((hist_df['السعر'].iloc[-1] - hist_df['السعر'].iloc[0]) / hist_df['السعر'].iloc[0]) * 100
+                change = ((hist_df['السعر'].iloc[-1] - hist_df['السعر'].iloc[0]) / hist_df['السعر'].iloc[0]) * 100 if hist_df['السعر'].iloc[0] > 0 else 0
                 st.metric("التغير", f"{change:+.1f}%")
         else:
             st.info("لا توجد بيانات تاريخية كافية بعد")
@@ -2281,7 +2325,7 @@ if st.session_state.get("user_role") == "owner" and len(tabs) > 4:
         st.dataframe(temp_df, use_container_width=True)
 
 # ==========================================
-# التبويب 6: المختبر المتكامل
+# التبويب 6: المختبر المتكامل (مع إصلاح الخطأ)
 # ==========================================
 
 lab_index = 5 if st.session_state.get("user_role") == "owner" else (4 if st.session_state.get("user_role") == "specialist" else None)
@@ -2322,55 +2366,60 @@ if lab_index is not None and len(tabs) > lab_index:
                     request_id = int(datetime.now().timestamp())
                     with get_db() as conn:
                         conn.execute('''
-                            INSERT INTO lab_analyses (request_id, formula_data, breed, sector, city, analysis_date, target_dp, target_me, notes, status)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ''', (request_id, lab_formula, lab_breed, lab_sector, lab_city, sample_date.isoformat(), expected_cp, expected_me, notes, "pending"))
+                            INSERT INTO lab_analyses (request_id, formula_data, breed, sector, city, analysis_date, target_dp, target_me, notes, status, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (request_id, lab_formula, lab_breed, lab_sector, lab_city, sample_date.isoformat(), expected_cp, expected_me, notes, "pending", datetime.now().isoformat()))
                     st.success(f"✅ تم إنشاء طلب التحليل رقم {request_id}")
                     log_activity("lab_request", f"طلب تحليل رقم {request_id}")
         
-        # تبويب إدخال النتائج
+        # تبويب إدخال النتائج (تم إصلاح الخطأ)
         with lab_tabs[1]:
             st.subheader("🧪 إدخال نتائج التحليل المخبري")
             
             with get_db() as conn:
-                pending = conn.execute("SELECT request_id, formula_data, breed, sector, city, analysis_date FROM lab_analyses WHERE status = 'pending' ORDER BY created_at DESC").fetchall()
+                # استخدام try/except للتعامل مع الأعمدة المفقودة
+                try:
+                    pending = conn.execute("SELECT request_id, formula_data, breed, sector, city, analysis_date FROM lab_analyses WHERE status = 'pending' ORDER BY created_at DESC").fetchall()
+                except:
+                    # إذا حدث خطأ، نستخدم ORDER BY id بدلاً من created_at
+                    pending = conn.execute("SELECT request_id, formula_data, breed, sector, city, analysis_date FROM lab_analyses WHERE status = 'pending' ORDER BY id DESC").fetchall()
             
-            if pending:
-                selected_request = st.selectbox("اختر طلب التحليل:", [f"#{r['request_id']} - {r['breed']} - {r['city']} ({r['analysis_date'][:10]})" for r in pending])
+            if pending and len(pending) > 0:
+                selected_request = st.selectbox("اختر طلب التحليل:", [f"#{r['request_id']} - {r['breed']} - {r['city']} ({r['analysis_date'][:10] if r['analysis_date'] else 'تاريخ غير محدد'})" for r in pending])
                 if selected_request:
                     req_id = int(selected_request.split(" - ")[0][1:])
                     req_data = next(r for r in pending if r['request_id'] == req_id)
                     
                     with st.form(f"lab_results_{req_id}"):
                         st.markdown(f"### تحليل العينة #{req_id}")
-                        st.markdown(f"**السلالة:** {req_data['breed']} | **المدينة:** {req_data['city']} | **تاريخ العينة:** {req_data['analysis_date'][:10]}")
+                        st.markdown(f"**السلالة:** {req_data['breed']} | **المدينة:** {req_data['city']} | **تاريخ العينة:** {req_data['analysis_date'][:10] if req_data['analysis_date'] else 'غير محدد'}")
                         
                         st.markdown("#### 📊 النتائج المخبرية")
                         col_res1, col_res2, col_res3 = st.columns(3)
                         with col_res1:
-                            lab_cp = st.number_input("البروتين الخام (CP) %:", 0.0, 60.0, step=0.1, key="cp")
-                            lab_dp = st.number_input("البروتين المهضوم (DP) %:", 0.0, 50.0, step=0.1, key="dp")
-                            lab_moisture = st.number_input("الرطوبة %:", 0.0, 20.0, step=0.1, key="moisture")
+                            lab_cp = st.number_input("البروتين الخام (CP) %:", 0.0, 60.0, step=0.1, key=f"cp_{req_id}")
+                            lab_dp = st.number_input("البروتين المهضوم (DP) %:", 0.0, 50.0, step=0.1, key=f"dp_{req_id}")
+                            lab_moisture = st.number_input("الرطوبة %:", 0.0, 20.0, step=0.1, key=f"moisture_{req_id}")
                         
                         with col_res2:
-                            lab_fat = st.number_input("الدهن الخام %:", 0.0, 15.0, step=0.1, key="fat")
-                            lab_fiber = st.number_input("الألياف الخام %:", 0.0, 30.0, step=0.1, key="fiber")
-                            lab_ash = st.number_input("الرماد %:", 0.0, 20.0, step=0.1, key="ash")
+                            lab_fat = st.number_input("الدهن الخام %:", 0.0, 15.0, step=0.1, key=f"fat_{req_id}")
+                            lab_fiber = st.number_input("الألياف الخام %:", 0.0, 30.0, step=0.1, key=f"fiber_{req_id}")
+                            lab_ash = st.number_input("الرماد %:", 0.0, 20.0, step=0.1, key=f"ash_{req_id}")
                         
                         with col_res3:
-                            lab_me = st.number_input("الطاقة الأيضية (ME) كيلو كالوري/كجم:", 0, 4000, step=50, key="me")
-                            lab_ca = st.number_input("الكالسيوم %:", 0.0, 10.0, step=0.1, key="ca")
-                            lab_p = st.number_input("الفسفور %:", 0.0, 5.0, step=0.1, key="p")
+                            lab_me = st.number_input("الطاقة الأيضية (ME) كيلو كالوري/كجم:", 0, 4000, step=50, key=f"me_{req_id}")
+                            lab_ca = st.number_input("الكالسيوم %:", 0.0, 10.0, step=0.1, key=f"ca_{req_id}")
+                            lab_p = st.number_input("الفسفور %:", 0.0, 5.0, step=0.1, key=f"p_{req_id}")
                         
                         st.markdown("#### 🧬 الأحماض الأمينية (اختياري)")
                         col_aa1, col_aa2 = st.columns(2)
                         with col_aa1:
-                            lysine = st.number_input("اللايسين %:", 0.0, 5.0, step=0.05, key="lys")
+                            lysine = st.number_input("اللايسين %:", 0.0, 5.0, step=0.05, key=f"lys_{req_id}")
                         with col_aa2:
-                            methionine = st.number_input("الميثيونين %:", 0.0, 3.0, step=0.05, key="met")
+                            methionine = st.number_input("الميثيونين %:", 0.0, 3.0, step=0.05, key=f"met_{req_id}")
                         
-                        lab_notes = st.text_area("ملاحظات إضافية:", height=80)
-                        analyst_name = st.text_input("اسم المحلل:", "المختبر المركزي")
+                        lab_notes = st.text_area("ملاحظات إضافية:", height=80, key=f"notes_{req_id}")
+                        analyst_name = st.text_input("اسم المحلل:", "المختبر المركزي", key=f"analyst_{req_id}")
                         
                         if st.form_submit_button("💾 حفظ نتائج التحليل", type="primary"):
                             with get_db() as conn:
@@ -2392,18 +2441,28 @@ if lab_index is not None and len(tabs) > lab_index:
             st.subheader("📊 سجل التحاليل المخبرية السابقة")
             
             with get_db() as conn:
-                completed = conn.execute('''
-                    SELECT request_id, breed, sector, city, analysis_date, 
-                           lab_cp, lab_dp, lab_me, lab_moisture, lab_fat, lab_fiber, lab_ca, lab_p,
-                           lysine, methionine, notes, analyzed_by, analyzed_at
-                    FROM lab_analyses 
-                    WHERE status = 'completed' 
-                    ORDER BY analyzed_at DESC LIMIT 50
-                ''').fetchall()
+                try:
+                    completed = conn.execute('''
+                        SELECT request_id, breed, sector, city, analysis_date, 
+                               lab_cp, lab_dp, lab_me, lab_moisture, lab_fat, lab_fiber, lab_ca, lab_p,
+                               lysine, methionine, notes, analyzed_by, analyzed_at
+                        FROM lab_analyses 
+                        WHERE status = 'completed' 
+                        ORDER BY analyzed_at DESC LIMIT 50
+                    ''').fetchall()
+                except:
+                    completed = conn.execute('''
+                        SELECT request_id, breed, sector, city, analysis_date, 
+                               lab_cp, lab_dp, lab_me, lab_moisture, lab_fat, lab_fiber, lab_ca, lab_p,
+                               lysine, methionine, notes, analyzed_by, analyzed_at
+                        FROM lab_analyses 
+                        WHERE status = 'completed' 
+                        ORDER BY id DESC LIMIT 50
+                    ''').fetchall()
             
-            if completed:
+            if completed and len(completed) > 0:
                 for record in completed:
-                    with st.expander(f"🧪 تحليل #{record['request_id']} - {record['breed']} - {record['city']} ({record['analysis_date'][:10]})"):
+                    with st.expander(f"🧪 تحليل #{record['request_id']} - {record['breed']} - {record['city']} ({record['analysis_date'][:10] if record['analysis_date'] else 'تاريخ غير محدد'})"):
                         col_d1, col_d2, col_d3 = st.columns(3)
                         with col_d1:
                             st.metric("البروتين الخام", f"{record['lab_cp']:.1f}%" if record['lab_cp'] else "---")
@@ -2424,7 +2483,7 @@ if lab_index is not None and len(tabs) > lab_index:
                         if record['notes']:
                             st.caption(f"📝 ملاحظات: {record['notes']}")
                         
-                        st.caption(f"👨‍🔬 المحلل: {record['analyzed_by']} | التاريخ: {record['analyzed_at'][:16]}")
+                        st.caption(f"👨‍🔬 المحلل: {record['analyzed_by']} | التاريخ: {record['analyzed_at'][:16] if record['analyzed_at'] else 'غير محدد'}")
                         
                         # رسم بياني للمقارنة
                         if record['lab_cp'] and record['lab_dp']:
@@ -2442,31 +2501,47 @@ if lab_index is not None and len(tabs) > lab_index:
             st.subheader("📈 تقارير المختبر")
             
             with get_db() as conn:
-                stats = conn.execute('''
-                    SELECT 
-                        COUNT(*) as total_analyses,
-                        AVG(lab_cp) as avg_cp,
-                        AVG(lab_dp) as avg_dp,
-                        AVG(lab_me) as avg_me,
-                        AVG(lab_moisture) as avg_moisture,
-                        sector,
-                        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count
-                    FROM lab_analyses 
-                    GROUP BY sector
-                ''').fetchall()
+                try:
+                    stats = conn.execute('''
+                        SELECT 
+                            COUNT(*) as total_analyses,
+                            AVG(lab_cp) as avg_cp,
+                            AVG(lab_dp) as avg_dp,
+                            AVG(lab_me) as avg_me,
+                            AVG(lab_moisture) as avg_moisture,
+                            sector,
+                            COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count
+                        FROM lab_analyses 
+                        GROUP BY sector
+                    ''').fetchall()
+                except:
+                    stats = conn.execute('''
+                        SELECT 
+                            COUNT(*) as total_analyses,
+                            AVG(lab_cp) as avg_cp,
+                            AVG(lab_dp) as avg_dp,
+                            AVG(lab_me) as avg_me,
+                            AVG(lab_moisture) as avg_moisture,
+                            sector,
+                            COUNT(*) as completed_count
+                        FROM lab_analyses 
+                        WHERE status = 'completed'
+                        GROUP BY sector
+                    ''').fetchall()
             
-            if stats:
+            if stats and len(stats) > 0:
                 st.markdown("#### 📊 إحصائيات التحاليل حسب القطاع")
-                stats_df = pd.DataFrame([dict(s) for s in stats])
+                stats_df = pd.DataFrame([dict(s) for s in stats if s['sector']])
                 st.dataframe(stats_df, use_container_width=True)
                 
                 # رسم بياني
-                fig = go.Figure(data=[
-                    go.Bar(name="متوسط البروتين", x=stats_df['sector'], y=stats_df['avg_cp'], marker_color="#2e7d32"),
-                    go.Bar(name="متوسط الطاقة", x=stats_df['sector'], y=stats_df['avg_me'], marker_color="#ff9800")
-                ])
-                fig.update_layout(title="متوسط القيم حسب القطاع", height=400)
-                st.plotly_chart(fig, use_container_width=True)
+                if len(stats_df) > 0:
+                    fig = go.Figure(data=[
+                        go.Bar(name="متوسط البروتين", x=stats_df['sector'], y=stats_df['avg_cp'], marker_color="#2e7d32"),
+                        go.Bar(name="متوسط الطاقة", x=stats_df['sector'], y=stats_df['avg_me'], marker_color="#ff9800")
+                    ])
+                    fig.update_layout(title="متوسط القيم حسب القطاع", height=400)
+                    st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("لا توجد بيانات كافية لإحصائيات المختبر")
 
@@ -2506,30 +2581,33 @@ if analytics_index is not None and len(tabs) > analytics_index:
         with get_db() as conn:
             cursor = conn.execute('SELECT sector, COUNT(*) as count FROM formulas_history GROUP BY sector ORDER BY count DESC')
             sectors = cursor.fetchall()
-            if sectors:
-                sector_df = pd.DataFrame([dict(s) for s in sectors])
-                fig = px.pie(sector_df, values='count', names='sector', title="توزيع الخلطات حسب القطاع", color_discrete_sequence=px.colors.sequential.Greens_r)
-                st.plotly_chart(fig, use_container_width=True)
+            if sectors and len(sectors) > 0:
+                sector_df = pd.DataFrame([dict(s) for s in sectors if s['sector']])
+                if len(sector_df) > 0:
+                    fig = px.pie(sector_df, values='count', names='sector', title="توزيع الخلطات حسب القطاع", color_discrete_sequence=px.colors.sequential.Greens_r)
+                    st.plotly_chart(fig, use_container_width=True)
         
         # رسم بياني لتوزيع الخلطات حسب السلالة
         with get_db() as conn:
             cursor = conn.execute('SELECT breed, COUNT(*) as count FROM formulas_history GROUP BY breed ORDER BY count DESC LIMIT 10')
             breeds = cursor.fetchall()
-            if breeds:
-                breed_df = pd.DataFrame([dict(b) for b in breeds])
-                fig = px.bar(breed_df, x="breed", y="count", title="الخلطات حسب السلالة (أعلى 10)", color_discrete_sequence=["#2e7d32"])
-                fig.update_layout(height=400)
-                st.plotly_chart(fig, use_container_width=True)
+            if breeds and len(breeds) > 0:
+                breed_df = pd.DataFrame([dict(b) for b in breeds if b['breed']])
+                if len(breed_df) > 0:
+                    fig = px.bar(breed_df, x="breed", y="count", title="الخلطات حسب السلالة (أعلى 10)", color_discrete_sequence=["#2e7d32"])
+                    fig.update_layout(height=400)
+                    st.plotly_chart(fig, use_container_width=True)
         
         # اتجاه التكلفة
         with get_db() as conn:
             cursor = conn.execute('SELECT cost, created_at FROM formulas_history ORDER BY created_at DESC LIMIT 30')
             costs = cursor.fetchall()
-            if costs:
-                cost_df = pd.DataFrame([{"التاريخ": c['created_at'][:16], "التكلفة": c['cost']} for c in reversed(costs)])
-                fig = px.line(cost_df, x="التاريخ", y="التكلفة", title="اتجاه تكلفة الخلطات (آخر 30 خلطة)", markers=True)
-                fig.update_traces(line_color='#2e7d32', line_width=2)
-                st.plotly_chart(fig, use_container_width=True)
+            if costs and len(costs) > 0:
+                cost_df = pd.DataFrame([{"التاريخ": c['created_at'][:16] if c['created_at'] else "غير محدد", "التكلفة": c['cost']} for c in reversed(costs)])
+                if len(cost_df) > 0:
+                    fig = px.line(cost_df, x="التاريخ", y="التكلفة", title="اتجاه تكلفة الخلطات (آخر 30 خلطة)", markers=True)
+                    fig.update_traces(line_color='#2e7d32', line_width=2)
+                    st.plotly_chart(fig, use_container_width=True)
 
 # ==========================================
 # التبويب 8: لوحة تحكم المالك (للمالك فقط)
@@ -2578,9 +2656,9 @@ if st.session_state.get("user_role") == "owner" and len(tabs) > 7:
             with get_db() as conn:
                 cursor = conn.execute('SELECT * FROM security_alerts ORDER BY created_at DESC LIMIT 30')
                 alerts = cursor.fetchall()
-                if alerts:
+                if alerts and len(alerts) > 0:
                     for alert in alerts:
-                        st.markdown(f"- {alert['created_at'][:19]}: {alert['alert_message'][:100]}")
+                        st.markdown(f"- {alert['created_at'][:19] if alert['created_at'] else 'تاريخ غير محدد'}: {alert['alert_message'][:100]}")
                 else:
                     st.info("لا توجد تنبيهات أمنية")
         
@@ -2590,7 +2668,7 @@ if st.session_state.get("user_role") == "owner" and len(tabs) > 7:
             with get_db() as conn:
                 cursor = conn.execute('SELECT ip_address, user_role, action, visit_time FROM visitors_log ORDER BY visit_time DESC LIMIT 100')
                 visitors = cursor.fetchall()
-                if visitors:
+                if visitors and len(visitors) > 0:
                     visitors_df = pd.DataFrame([dict(v) for v in visitors])
                     st.dataframe(visitors_df, use_container_width=True, height=400)
                     
@@ -2600,7 +2678,7 @@ if st.session_state.get("user_role") == "owner" and len(tabs) > 7:
                     with col_v1:
                         st.metric("الزوار الفريدون", visitors_df['ip_address'].nunique())
                     with col_v2:
-                        st.metric("آخر زائر", visitors_df['visit_time'].iloc[0][:16] if len(visitors_df) > 0 else "---")
+                        st.metric("آخر زائر", visitors_df['visit_time'].iloc[0][:16] if len(visitors_df) > 0 and visitors_df['visit_time'].iloc[0] else "---")
                 else:
                     st.info("لا توجد بيانات زوار")
         
@@ -2611,7 +2689,7 @@ if st.session_state.get("user_role") == "owner" and len(tabs) > 7:
             st.markdown("#### ℹ️ معلومات النظام")
             col_sys1, col_sys2, col_sys3 = st.columns(3)
             with col_sys1:
-                st.metric("إصدار المنصة", "6.0")
+                st.metric("إصدار المنصة", "6.1")
             with col_sys2:
                 st.metric("عدد المواد العلفية", len(BIG_FEEDS_LIBRARY))
             with col_sys3:
@@ -2674,7 +2752,7 @@ with tabs[-1]:
     
     st.markdown("""
     <div style="background:#f5f5f5; padding:25px; border-radius:15px;">
-    <h3>📌 دليل استخدام منصة تاور العلمية v6.0</h3>
+    <h3>📌 دليل استخدام منصة تاور العلمية v6.1</h3>
     
     <h4>🔑 أكواد الدخول:</h4>
     <p>- 👑 <b>المالك (كامل الصلاحيات)</b>: <code style="background:#1b5e20;color:white;padding:2px 8px;border-radius:5px;">202687</code><br>
@@ -2750,7 +2828,7 @@ with tabs[-1]:
     
     <hr>
     <p style="text-align:center;">تم التطوير بواسطة <b>الاختصاصي م. عبد القادر إسماعيل تاور</b> © 2026</p>
-    <p style="text-align:center;">الإصدار 6.0 - مع شريط القياس المتقدم، المختبر المتكامل، تحديث يومي للأسعار، وأعلام الدول</p>
+    <p style="text-align:center;">الإصدار 6.1 - مع شريط القياس المتقدم، المختبر المتكامل، تحديث يومي للأسعار، وأعلام الدول</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2779,7 +2857,7 @@ with col_f3:
     st.markdown(f"<p style='text-align:center;'>© 2026 منصة تاور العلمية</p>", unsafe_allow_html=True)
 
 with col_f4:
-    st.markdown(f"<p style='text-align:center;'>الإصدار 6.0</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align:center;'>الإصدار 6.1</p>", unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -2805,7 +2883,7 @@ st.sidebar.markdown("### ℹ️ معلومات الجلسة")
 st.sidebar.markdown(f"- **الدور:** {st.session_state.get('user_role', 'زائر')}")
 st.sidebar.markdown(f"- **IP:** {client_ip}")
 st.sidebar.markdown(f"- **التوقيت:** {datetime.now().strftime('%H:%M:%S')}")
-st.sidebar.markdown(f"- **الإصدار:** 6.0")
+st.sidebar.markdown(f"- **الإصدار:** 6.1")
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📧 إرسال الكود")
 
