@@ -3,11 +3,12 @@
 
 """
 منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف
-الإصدار المتكامل v7.1 - إصلاح مشكلة الترتيب
+الإصدار المتكامل v7.2 - مُصحح بالكامل مع تحسينات أمنية وهيكلية
+المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور
 """
 
 # ==========================================
-# 1. المكتبات الأساسية (كما هي)
+# 1. المكتبات الأساسية
 # ==========================================
 
 import streamlit as st
@@ -29,14 +30,12 @@ import shutil
 import random
 import re
 import gc
-import zipfile
 import tempfile
 import csv
 import math
 from datetime import datetime, timedelta
 from pathlib import Path
 from contextlib import contextmanager
-from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 from functools import lru_cache, wraps
 from typing import Dict, List, Tuple, Optional, Any, Union
@@ -45,18 +44,17 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # ==========================================
-# 2. المكتبات العلمية (كما هي)
+# 2. المكتبات العلمية والتحليلية
 # ==========================================
 
 from scipy.optimize import linprog
-from scipy.spatial import ConvexHull
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.cluster import KMeans
 from sklearn.linear_model import LinearRegression
 
 # ==========================================
-# 3. مكتبات التصور (كما هي)
+# 3. مكتبات التصور والرسوم البيانية
 # ==========================================
 
 import plotly.express as px
@@ -64,14 +62,14 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 # ==========================================
-# 4. مكتبات النص العربي (كما هي)
+# 4. مكتبات معالجة النص العربي
 # ==========================================
 
 import arabic_reshaper
 from bidi.algorithm import get_display
 
 # ==========================================
-# 5. مكتبات PDF (كما هي)
+# 5. مكتبات توليد PDF المتقدمة
 # ==========================================
 
 from reportlab.pdfgen import canvas
@@ -80,13 +78,12 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import inch, mm
 from reportlab.lib.colors import HexColor, black, white, grey
-from reportlab.platypus import Table, TableStyle, Paragraph, Spacer, Image, SimpleDocTemplate, Frame, PageTemplate
+from reportlab.platypus import Table, TableStyle, Paragraph, Spacer, Image, SimpleDocTemplate
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
-from reportlab.platypus.flowables import HRFlowable
 
 # ==========================================
-# 6. مكتبات الباركود (كما هي)
+# 6. مكتبات الباركود والصور
 # ==========================================
 
 import qrcode
@@ -103,10 +100,9 @@ except ImportError:
 # 7. إعدادات التحذيرات والمجلدات
 # ==========================================
 
-warnings.filterwarnings('ignore')
 load_dotenv()
 
-# إنشاء المجلدات
+# إنشاء المجلدات اللازمة
 folders = [
     "logs", "backups", "data", "temp", "visitors", "code_backups", 
     "reports", "exports", "charts", "models", "cache", "lab_results", 
@@ -136,7 +132,7 @@ st.set_page_config(
 # ==========================================
 
 class AdvancedLogger:
-    """نظام تسجيل متقدم"""
+    """نظام تسجيل متقدم مع تصنيف متعدد"""
     
     def __init__(self):
         self.setup_all_loggers()
@@ -151,51 +147,53 @@ class AdvancedLogger:
         self.error_logger = logging.getLogger('Errors')
         self.error_logger.setLevel(logging.ERROR)
         
-        # معالج رئيسي
-        main_handler = logging.handlers.RotatingFileHandler(
-            'logs/tower_main.log', 
-            maxBytes=50*1024*1024, 
-            backupCount=20, 
-            encoding='utf-8'
-        )
-        formatter = logging.Formatter('%(asctime)s - [%(levelname)s] - %(name)s - %(message)s')
-        main_handler.setFormatter(formatter)
-        self.main_logger.addHandler(main_handler)
-        
-        # معالج أمني
-        security_handler = logging.handlers.RotatingFileHandler(
-            'logs/security.log', 
-            maxBytes=20*1024*1024, 
-            backupCount=30, 
-            encoding='utf-8'
-        )
-        security_handler.setFormatter(formatter)
-        self.security_logger.addHandler(security_handler)
-        
-        # معالج المستخدمين
-        user_handler = logging.handlers.RotatingFileHandler(
-            'logs/users.log', 
-            maxBytes=10*1024*1024, 
-            backupCount=15, 
-            encoding='utf-8'
-        )
-        user_handler.setFormatter(formatter)
-        self.user_logger.addHandler(user_handler)
-        
-        # معالج الأخطاء
-        error_handler = logging.handlers.RotatingFileHandler(
-            'logs/errors.log', 
-            maxBytes=50*1024*1024, 
-            backupCount=25, 
-            encoding='utf-8'
-        )
-        error_formatter = logging.Formatter('%(asctime)s - [%(levelname)s] - %(filename)s:%(lineno)d - %(message)s')
-        error_handler.setFormatter(error_formatter)
-        self.error_logger.addHandler(error_handler)
+        try:
+            main_handler = logging.handlers.RotatingFileHandler(
+                'logs/tower_main.log', 
+                maxBytes=50*1024*1024, 
+                backupCount=20, 
+                encoding='utf-8'
+            )
+            formatter = logging.Formatter('%(asctime)s - [%(levelname)s] - %(name)s - %(message)s')
+            main_handler.setFormatter(formatter)
+            self.main_logger.addHandler(main_handler)
+            
+            security_handler = logging.handlers.RotatingFileHandler(
+                'logs/security.log', 
+                maxBytes=20*1024*1024, 
+                backupCount=30, 
+                encoding='utf-8'
+            )
+            security_handler.setFormatter(formatter)
+            self.security_logger.addHandler(security_handler)
+            
+            user_handler = logging.handlers.RotatingFileHandler(
+                'logs/users.log', 
+                maxBytes=10*1024*1024, 
+                backupCount=15, 
+                encoding='utf-8'
+            )
+            user_handler.setFormatter(formatter)
+            self.user_logger.addHandler(user_handler)
+            
+            error_handler = logging.handlers.RotatingFileHandler(
+                'logs/errors.log', 
+                maxBytes=50*1024*1024, 
+                backupCount=25, 
+                encoding='utf-8'
+            )
+            error_formatter = logging.Formatter('%(asctime)s - [%(levelname)s] - %(filename)s:%(lineno)d - %(message)s')
+            error_handler.setFormatter(error_formatter)
+            self.error_logger.addHandler(error_handler)
+        except Exception as e:
+            print(f"⚠️ تحذير: تعذر إنشاء سجلات التسجيل: {e}")
     
     def log_security_event(self, event_type: str, details: str, severity: str = 'INFO'):
-        log_func = getattr(self.security_logger, severity.lower(), self.security_logger.info)
-        log_func(f"{event_type}: {details}")
+        try:
+            log_func = getattr(self.security_logger, severity.lower(), self.security_logger.info)
+            log_func(f"{event_type}: {details}")
+        except:
+            pass
 
 LOGGER = AdvancedLogger()
 
@@ -203,6 +201,7 @@ LOGGER = AdvancedLogger()
 # 10. إعدادات البريد (آمنة)
 # ==========================================
 
+# قراءة الإعدادات من متغيرات البيئة
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "abukram128@gmail.com")
@@ -231,134 +230,11 @@ def get_image_base64(paths: List[str]) -> Optional[str]:
 img_base64 = get_image_base64(PHOTO_OPTIONS)
 
 # ==========================================
-# 11. المكتبات والبيانات (تُعرّف قبل أي كلاس يستخدمها)
+# 11. تعريف البيانات (قبل أي كلاس يستخدمها)
 # ==========================================
 
 # ==========================================
-# 11.1 بيانات السلالات والاحتياجات القياسية
-# ==========================================
-
-BREEDS_STANDARDS = {
-    "الدواجن": {
-        "لاحم (بادي)": {"CP": 22.0, "DP": 18.5, "SE": 78.0, "ME": 3200, "P/E": 6.9, "lysine": 1.2, "methionine": 0.5},
-        "لاحم (نامي)": {"CP": 20.0, "DP": 16.8, "SE": 75.0, "ME": 3100, "P/E": 6.5, "lysine": 1.1, "methionine": 0.45},
-        "لاحم (ناهي)": {"CP": 18.0, "DP": 15.1, "SE": 74.0, "ME": 3050, "P/E": 5.9, "lysine": 1.0, "methionine": 0.4},
-        "بياض (بادي)": {"CP": 18.0, "DP": 15.1, "SE": 70.0, "ME": 2800, "P/E": 6.4, "lysine": 0.85, "methionine": 0.38},
-        "بياض (إنتاج)": {"CP": 16.5, "DP": 13.9, "SE": 68.0, "ME": 2750, "P/E": 6.0, "lysine": 0.75, "methionine": 0.35},
-        "بياض (ناهي)": {"CP": 15.5, "DP": 13.0, "SE": 65.0, "ME": 2650, "P/E": 5.8, "lysine": 0.7, "methionine": 0.33},
-        "سمان": {"CP": 24.0, "DP": 20.2, "SE": 80.0, "ME": 3000, "P/E": 8.0, "lysine": 1.3, "methionine": 0.55},
-        "رومي": {"CP": 26.0, "DP": 21.8, "SE": 75.0, "ME": 2900, "P/E": 8.7, "lysine": 1.5, "methionine": 0.6}
-    },
-    "الأغنام": {
-        "تسمين (صحراوي)": {"CP": 14.0, "DP": 11.8, "SE": 66.0, "ME": 2500, "P/E": 5.6, "NDF": 35, "ADF": 20},
-        "تسمين (بربري)": {"CP": 13.5, "DP": 11.3, "SE": 65.0, "ME": 2450, "P/E": 5.5, "NDF": 35, "ADF": 20},
-        "تسمين (نعيمي)": {"CP": 14.5, "DP": 12.2, "SE": 67.0, "ME": 2550, "P/E": 5.7, "NDF": 34, "ADF": 19},
-        "حليب (أغنام)": {"CP": 16.0, "DP": 13.4, "SE": 68.0, "ME": 2600, "P/E": 6.2, "NDF": 32, "ADF": 18},
-        "صيانة": {"CP": 10.0, "DP": 8.4, "SE": 58.0, "ME": 2200, "P/E": 4.5, "NDF": 40, "ADF": 25}
-    },
-    "الماعز": {
-        "تسمين": {"CP": 12.5, "DP": 10.5, "SE": 64.0, "ME": 2400, "P/E": 5.2, "NDF": 38, "ADF": 22},
-        "حليب": {"CP": 14.0, "DP": 11.8, "SE": 66.0, "ME": 2550, "P/E": 5.5, "NDF": 35, "ADF": 20},
-        "صيانة": {"CP": 9.5, "DP": 8.0, "SE": 58.0, "ME": 2150, "P/E": 4.3, "NDF": 42, "ADF": 26}
-    },
-    "الأبقار": {
-        "حليب (هولشتاين)": {"CP": 17.0, "DP": 14.3, "SE": 70.0, "ME": 2700, "P/E": 6.3, "NDF": 30, "ADF": 18},
-        "حليب (فريزيان)": {"CP": 16.5, "DP": 13.9, "SE": 69.0, "ME": 2650, "P/E": 6.1, "NDF": 31, "ADF": 19},
-        "تسمين (كنانة)": {"CP": 12.0, "DP": 10.1, "SE": 65.0, "ME": 2400, "P/E": 5.0, "NDF": 38, "ADF": 22},
-        "تسمين (بطانة)": {"CP": 11.5, "DP": 9.7, "SE": 63.0, "ME": 2350, "P/E": 4.9, "NDF": 39, "ADF": 23},
-        "عجول تسمين": {"CP": 14.0, "DP": 11.8, "SE": 68.0, "ME": 2500, "P/E": 5.6, "NDF": 35, "ADF": 20}
-    },
-    "الخيول": {
-        "رياضة": {"CP": 12.0, "DP": 10.1, "SE": 62.0, "ME": 2300, "P/E": 5.2, "NDF": 35, "ADF": 20},
-        "نمو": {"CP": 14.0, "DP": 11.8, "SE": 64.0, "ME": 2450, "P/E": 5.8, "NDF": 33, "ADF": 18},
-        "صيانة": {"CP": 10.0, "DP": 8.4, "SE": 58.0, "ME": 2100, "P/E": 4.6, "NDF": 40, "ADF": 25}
-    },
-    "الأسماك": {
-        "بلطي (نمو)": {"CP": 28.0, "DP": 25.2, "SE": 70.0, "ME": 2800, "P/E": 10.0, "lipid": 6},
-        "بلطي (تسمين)": {"CP": 25.0, "DP": 22.5, "SE": 68.0, "ME": 2700, "P/E": 9.3, "lipid": 7},
-        "بوري": {"CP": 30.0, "DP": 27.0, "SE": 72.0, "ME": 2900, "P/E": 10.7, "lipid": 5},
-        "قرموط": {"CP": 32.0, "DP": 28.8, "SE": 74.0, "ME": 3000, "P/E": 11.4, "lipid": 6}
-    }
-}
-
-# ==========================================
-# 11.2 المكتبة الكاملة للمواد العلفية
-# ==========================================
-
-BIG_FEEDS_LIBRARY = {
-    "🌾 الحبوب ومصادر الطاقة الكبرى": {
-        "ذرة صفراء": {"CP": 8.5, "DC": 0.85, "DP": 7.2, "SE": 80.0, "NDF": 9.5, "ADF": 3.2, "EE": 3.8, "ASH": 1.3, "Ca": 0.02, "P": 0.28},
-        "ذرة بيضاء": {"CP": 8.8, "DC": 0.83, "DP": 7.3, "SE": 78.0, "NDF": 10.2, "ADF": 3.5, "EE": 3.5, "ASH": 1.4, "Ca": 0.02, "P": 0.27},
-        "شعير مطحون": {"CP": 11.5, "DC": 0.80, "DP": 9.2, "SE": 71.0, "NDF": 18.5, "ADF": 7.5, "EE": 2.2, "ASH": 2.5, "Ca": 0.05, "P": 0.35},
-        "سورجم (فتريتة)": {"CP": 10.0, "DC": 0.78, "DP": 7.8, "SE": 70.0, "NDF": 12.5, "ADF": 5.5, "EE": 3.0, "ASH": 1.8, "Ca": 0.03, "P": 0.30},
-        "قمح محلي مصنّع": {"CP": 12.0, "DC": 0.85, "DP": 10.2, "SE": 75.0, "NDF": 11.5, "ADF": 3.8, "EE": 2.0, "ASH": 1.6, "Ca": 0.04, "P": 0.32},
-        "جريش أرز رزاز": {"CP": 7.8, "DC": 0.82, "DP": 6.4, "SE": 82.0, "NDF": 5.5, "ADF": 2.5, "EE": 8.5, "ASH": 4.2, "Ca": 0.01, "P": 0.15},
-        "دخن محلي غزير": {"CP": 11.0, "DC": 0.75, "DP": 8.3, "SE": 68.0, "NDF": 15.5, "ADF": 6.5, "EE": 4.0, "ASH": 2.2, "Ca": 0.03, "P": 0.28},
-        "شوفان علفي": {"CP": 11.0, "DC": 0.76, "DP": 8.4, "SE": 62.0, "NDF": 27.5, "ADF": 13.5, "EE": 5.0, "ASH": 3.0, "Ca": 0.08, "P": 0.33},
-        "تريتيكال": {"CP": 13.0, "DC": 0.82, "DP": 10.7, "SE": 73.0, "NDF": 12.0, "ADF": 4.0, "EE": 2.5, "ASH": 1.8, "Ca": 0.04, "P": 0.35}
-    },
-    "🌱 الأكساب ومصادر البروتين العالي": {
-        "أمباز الفول السوداني (كسب)": {"CP": 46.0, "DC": 0.88, "DP": 40.5, "SE": 73.0, "NDF": 15.5, "ADF": 8.5, "EE": 1.5, "ASH": 5.5, "Ca": 0.20, "P": 0.65},
-        "كسب فول صويا 44%": {"CP": 44.0, "DC": 0.90, "DP": 39.6, "SE": 74.0, "NDF": 13.5, "ADF": 8.0, "EE": 1.8, "ASH": 6.0, "Ca": 0.30, "P": 0.65},
-        "كسب فول صويا 48%": {"CP": 48.0, "DC": 0.91, "DP": 43.7, "SE": 76.0, "NDF": 12.0, "ADF": 7.0, "EE": 1.5, "ASH": 6.2, "Ca": 0.32, "P": 0.68},
-        "كسب عباد الشمس 36%": {"CP": 36.0, "DC": 0.76, "DP": 27.4, "SE": 42.0, "NDF": 38.5, "ADF": 25.5, "EE": 2.5, "ASH": 6.5, "Ca": 0.35, "P": 0.95},
-        "كسب بذور القطن (مقشور)": {"CP": 41.0, "DC": 0.78, "DP": 32.0, "SE": 55.0, "NDF": 24.5, "ADF": 15.5, "EE": 1.2, "ASH": 6.5, "Ca": 0.18, "P": 1.10},
-        "كسب بذور الكتان": {"CP": 32.0, "DC": 0.82, "DP": 26.2, "SE": 65.0, "NDF": 18.5, "ADF": 10.5, "EE": 2.8, "ASH": 5.8, "Ca": 0.38, "P": 0.82},
-        "كسب السمسم المحسن": {"CP": 42.0, "DC": 0.84, "DP": 35.3, "SE": 70.0, "NDF": 14.5, "ADF": 9.5, "EE": 8.5, "ASH": 12.5, "Ca": 1.50, "P": 1.20},
-        "كسب جلوتين الذرة 60%": {"CP": 60.0, "DC": 0.92, "DP": 55.2, "SE": 85.0, "NDF": 8.5, "ADF": 5.5, "EE": 2.5, "ASH": 3.5, "Ca": 0.05, "P": 0.45},
-        "كسب نواة النخيل": {"CP": 16.0, "DC": 0.65, "DP": 10.4, "SE": 52.0, "NDF": 55.5, "ADF": 35.5, "EE": 6.5, "ASH": 4.5, "Ca": 0.40, "P": 0.55},
-        "كسب بذور اللفت (كانولا)": {"CP": 36.0, "DC": 0.80, "DP": 28.8, "SE": 60.0, "NDF": 22.0, "ADF": 15.0, "EE": 2.0, "ASH": 6.0, "Ca": 0.60, "P": 1.00}
-    },
-    "🚜 المخلفات الزراعية والصناعية": {
-        "نخالة قمح (ردة)": {"CP": 15.0, "DC": 0.72, "DP": 10.8, "SE": 45.0, "NDF": 35.5, "ADF": 12.5, "EE": 3.5, "ASH": 5.5, "Ca": 0.10, "P": 1.10},
-        "البرسيم الجاف (الدريس)": {"CP": 16.5, "DC": 0.60, "DP": 9.9, "SE": 35.0, "NDF": 42.5, "ADF": 32.5, "EE": 2.0, "ASH": 10.5, "Ca": 1.20, "P": 0.25},
-        "مولاس قصب السكر": {"CP": 4.0, "DC": 0.95, "DP": 3.8, "SE": 50.0, "NDF": 1.5, "ADF": 0.8, "EE": 0.5, "ASH": 8.5, "Ca": 0.80, "P": 0.08},
-        "تبن قمح ناعم": {"CP": 3.2, "DC": 0.35, "DP": 1.1, "SE": 18.0, "NDF": 72.5, "ADF": 45.5, "EE": 1.5, "ASH": 8.5, "Ca": 0.25, "P": 0.10},
-        "قشر فول سوداني مطحون": {"CP": 5.0, "DC": 0.30, "DP": 1.5, "SE": 15.0, "NDF": 65.5, "ADF": 42.5, "EE": 1.0, "ASH": 5.5, "Ca": 0.30, "P": 0.12},
-        "سرسة الأرز المطحونة": {"CP": 2.5, "DC": 0.25, "DP": 0.6, "SE": 12.0, "NDF": 68.5, "ADF": 48.5, "EE": 12.5, "ASH": 15.5, "Ca": 0.05, "P": 0.08},
-        "بقايا تفل البنجر المجفف": {"CP": 8.0, "DC": 0.75, "DP": 6.0, "SE": 58.0, "NDF": 38.5, "ADF": 22.5, "EE": 1.5, "ASH": 6.5, "Ca": 1.00, "P": 0.20},
-        "مخلفات مصانع البسكويت": {"CP": 9.5, "DC": 0.88, "DP": 8.4, "SE": 76.0, "NDF": 8.5, "ADF": 3.5, "EE": 8.5, "ASH": 3.5, "Ca": 0.12, "P": 0.25},
-        "سیلاج ذرة كامل": {"CP": 8.0, "DC": 0.68, "DP": 5.4, "SE": 50.0, "NDF": 45.5, "ADF": 25.5, "EE": 2.5, "ASH": 4.5, "Ca": 0.25, "P": 0.22},
-        "مخلفات الخبز المجفف": {"CP": 11.0, "DC": 0.90, "DP": 9.9, "SE": 80.0, "NDF": 5.0, "ADF": 2.0, "EE": 4.0, "ASH": 2.5, "Ca": 0.10, "P": 0.30}
-    },
-    "🧬 مصادر البروتين الحيواني": {
-        "مسحوق أسماك 60%": {"CP": 60.0, "DC": 0.85, "DP": 51.0, "SE": 65.0, "NDF": 2.5, "ADF": 1.5, "EE": 8.5, "ASH": 22.5, "Ca": 5.00, "P": 3.00},
-        "مسحوق أسماك فاخر 72%": {"CP": 72.0, "DC": 0.90, "DP": 64.8, "SE": 72.0, "NDF": 2.0, "ADF": 1.0, "EE": 9.5, "ASH": 18.5, "Ca": 5.50, "P": 3.20},
-        "مسحوق اللحم والعظم": {"CP": 50.0, "DC": 0.75, "DP": 37.5, "SE": 50.0, "NDF": 3.5, "ADF": 2.5, "EE": 10.5, "ASH": 32.5, "Ca": 10.00, "P": 5.00},
-        "مركزات دواجن وسمان": {"CP": 40.0, "DC": 0.85, "DP": 34.0, "SE": 60.0, "NDF": 8.5, "ADF": 4.5, "EE": 3.5, "ASH": 12.5, "Ca": 2.50, "P": 1.50},
-        "مركزات خيول ومجترات": {"CP": 36.0, "DC": 0.80, "DP": 28.8, "SE": 55.0, "NDF": 15.5, "ADF": 8.5, "EE": 3.0, "ASH": 15.5, "Ca": 2.00, "P": 1.20},
-        "مسحوق ريش دواجن": {"CP": 85.0, "DC": 0.70, "DP": 59.5, "SE": 40.0, "NDF": 5.0, "ADF": 3.0, "EE": 3.0, "ASH": 4.0, "Ca": 0.30, "P": 0.50},
-        "مسحوق دم مجفف": {"CP": 93.0, "DC": 0.85, "DP": 79.1, "SE": 45.0, "NDF": 1.0, "ADF": 0.5, "EE": 1.0, "ASH": 4.0, "Ca": 0.20, "P": 0.25}
-    },
-    "🧪 الأحماض الأمينية": {
-        "ليسين نقي": {"CP": 94.0, "DC": 1.00, "DP": 94.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 0.5, "Ca": 0.00, "P": 0.00},
-        "ميثيونين نقي": {"CP": 58.0, "DC": 1.00, "DP": 58.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 0.3, "Ca": 0.00, "P": 0.00},
-        "ثريونين نقي": {"CP": 72.0, "DC": 1.00, "DP": 72.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 0.2, "Ca": 0.00, "P": 0.00},
-        "تريبتوفان نقي": {"CP": 85.0, "DC": 1.00, "DP": 85.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 0.1, "Ca": 0.00, "P": 0.00},
-        "أرجينين نقي": {"CP": 95.0, "DC": 1.00, "DP": 95.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 0.1, "Ca": 0.00, "P": 0.00}
-    },
-    "🔬 الإنزيمات والبريمكسات": {
-        "بريمكس تسمين دواجن": {"CP": 0.0, "DC": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 100.0, "Ca": 15.00, "P": 5.00},
-        "بريمكس بياض": {"CP": 0.0, "DC": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 100.0, "Ca": 20.00, "P": 6.00},
-        "بريمكس أبقار حلابة": {"CP": 0.0, "DC": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 100.0, "Ca": 18.00, "P": 5.50},
-        "إنزيم الفايتيز": {"CP": 0.0, "DC": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 5.0, "Ca": 0.00, "P": 0.00},
-        "إنزيم NSP": {"CP": 0.0, "DC": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 3.0, "Ca": 0.00, "P": 0.00},
-        "إنزيم بروتياز": {"CP": 0.0, "DC": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 4.0, "Ca": 0.00, "P": 0.00}
-    },
-    "🪨 الأملاح والمعادن": {
-        "الحجر الجيري": {"CP": 0.0, "DC": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 99.5, "Ca": 38.00, "P": 0.02},
-        "فوسفات ثنائي الكالسيوم": {"CP": 0.0, "DC": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 98.5, "Ca": 23.00, "P": 18.00},
-        "ملح الطعام": {"CP": 0.0, "DC": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 99.9, "Ca": 0.30, "P": 0.00},
-        "مضاد سموم فطرية": {"CP": 0.0, "DC": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 85.0, "Ca": 0.50, "P": 0.10},
-        "بيكربونات الصوديوم": {"CP": 0.0, "DC": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 99.0, "Ca": 0.00, "P": 0.00},
-        "أكسيد المغنيسيوم": {"CP": 0.0, "DC": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 99.5, "Ca": 0.00, "P": 0.00},
-        "يوريا علفية": {"CP": 287.0, "DC": 0.95, "DP": 272.7, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 1.0, "Ca": 0.00, "P": 0.00},
-        "كبريتات المغنيسيوم": {"CP": 0.0, "DC": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 98.0, "Ca": 0.00, "P": 0.00}
-    }
-}
-
-# ==========================================
-# 11.3 أكواد الدخول
+# 11.1 أكواد الدخول
 # ==========================================
 
 CODES_DB = {
@@ -368,24 +244,135 @@ CODES_DB = {
 }
 
 # ==========================================
+# 11.2 بيانات السلالات والاحتياجات القياسية
+# ==========================================
+
+BREEDS_STANDARDS = {
+    "الدواجن": {
+        "لاحم (بادي)": {"CP": 22.0, "DP": 18.5, "SE": 78.0, "ME": 3200, "P/E": 6.9},
+        "لاحم (نامي)": {"CP": 20.0, "DP": 16.8, "SE": 75.0, "ME": 3100, "P/E": 6.5},
+        "لاحم (ناهي)": {"CP": 18.0, "DP": 15.1, "SE": 74.0, "ME": 3050, "P/E": 5.9},
+        "بياض (بادي)": {"CP": 18.0, "DP": 15.1, "SE": 70.0, "ME": 2800, "P/E": 6.4},
+        "بياض (إنتاج)": {"CP": 16.5, "DP": 13.9, "SE": 68.0, "ME": 2750, "P/E": 6.0},
+        "بياض (ناهي)": {"CP": 15.5, "DP": 13.0, "SE": 65.0, "ME": 2650, "P/E": 5.8},
+        "سمان": {"CP": 24.0, "DP": 20.2, "SE": 80.0, "ME": 3000, "P/E": 8.0},
+        "رومي": {"CP": 26.0, "DP": 21.8, "SE": 75.0, "ME": 2900, "P/E": 8.7}
+    },
+    "الأغنام": {
+        "تسمين (صحراوي)": {"CP": 14.0, "DP": 11.8, "SE": 66.0, "ME": 2500, "P/E": 5.6},
+        "تسمين (بربري)": {"CP": 13.5, "DP": 11.3, "SE": 65.0, "ME": 2450, "P/E": 5.5},
+        "تسمين (نعيمي)": {"CP": 14.5, "DP": 12.2, "SE": 67.0, "ME": 2550, "P/E": 5.7},
+        "حليب (أغنام)": {"CP": 16.0, "DP": 13.4, "SE": 68.0, "ME": 2600, "P/E": 6.2},
+        "صيانة": {"CP": 10.0, "DP": 8.4, "SE": 58.0, "ME": 2200, "P/E": 4.5}
+    },
+    "الماعز": {
+        "تسمين": {"CP": 12.5, "DP": 10.5, "SE": 64.0, "ME": 2400, "P/E": 5.2},
+        "حليب": {"CP": 14.0, "DP": 11.8, "SE": 66.0, "ME": 2550, "P/E": 5.5},
+        "صيانة": {"CP": 9.5, "DP": 8.0, "SE": 58.0, "ME": 2150, "P/E": 4.3}
+    },
+    "الأبقار": {
+        "حليب (هولشتاين)": {"CP": 17.0, "DP": 14.3, "SE": 70.0, "ME": 2700, "P/E": 6.3},
+        "حليب (فريزيان)": {"CP": 16.5, "DP": 13.9, "SE": 69.0, "ME": 2650, "P/E": 6.1},
+        "تسمين (كنانة)": {"CP": 12.0, "DP": 10.1, "SE": 65.0, "ME": 2400, "P/E": 5.0},
+        "تسمين (بطانة)": {"CP": 11.5, "DP": 9.7, "SE": 63.0, "ME": 2350, "P/E": 4.9},
+        "عجول تسمين": {"CP": 14.0, "DP": 11.8, "SE": 68.0, "ME": 2500, "P/E": 5.6}
+    },
+    "الخيول": {
+        "رياضة": {"CP": 12.0, "DP": 10.1, "SE": 62.0, "ME": 2300, "P/E": 5.2},
+        "نمو": {"CP": 14.0, "DP": 11.8, "SE": 64.0, "ME": 2450, "P/E": 5.8},
+        "صيانة": {"CP": 10.0, "DP": 8.4, "SE": 58.0, "ME": 2100, "P/E": 4.6}
+    },
+    "الأسماك": {
+        "بلطي (نمو)": {"CP": 28.0, "DP": 25.2, "SE": 70.0, "ME": 2800, "P/E": 10.0},
+        "بلطي (تسمين)": {"CP": 25.0, "DP": 22.5, "SE": 68.0, "ME": 2700, "P/E": 9.3},
+        "بوري": {"CP": 30.0, "DP": 27.0, "SE": 72.0, "ME": 2900, "P/E": 10.7},
+        "قرموط": {"CP": 32.0, "DP": 28.8, "SE": 74.0, "ME": 3000, "P/E": 11.4}
+    }
+}
+
+# ==========================================
+# 11.3 المكتبة الكاملة للمواد العلفية
+# ==========================================
+
+BIG_FEEDS_LIBRARY = {
+    "🌾 الحبوب ومصادر الطاقة الكبرى": {
+        "ذرة صفراء": {"CP": 8.5, "DC": 0.85, "SE": 80.0, "ME": 3350, "NDF": 9.5, "EE": 3.8},
+        "ذرة بيضاء": {"CP": 8.8, "DC": 0.83, "SE": 78.0, "ME": 3300, "NDF": 10.2, "EE": 3.5},
+        "شعير مطحون": {"CP": 11.5, "DC": 0.80, "SE": 71.0, "ME": 2850, "NDF": 18.5, "EE": 2.2},
+        "سورجم (فتريتة)": {"CP": 10.0, "DC": 0.78, "SE": 70.0, "ME": 2900, "NDF": 12.5, "EE": 3.0},
+        "قمح محلي مصنّع": {"CP": 12.0, "DC": 0.85, "SE": 75.0, "ME": 3100, "NDF": 11.5, "EE": 2.0},
+        "جريش أرز رزاز": {"CP": 7.8, "DC": 0.82, "SE": 82.0, "ME": 3400, "NDF": 5.5, "EE": 8.5},
+        "دخن محلي غزير": {"CP": 11.0, "DC": 0.75, "SE": 68.0, "ME": 2800, "NDF": 15.5, "EE": 4.0},
+        "شوفان علفي": {"CP": 11.0, "DC": 0.76, "SE": 62.0, "ME": 2600, "NDF": 27.5, "EE": 5.0},
+        "تريتيكال": {"CP": 13.0, "DC": 0.82, "SE": 73.0, "ME": 3050, "NDF": 12.0, "EE": 2.5}
+    },
+    "🌱 الأكساب ومصادر البروتين العالي": {
+        "أمباز الفول السوداني (كسب)": {"CP": 46.0, "DC": 0.88, "SE": 73.0, "ME": 2800, "NDF": 15.5, "EE": 1.5},
+        "كسب فول صويا 44%": {"CP": 44.0, "DC": 0.90, "SE": 74.0, "ME": 2450, "NDF": 13.5, "EE": 1.8},
+        "كسب فول صويا 48%": {"CP": 48.0, "DC": 0.91, "SE": 76.0, "ME": 2500, "NDF": 12.0, "EE": 1.5},
+        "كسب عباد الشمس 36%": {"CP": 36.0, "DC": 0.76, "SE": 42.0, "ME": 1700, "NDF": 38.5, "EE": 2.5},
+        "كسب بذور القطن (مقشور)": {"CP": 41.0, "DC": 0.78, "SE": 55.0, "ME": 2100, "NDF": 24.5, "EE": 1.2},
+        "كسب بذور الكتان": {"CP": 32.0, "DC": 0.82, "SE": 65.0, "ME": 2400, "NDF": 18.5, "EE": 2.8},
+        "كسب السمسم المحسن": {"CP": 42.0, "DC": 0.84, "SE": 70.0, "ME": 2600, "NDF": 14.5, "EE": 8.5},
+        "كسب جلوتين الذرة 60%": {"CP": 60.0, "DC": 0.92, "SE": 85.0, "ME": 3400, "NDF": 8.5, "EE": 2.5},
+        "كسب نواة النخيل": {"CP": 16.0, "DC": 0.65, "SE": 52.0, "ME": 2000, "NDF": 55.5, "EE": 6.5},
+        "كسب بذور اللفت (كانولا)": {"CP": 36.0, "DC": 0.80, "SE": 60.0, "ME": 2300, "NDF": 22.0, "EE": 2.0}
+    },
+    "🚜 المخلفات الزراعية والصناعية": {
+        "نخالة قمح (ردة)": {"CP": 15.0, "DC": 0.72, "SE": 45.0, "ME": 1600, "NDF": 35.5, "EE": 3.5},
+        "البرسيم الجاف (الدريس)": {"CP": 16.5, "DC": 0.60, "SE": 35.0, "ME": 1500, "NDF": 42.5, "EE": 2.0},
+        "مولاس قصب السكر": {"CP": 4.0, "DC": 0.95, "SE": 50.0, "ME": 1200, "NDF": 1.5, "EE": 0.5},
+        "تبن قمح ناعم": {"CP": 3.2, "DC": 0.35, "SE": 18.0, "ME": 800, "NDF": 72.5, "EE": 1.5},
+        "قشر فول سوداني مطحون": {"CP": 5.0, "DC": 0.30, "SE": 15.0, "ME": 700, "NDF": 65.5, "EE": 1.0},
+        "سرسة الأرز المطحونة": {"CP": 2.5, "DC": 0.25, "SE": 12.0, "ME": 600, "NDF": 68.5, "EE": 12.5},
+        "بقايا تفل البنجر المجفف": {"CP": 8.0, "DC": 0.75, "SE": 58.0, "ME": 2200, "NDF": 38.5, "EE": 1.5},
+        "مخلفات مصانع البسكويت": {"CP": 9.5, "DC": 0.88, "SE": 76.0, "ME": 3100, "NDF": 8.5, "EE": 8.5},
+        "سیلاج ذرة كامل": {"CP": 8.0, "DC": 0.68, "SE": 50.0, "ME": 1900, "NDF": 45.5, "EE": 2.5}
+    },
+    "🧬 مصادر البروتين الحيواني": {
+        "مسحوق أسماك 60%": {"CP": 60.0, "DC": 0.85, "SE": 65.0, "ME": 2800, "NDF": 2.5, "EE": 8.5},
+        "مسحوق أسماك فاخر 72%": {"CP": 72.0, "DC": 0.90, "SE": 72.0, "ME": 3000, "NDF": 2.0, "EE": 9.5},
+        "مسحوق اللحم والعظم": {"CP": 50.0, "DC": 0.75, "SE": 50.0, "ME": 2200, "NDF": 3.5, "EE": 10.5},
+        "مركزات دواجن وسمان": {"CP": 40.0, "DC": 0.85, "SE": 60.0, "ME": 2500, "NDF": 8.5, "EE": 3.5},
+        "مركزات خيول ومجترات": {"CP": 36.0, "DC": 0.80, "SE": 55.0, "ME": 2300, "NDF": 15.5, "EE": 3.0}
+    },
+    "🧪 الأحماض الأمينية": {
+        "ليسين نقي": {"CP": 94.0, "DC": 1.00, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0},
+        "ميثيونين نقي": {"CP": 58.0, "DC": 1.00, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0},
+        "ثريونين نقي": {"CP": 72.0, "DC": 1.00, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0},
+        "تريبتوفان نقي": {"CP": 85.0, "DC": 1.00, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0},
+        "أرجينين نقي": {"CP": 95.0, "DC": 1.00, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0}
+    },
+    "🔬 الإنزيمات والبريمكسات": {
+        "بريمكس تسمين دواجن": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0},
+        "بريمكس بياض": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0},
+        "بريمكس أبقار حلابة": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0},
+        "إنزيم الفايتيز": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0},
+        "إنزيم NSP": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0}
+    },
+    "🪨 الأملاح والمعادن": {
+        "الحجر الجيري": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0},
+        "فوسفات ثنائي الكالسيوم": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0},
+        "ملح الطعام": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0},
+        "مضاد سموم فطرية": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0},
+        "بيكربونات الصوديوم": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0},
+        "أكسيد المغنيسيوم": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0},
+        "يوريا علفية": {"CP": 287.0, "DC": 0.95, "SE": 0.0, "ME": 0, "NDF": 0.0, "EE": 0.0}
+    }
+}
+
+# ==========================================
 # 11.4 أسعار الصرف والدول
 # ==========================================
 
 COUNTRIES_WITH_FLAGS = {
-    "🇸🇩 السودان": {"rate": 600.0, "sym": "SDG", "name": "جنيه سوداني", "currency": "SDG", "default_city": "الخرطوم"},
-    "🇱🇾 LIBYA": {"rate": 4.80, "sym": "LYD", "name": "دينار ليبي", "currency": "LYD", "default_city": "طرابلس"},
-    "🇪🇬 مصر": {"rate": 48.0, "sym": "EGP", "name": "جنيه مصري", "currency": "EGP", "default_city": "القاهرة"},
-    "🇸🇦 السعودية": {"rate": 3.75, "sym": "SAR", "name": "ريال سعودي", "currency": "SAR", "default_city": "الرياض"},
-    "🇦🇪 الإمارات": {"rate": 3.67, "sym": "AED", "name": "درهم إماراتي", "currency": "AED", "default_city": "دبي"},
-    "🇶🇦 قطر": {"rate": 3.64, "sym": "QAR", "name": "ريال قطري", "currency": "QAR", "default_city": "الدوحة"},
-    "🇰🇼 الكويت": {"rate": 0.31, "sym": "KWD", "name": "دينار كويتي", "currency": "KWD", "default_city": "الكويت"},
-    "🇴🇲 عمان": {"rate": 0.38, "sym": "OMR", "name": "ريال عماني", "currency": "OMR", "default_city": "مسقط"},
-    "🇧🇭 البحرين": {"rate": 0.38, "sym": "BHD", "name": "دينار بحريني", "currency": "BHD", "default_city": "المنامة"},
-    "🇯🇴 الأردن": {"rate": 0.71, "sym": "JOD", "name": "دينار أردني", "currency": "JOD", "default_city": "عمان"},
-    "🇲🇦 المغرب": {"rate": 10.0, "sym": "MAD", "name": "درهم مغربي", "currency": "MAD", "default_city": "الدار البيضاء"},
-    "🇩🇿 الجزائر": {"rate": 135.0, "sym": "DZD", "name": "دينار جزائري", "currency": "DZD", "default_city": "الجزائر"},
-    "🇹🇳 تونس": {"rate": 3.10, "sym": "TND", "name": "دينار تونسي", "currency": "TND", "default_city": "تونس"},
-    "🌍 باقي الدول": {"rate": 1.0, "sym": "USD", "name": "دولار أمريكي", "currency": "USD", "default_city": "العاصمة"}
+    "🇸🇩 السودان": {"rate": 600.0, "sym": "SDG", "default_city": "الخرطوم"},
+    "🇱🇾 LIBYA": {"rate": 4.80, "sym": "LYD", "default_city": "طرابلس"},
+    "🇪🇬 مصر": {"rate": 48.0, "sym": "EGP", "default_city": "القاهرة"},
+    "🇸🇦 السعودية": {"rate": 3.75, "sym": "SAR", "default_city": "الرياض"},
+    "🇦🇪 الإمارات": {"rate": 3.67, "sym": "AED", "default_city": "دبي"},
+    "🇶🇦 قطر": {"rate": 3.64, "sym": "QAR", "default_city": "الدوحة"},
+    "🌍 باقي الدول": {"rate": 1.0, "sym": "USD", "default_city": "العاصمة"}
 }
 
 # ==========================================
@@ -411,6 +398,7 @@ DB_PATH = "data/tower_platform.db"
 
 @contextmanager
 def get_db():
+    """مدير سياق قاعدة البيانات"""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     try:
@@ -424,155 +412,162 @@ def get_db():
         conn.close()
 
 def column_exists(conn, table_name: str, column_name: str) -> bool:
-    cursor = conn.execute(f"PRAGMA table_info({table_name})")
-    columns = [row[1] for row in cursor.fetchall()]
-    return column_name in columns
+    try:
+        cursor = conn.execute(f"PRAGMA table_info({table_name})")
+        columns = [row[1] for row in cursor.fetchall()]
+        return column_name in columns
+    except:
+        return False
 
 def init_database():
-    with get_db() as conn:
-        # جدول الخلطات
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS formulas_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                formula_data TEXT NOT NULL,
-                target_dp REAL,
-                target_se REAL,
-                target_me REAL,
-                protein_type TEXT,
-                breed TEXT,
-                sector TEXT,
-                production TEXT,
-                cost REAL,
-                city TEXT,
-                user_role TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # جدول التحاليل
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS lab_analyses (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                request_id INTEGER UNIQUE,
-                formula_data TEXT,
-                target_dp REAL,
-                target_se REAL,
-                target_me REAL,
-                breed TEXT,
-                sector TEXT,
-                city TEXT,
-                analysis_date TEXT,
-                lab_cp REAL,
-                lab_dp REAL,
-                lab_moisture REAL,
-                lab_fat REAL,
-                lab_fiber REAL,
-                lab_me REAL,
-                lab_se REAL,
-                lab_ca REAL,
-                lab_p REAL,
-                lab_ash REAL,
-                lysine REAL,
-                methionine REAL,
-                notes TEXT,
-                status TEXT DEFAULT 'pending',
-                analyzed_by TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                analyzed_at TIMESTAMP
-            )
-        ''')
-        
-        # جدول النشاطات
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS activity_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_role TEXT,
-                action TEXT,
-                details TEXT,
-                ip_address TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # جدول التنبيهات الأمنية
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS security_alerts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                alert_message TEXT,
-                severity TEXT,
-                is_read INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # جدول النسخ الاحتياطية
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS code_backups (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                backup_date TIMESTAMP,
-                reason TEXT,
-                file_hash TEXT
-            )
-        ''')
-        
-        # جدول الزوار
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS visitors_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ip_address TEXT,
-                user_agent TEXT,
-                user_role TEXT,
-                action TEXT,
-                visit_time TIMESTAMP
-            )
-        ''')
-        
-        # جدول الأسعار
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS market_prices_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                city TEXT,
-                commodity TEXT,
-                price REAL,
-                recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # جدول الـ IPs المحظورة
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS blocked_ips (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ip_address TEXT UNIQUE,
-                block_reason TEXT,
-                blocked_at TIMESTAMP
-            )
-        ''')
-        
-        # جدول المزارع
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS poultry_farms (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                farm_name TEXT UNIQUE,
-                farm_data TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # جدول التعليقات
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS comments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_role TEXT,
-                comment TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        LOGGER.main_logger.info("تم تهيئة قاعدة البيانات بنجاح")
+    """تهيئة قاعدة البيانات الكاملة"""
+    try:
+        with get_db() as conn:
+            # جدول الخلطات التاريخية
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS formulas_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    formula_data TEXT NOT NULL,
+                    target_dp REAL,
+                    target_se REAL,
+                    target_me REAL,
+                    protein_type TEXT,
+                    breed TEXT,
+                    sector TEXT,
+                    production TEXT,
+                    cost REAL,
+                    city TEXT,
+                    user_role TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # جدول التحاليل المخبرية
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS lab_analyses (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    request_id INTEGER UNIQUE,
+                    formula_data TEXT,
+                    target_dp REAL,
+                    target_se REAL,
+                    target_me REAL,
+                    breed TEXT,
+                    sector TEXT,
+                    city TEXT,
+                    analysis_date TEXT,
+                    lab_cp REAL,
+                    lab_dp REAL,
+                    lab_moisture REAL,
+                    lab_fat REAL,
+                    lab_fiber REAL,
+                    lab_me REAL,
+                    lab_se REAL,
+                    notes TEXT,
+                    status TEXT DEFAULT 'pending',
+                    analyzed_by TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    analyzed_at TIMESTAMP
+                )
+            ''')
+            
+            # جدول سجل النشاطات
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS activity_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_role TEXT,
+                    action TEXT,
+                    details TEXT,
+                    ip_address TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # جدول التنبيهات الأمنية
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS security_alerts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    alert_message TEXT,
+                    severity TEXT,
+                    is_read INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # جدول النسخ الاحتياطية
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS code_backups (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    backup_date TIMESTAMP,
+                    reason TEXT,
+                    file_hash TEXT
+                )
+            ''')
+            
+            # جدول الزوار
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS visitors_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ip_address TEXT,
+                    user_agent TEXT,
+                    user_role TEXT,
+                    action TEXT,
+                    visit_time TIMESTAMP
+                )
+            ''')
+            
+            # جدول الأسعار التاريخية
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS market_prices_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    city TEXT,
+                    commodity TEXT,
+                    price REAL,
+                    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # جدول الـ IPs المحظورة
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS blocked_ips (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ip_address TEXT UNIQUE,
+                    block_reason TEXT,
+                    blocked_at TIMESTAMP
+                )
+            ''')
+            
+            # جدول المزارع
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS poultry_farms (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    farm_name TEXT UNIQUE,
+                    farm_data TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # جدول التعليقات
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS comments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_role TEXT,
+                    comment TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            LOGGER.main_logger.info("تم تهيئة قاعدة البيانات بنجاح")
+    except Exception as e:
+        LOGGER.error_logger.error(f"فشل تهيئة قاعدة البيانات: {e}")
 
+# تهيئة قاعدة البيانات
 if "db_initialized" not in st.session_state:
-    init_database()
-    st.session_state["db_initialized"] = True
+    try:
+        init_database()
+        st.session_state["db_initialized"] = True
+    except Exception as e:
+        st.error(f"⚠️ فشل تهيئة قاعدة البيانات: {e}")
+        st.session_state["db_initialized"] = False
 
 # ==========================================
 # 13. نظام إدارة المخزون (بعد تعريف BIG_FEEDS_LIBRARY)
@@ -586,28 +581,31 @@ class InventoryManager:
         self.load_inventory()
     
     def load_inventory(self):
-        if "inventory" not in st.session_state:
-            if os.path.exists(self.inventory_file):
-                try:
-                    with open(self.inventory_file, 'r', encoding='utf-8') as f:
-                        st.session_state["inventory"] = json.load(f)
-                    return
-                except Exception as e:
-                    LOGGER.error_logger.error(f"فشل تحميل المخزون: {e}")
-            
-            # تهيئة المخزون الافتراضي
+        try:
+            if "inventory" not in st.session_state:
+                if os.path.exists(self.inventory_file):
+                    try:
+                        with open(self.inventory_file, 'r', encoding='utf-8') as f:
+                            st.session_state["inventory"] = json.load(f)
+                        return
+                    except Exception as e:
+                        LOGGER.error_logger.error(f"فشل تحميل المخزون: {e}")
+                
+                # تهيئة المخزون الافتراضي
+                st.session_state["inventory"] = {}
+                for cat_name, items in BIG_FEEDS_LIBRARY.items():
+                    for ing in items:
+                        st.session_state["inventory"][ing] = {
+                            "quantity": 25.0,
+                            "min_threshold": 5.0,
+                            "unit": "طن",
+                            "last_updated": datetime.now().isoformat(),
+                            "supplier": "غير محدد"
+                        }
+                self.save_inventory()
+        except Exception as e:
+            LOGGER.error_logger.error(f"خطأ في تحميل المخزون: {e}")
             st.session_state["inventory"] = {}
-            for cat_name, items in BIG_FEEDS_LIBRARY.items():
-                for ing in items:
-                    st.session_state["inventory"][ing] = {
-                        "quantity": 25.0,
-                        "min_threshold": 5.0,
-                        "unit": "طن",
-                        "last_updated": datetime.now().isoformat(),
-                        "price_history": [],
-                        "supplier": "غير محدد"
-                    }
-            self.save_inventory()
     
     def save_inventory(self):
         try:
@@ -617,54 +615,64 @@ class InventoryManager:
             LOGGER.error_logger.error(f"فشل حفظ المخزون: {e}")
     
     def get_item(self, item_name: str) -> Optional[Dict]:
-        return st.session_state["inventory"].get(item_name)
+        return st.session_state["inventory"].get(item_name, {})
     
     def update_item(self, item_name: str, quantity: float, threshold: Optional[float] = None):
-        if item_name in st.session_state["inventory"]:
-            st.session_state["inventory"][item_name]["quantity"] = quantity
-            if threshold is not None:
-                st.session_state["inventory"][item_name]["min_threshold"] = threshold
-            st.session_state["inventory"][item_name]["last_updated"] = datetime.now().isoformat()
-            self.save_inventory()
+        try:
+            if item_name in st.session_state["inventory"]:
+                st.session_state["inventory"][item_name]["quantity"] = max(0, quantity)
+                if threshold is not None:
+                    st.session_state["inventory"][item_name]["min_threshold"] = max(0, threshold)
+                st.session_state["inventory"][item_name]["last_updated"] = datetime.now().isoformat()
+                self.save_inventory()
+        except Exception as e:
+            LOGGER.error_logger.error(f"خطأ في تحديث المخزون: {e}")
     
     def deduct_items(self, formula: Dict[str, float], tons: float) -> bool:
-        can_deduct = True
-        for ing, pct in formula.items():
-            req_amount = (pct / 100) * tons
-            current = st.session_state["inventory"].get(ing, {}).get("quantity", 0)
-            if current < req_amount:
-                can_deduct = False
-                LOGGER.main_logger.warning(f"مخزون غير كافٍ: {ing}")
-                break
-        
-        if can_deduct:
+        try:
+            can_deduct = True
             for ing, pct in formula.items():
                 req_amount = (pct / 100) * tons
-                st.session_state["inventory"][ing]["quantity"] -= req_amount
-            self.save_inventory()
-        
-        return can_deduct
+                current = st.session_state["inventory"].get(ing, {}).get("quantity", 0)
+                if current < req_amount:
+                    can_deduct = False
+                    LOGGER.main_logger.warning(f"مخزون غير كافٍ: {ing} (المطلوب: {req_amount:.2f}, المتوفر: {current:.2f})")
+                    break
+            
+            if can_deduct:
+                for ing, pct in formula.items():
+                    req_amount = (pct / 100) * tons
+                    st.session_state["inventory"][ing]["quantity"] -= req_amount
+                self.save_inventory()
+            
+            return can_deduct
+        except Exception as e:
+            LOGGER.error_logger.error(f"خطأ في خصم المخزون: {e}")
+            return False
     
     def check_stock_levels(self) -> Dict[str, str]:
         warnings = {}
-        for item, data in st.session_state["inventory"].items():
-            qty = data["quantity"]
-            threshold = data["min_threshold"]
-            if qty <= 0:
-                warnings[item] = "نفذ المخزون"
-            elif qty < threshold:
-                warnings[item] = "منخفض"
+        try:
+            for item, data in st.session_state["inventory"].items():
+                qty = data.get("quantity", 0)
+                threshold = data.get("min_threshold", 5.0)
+                if qty <= 0:
+                    warnings[item] = "نفذ المخزون"
+                elif qty < threshold:
+                    warnings[item] = "منخفض"
+        except Exception as e:
+            LOGGER.error_logger.error(f"خطأ في فحص المخزون: {e}")
         return warnings
 
-# إنشاء مدير المخزون (الآن BIG_FEEDS_LIBRARY معرّفة)
+# إنشاء مدير المخزون
 INVENTORY_MANAGER = InventoryManager()
 
 # ==========================================
-# 14. بقية الكلاسات والدوال
+# 14. نظام إرسال الكود الآمن
 # ==========================================
 
 class SecureCodeSender:
-    """نظام إرسال الكود الآمن"""
+    """نظام إرسال الكود الآمن مع تشفير وتوقيع رقمي"""
     
     def __init__(self):
         self.sender_email = SENDER_EMAIL
@@ -672,24 +680,30 @@ class SecureCodeSender:
         self.owner_email = OWNER_EMAIL
     
     def send_code_to_email(self, email: str, reason: str = "طلب يدوي") -> bool:
+        """إرسال الكود إلى البريد الإلكتروني مع توقيع رقمي"""
         if not self.sender_password:
             LOGGER.security_logger.error("محاولة إرسال كود بدون كلمة مرور")
+            st.error("⚠️ كلمة مرور البريد الإلكتروني غير محددة. يرجى إعدادها في ملف .env")
             return False
         
         try:
             from email.mime.multipart import MIMEMultipart
             from email.mime.text import MIMEText
             
+            # قراءة الكود الحالي
             try:
                 with open(__file__, 'r', encoding='utf-8') as f:
                     code_content = f.read()
             except Exception as e:
                 LOGGER.error_logger.error(f"فشل قراءة الكود: {e}")
+                st.error(f"❌ فشل قراءة الكود: {e}")
                 return False
             
+            # إنشاء توقيع رقمي
             file_hash = hashlib.sha256(code_content.encode()).hexdigest()
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
+            # إنشاء الرسالة
             msg = MIMEMultipart()
             msg['From'] = self.sender_email
             msg['To'] = email
@@ -711,6 +725,7 @@ class SecureCodeSender:
 """
             msg.attach(MIMEText(body, 'plain', 'utf-8'))
             
+            # إرفاق الكود
             attachment = MIMEText(code_content, 'plain', 'utf-8')
             attachment.add_header(
                 'Content-Disposition', 
@@ -719,6 +734,7 @@ class SecureCodeSender:
             )
             msg.attach(attachment)
             
+            # إرسال البريد
             server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
             server.starttls()
             server.login(self.sender_email, self.sender_password)
@@ -730,9 +746,11 @@ class SecureCodeSender:
             
         except Exception as e:
             LOGGER.error_logger.error(f"فشل إرسال الكود: {e}")
+            st.error(f"❌ فشل إرسال الكود: {e}")
             return False
     
     def auto_backup_check(self):
+        """فحص وإنشاء نسخة احتياطية تلقائية كل 6 ساعات"""
         try:
             with get_db() as conn:
                 cursor = conn.execute('SELECT MAX(backup_date) as last_backup FROM code_backups')
@@ -742,7 +760,7 @@ class SecureCodeSender:
                     need_backup = True
                 else:
                     last_time = datetime.fromisoformat(result['last_backup'])
-                    need_backup = (datetime.now() - last_time).seconds > 21600
+                    need_backup = (datetime.now() - last_time).seconds > 21600  # 6 ساعات
                 
                 if need_backup:
                     if self.send_code_to_email(self.owner_email, "نسخة احتياطية آلية"):
@@ -757,19 +775,24 @@ class SecureCodeSender:
 CODE_SENDER = SecureCodeSender()
 
 # ==========================================
-# 15. بقية الكود (الأمان، المساعدات، PDF، إلخ)
+# 15. نظام مراقبة الأمان المتقدم
 # ==========================================
 
 class SecurityMonitor:
-    """نظام مراقبة الأمان"""
+    """نظام مراقبة أمان متقدم مع كشف الاختراق وحظر IP"""
     
     def __init__(self):
         self.failed_attempts = defaultdict(list)
         self.blocked_ips = set()
         self.max_attempts = 5
-        self.lockout_time = 300
+        self.lockout_time = 300  # 5 دقائق
+        self.attack_signatures = {
+            'sql_injection': re.compile(r'(\%27)|(\')|(\-\-)|(%23)|(#)', re.IGNORECASE),
+            'xss': re.compile(r'(\<script)|(\<img)|(javascript:)|(onerror=)', re.IGNORECASE),
+        }
     
     def get_client_ip(self) -> str:
+        """الحصول على عنوان IP العميل"""
         try:
             if hasattr(st, 'context') and hasattr(st.context, 'headers'):
                 forwarded = st.context.headers.get('X-Forwarded-For', '')
@@ -783,8 +806,10 @@ class SecurityMonitor:
             return 'unknown'
     
     def is_ip_blocked(self, ip: str) -> bool:
+        """التحقق من حظر IP"""
         if ip in self.blocked_ips:
             return True
+        
         try:
             with get_db() as conn:
                 cursor = conn.execute(
@@ -798,7 +823,21 @@ class SecurityMonitor:
             pass
         return False
     
+    def block_ip(self, ip: str, reason: str = "محاولات فاشلة متكررة"):
+        """حظر عنوان IP"""
+        self.blocked_ips.add(ip)
+        try:
+            with get_db() as conn:
+                conn.execute(
+                    'INSERT OR REPLACE INTO blocked_ips (ip_address, block_reason, blocked_at) VALUES (?, ?, ?)',
+                    (ip, reason, datetime.now().isoformat())
+                )
+        except:
+            pass
+        LOGGER.security_logger.warning(f"تم حظر IP: {ip} - {reason}")
+    
     def log_failed_attempt(self, code_attempt: str = ""):
+        """تسجيل محاولة فاشلة"""
         ip = self.get_client_ip()
         self.failed_attempts[ip].append(datetime.now())
         
@@ -809,23 +848,17 @@ class SecurityMonitor:
         self.failed_attempts[ip] = recent_attempts
         
         if len(recent_attempts) >= self.max_attempts:
-            self.blocked_ips.add(ip)
-            try:
-                with get_db() as conn:
-                    conn.execute(
-                        'INSERT OR REPLACE INTO blocked_ips (ip_address, block_reason, blocked_at) VALUES (?, ?, ?)',
-                        (ip, f"{self.max_attempts} محاولات فاشلة", datetime.now().isoformat())
-                    )
-            except:
-                pass
+            self.block_ip(ip, f"{self.max_attempts} محاولات فاشلة في {self.lockout_time} ثانية")
         
         LOGGER.security_logger.warning(f"محاولة فاشلة من {ip}")
     
     def log_visitor(self, user_role: Optional[str] = None, action: str = "visit"):
+        """تسجيل زائر جديد"""
         ip = self.get_client_ip()
         user_agent = self.get_user_agent()
         
         if self.is_ip_blocked(ip):
+            LOGGER.security_logger.warning(f"محاولة وصول من IP محظور: {ip}")
             return
         
         try:
@@ -837,8 +870,11 @@ class SecurityMonitor:
                 )
         except Exception as e:
             LOGGER.error_logger.error(f"فشل تسجيل الزائر: {e}")
+        
+        LOGGER.user_logger.info(f"زائر: {ip} - {user_role} - {action}")
     
     def get_user_agent(self) -> str:
+        """الحصول على User-Agent"""
         try:
             if hasattr(st, 'context') and hasattr(st.context, 'headers'):
                 return st.context.headers.get('User-Agent', 'unknown')[:200]
@@ -853,6 +889,8 @@ SECURITY = SecurityMonitor()
 # ==========================================
 
 class ArabicTextProcessor:
+    """معالج النص العربي"""
+    
     @staticmethod
     @lru_cache(maxsize=1000)
     def fix_arabic_text(text: str) -> str:
@@ -865,6 +903,7 @@ class ArabicTextProcessor:
 arabic_processor = ArabicTextProcessor()
 
 def log_activity(action: str, details: str = ""):
+    """تسجيل نشاط المستخدم"""
     try:
         with get_db() as conn:
             conn.execute('''
@@ -881,6 +920,7 @@ def log_activity(action: str, details: str = ""):
         LOGGER.error_logger.error(f"فشل تسجيل النشاط: {e}")
 
 def get_standard_requirements(sector: str, breed: str, production: str) -> Dict:
+    """الحصول على الاحتياجات القياسية حسب السلالة والغرض"""
     try:
         if sector in BREEDS_STANDARDS:
             for b in BREEDS_STANDARDS[sector]:
@@ -890,11 +930,115 @@ def get_standard_requirements(sector: str, breed: str, production: str) -> Dict:
     except Exception:
         return {"CP": 16.0, "DP": 13.4, "SE": 65.0, "ME": 2600, "P/E": 6.2}
 
+def send_whatsapp_message(phone: str, message: str) -> Optional[str]:
+    """إنشاء رابط واتساب"""
+    try:
+        encoded = urllib.parse.quote(message)
+        return f"https://wa.me/{phone}?text={encoded}"
+    except Exception:
+        return None
+
 # ==========================================
-# 17. مولد PDF
+# 17. نظام تحديث الأسعار
+# ==========================================
+
+class LivePriceUpdater:
+    """نظام تحديث أسعار متقدم مع تحديث كل 24 ساعة"""
+    
+    def __init__(self):
+        self.price_cache = {}
+        self.last_update = {}
+        self.update_interval = 86400  # 24 ساعة
+    
+    def get_live_prices(self, country: str, city: str) -> Dict[str, float]:
+        """الحصول على الأسعار مع تحديث كل 24 ساعة"""
+        cache_key = f"{country}_{city}"
+        
+        if cache_key in self.last_update:
+            if time.time() - self.last_update[cache_key] < self.update_interval:
+                if cache_key in self.price_cache:
+                    return self.price_cache[cache_key]
+        
+        prices = self.fetch_prices(country, city)
+        
+        if prices:
+            self.price_cache[cache_key] = prices
+            self.last_update[cache_key] = time.time()
+            self.save_price_history(prices, city)
+        
+        return self.price_cache.get(cache_key, {})
+    
+    def fetch_prices(self, country: str, city: str) -> Dict[str, float]:
+        """جلب الأسعار من المصادر"""
+        base_prices = self.get_base_prices()
+        multiplier = self.get_location_multiplier(country, city)
+        
+        for key in base_prices:
+            change = random.uniform(-0.015, 0.015)
+            base_prices[key] *= (1 + change) * multiplier
+        
+        return base_prices
+    
+    def get_base_prices(self) -> Dict[str, float]:
+        """الأسعار الأساسية"""
+        return {
+            "ذرة صفراء": 230.0, "ذرة بيضاء": 225.0, "شعير مطحون": 210.0,
+            "سورجم (فتريتة)": 195.0, "قمح محلي مصنّع": 240.0, "جريش أرز": 280.0,
+            "دخن محلي": 200.0, "شوفان علفي": 220.0, "أمباز الفول السوداني": 460.0,
+            "كسب فول صويا 44%": 440.0, "كسب فول صويا 48%": 480.0, "كسب عباد الشمس": 310.0,
+            "كسب بذور القطن": 290.0, "كسب بذور الكتان": 350.0, "كسب السمسم": 420.0,
+            "كسب جلوتين الذرة": 650.0, "كسب نواة النخيل": 250.0, "نخالة قمح": 150.0,
+            "البرسيم الجاف": 170.0, "مولاس قصب السكر": 120.0, "تبن قمح": 80.0,
+            "قشر فول سوداني": 60.0, "سرسة الأرز": 90.0, "مخلفات البسكويت": 200.0,
+            "مسحوق أسماك 60%": 850.0, "مسحوق أسماك 72%": 1050.0, "مسحوق لحم وعظم": 650.0,
+            "مركزات دواجن": 650.0, "مركزات مجترات": 600.0, "ليسين نقي": 3200.0,
+            "ميثيونين نقي": 2800.0, "ثريونين نقي": 2500.0, "بريمكس دواجن": 2500.0,
+            "بريمكس بياض": 2800.0, "إنزيم الفايتيز": 1800.0, "إنزيم NSP": 1600.0,
+            "الحجر الجيري": 40.0, "فوسفات ثنائي الكالسيوم": 280.0, "ملح الطعام": 30.0,
+            "مضاد سموم فطرية": 950.0, "بيكربونات الصوديوم": 340.0, "أكسيد المغنيسيوم": 450.0,
+            "تريتيكال": 245.0, "كسب بذور اللفت": 380.0
+        }
+    
+    def get_location_multiplier(self, country: str, city: str) -> float:
+        """معامل تعديل الموقع"""
+        multipliers = {
+            "🇸🇩 السودان": {"default": 1.15, "الخرطوم": 1.0, "أم درمان": 1.02, "بحري": 1.01, "ود مدني": 0.95},
+            "🇱🇾 LIBYA": {"default": 1.10, "طرابلس": 1.0, "بنغازي": 0.98, "مصراتة": 0.96},
+            "🇪🇬 مصر": {"default": 1.04, "القاهرة": 1.0, "الإسكندرية": 0.97, "الجيزة": 0.99},
+            "🇸🇦 السعودية": {"default": 1.08, "الرياض": 1.0, "جدة": 1.02, "الدمام": 0.98},
+            "🌍 باقي الدول": {"default": 1.0}
+        }
+        country_mult = multipliers.get(country, {"default": 1.0})
+        return country_mult.get(city, country_mult["default"])
+    
+    def save_price_history(self, prices: Dict[str, float], city: str):
+        """حفظ تاريخ الأسعار"""
+        try:
+            with get_db() as conn:
+                for commodity, price in prices.items():
+                    conn.execute('''
+                        INSERT INTO market_prices_history (city, commodity, price, recorded_at)
+                        VALUES (?, ?, ?, ?)
+                    ''', (city, commodity, price, datetime.now().isoformat()))
+        except Exception as e:
+            LOGGER.error_logger.error(f"فشل حفظ تاريخ الأسعار: {e}")
+    
+    def get_last_update_time(self, country: str, city: str) -> Optional[datetime]:
+        """الحصول على وقت آخر تحديث"""
+        cache_key = f"{country}_{city}"
+        if cache_key in self.last_update:
+            return datetime.fromtimestamp(self.last_update[cache_key])
+        return None
+
+PRICE_UPDATER = LivePriceUpdater()
+
+# ==========================================
+# 18. مولد PDF المحترف
 # ==========================================
 
 class ProfessionalPDFGenerator:
+    """مولد PDF احترافي مع دعم اللغة العربية"""
+    
     def __init__(self):
         self.font_name = 'Helvetica'
         if os.path.exists("Amiri-Regular.ttf"):
@@ -904,19 +1048,54 @@ class ProfessionalPDFGenerator:
             except Exception:
                 pass
 
-    def generate_comprehensive_report(self, formula, target_dp, breed, cost, city, local_cost, local_sym, computed_se, include_charts=True) -> bytes:
+    def generate_comprehensive_report(
+        self, 
+        formula: Dict[str, float], 
+        target_dp: float, 
+        breed: str, 
+        cost: float, 
+        city: str, 
+        local_cost: float, 
+        local_sym: str, 
+        computed_se: float,
+        include_charts: bool = True
+    ) -> bytes:
+        """توليد تقرير PDF كامل"""
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+        doc = SimpleDocTemplate(
+            buffer, 
+            pagesize=A4, 
+            rightMargin=50, 
+            leftMargin=50, 
+            topMargin=50, 
+            bottomMargin=50
+        )
         story = []
 
-        def p(text, size=12, align=TA_RIGHT, color=HexColor('#000000')):
+        def p(text: str, size: int = 12, align: int = TA_RIGHT, color: Any = HexColor('#000000')):
             safe_text = arabic_processor.fix_arabic_text(str(text))
-            return Paragraph(safe_text, ParagraphStyle('style', fontName=self.font_name, fontSize=size, alignment=align, textColor=color, spaceAfter=6, leading=size*1.5))
+            return Paragraph(
+                safe_text, 
+                ParagraphStyle(
+                    'style', 
+                    fontName=self.font_name, 
+                    fontSize=size, 
+                    alignment=align, 
+                    textColor=color, 
+                    spaceAfter=6, 
+                    leading=size*1.5
+                )
+            )
 
         story.append(p("تقرير فني - منصة تاور العلمية", size=22, align=TA_CENTER, color=HexColor('#1b5e20')))
         story.append(Spacer(1, 12))
         
-        for line in [f"المشرف: م. عبد القادر إسماعيل تاور", f"الموقع: {city}", f"الفصيل: {breed}", f"التاريخ: {datetime.now().strftime('%Y-%m-%d')}"]:
+        for line in [
+            f"المشرف: م. عبد القادر إسماعيل تاور",
+            f"الموقع: {city}",
+            f"الفصيل: {breed}",
+            f"التاريخ: {datetime.now().strftime('%Y-%m-%d')}"
+        ]:
             story.append(p(line, size=11))
         story.append(Spacer(1, 15))
 
@@ -963,7 +1142,13 @@ class ProfessionalPDFGenerator:
                 vals = list(formula.values())
                 colors = ['#1b5e20','#2e7d32','#388e3c','#43a047','#4caf50','#66bb6a']
                 ax.pie(vals, labels=None, autopct='%1.1f%%', colors=colors[:len(names)])
-                ax.legend([arabic_processor.fix_arabic_text(n) for n in names], title=arabic_processor.fix_arabic_text("المكونات"), loc='center left', bbox_to_anchor=(1, 0, 0.5, 1), fontsize=8)
+                ax.legend(
+                    [arabic_processor.fix_arabic_text(n) for n in names],
+                    title=arabic_processor.fix_arabic_text("المكونات"),
+                    loc='center left',
+                    bbox_to_anchor=(1, 0, 0.5, 1),
+                    fontsize=8
+                )
                 ax.set_title(arabic_processor.fix_arabic_text('توزيع المكونات'), fontsize=12)
                 buf = io.BytesIO()
                 plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
@@ -974,7 +1159,14 @@ class ProfessionalPDFGenerator:
                 LOGGER.error_logger.error(f"فشل إنشاء المخطط في PDF: {e}")
 
         story.append(Spacer(1, 25))
-        story.append(p("تم التوليد بواسطة منصة تاور العلمية © 2026", size=9, align=TA_CENTER, color=HexColor('#666666')))
+        story.append(
+            p(
+                "تم التوليد بواسطة منصة تاور العلمية © 2026",
+                size=9,
+                align=TA_CENTER,
+                color=HexColor('#666666')
+            )
+        )
         
         doc.build(story)
         buffer.seek(0)
@@ -983,10 +1175,12 @@ class ProfessionalPDFGenerator:
 pdf_generator = ProfessionalPDFGenerator()
 
 # ==========================================
-# 18. إدارة مزارع الدجاج
+# 19. إدارة مزارع الدجاج
 # ==========================================
 
 class BroilerFarmManager:
+    """مدير مزارع الدواجن المتكامل"""
+    
     @staticmethod
     def calculate_adg(current_weight_g: float, initial_weight_g: float, age_days: int) -> float:
         if age_days <= 0:
@@ -1035,10 +1229,11 @@ class BroilerFarmManager:
         return performance.get(breed_type, performance["لاحم متوسط"])
 
 # ==========================================
-# 19. تهيئة متغيرات الجلسة
+# 20. تهيئة متغيرات الجلسة
 # ==========================================
 
 def init_session_state():
+    """تهيئة جميع متغيرات الجلسة"""
     defaults = {
         "approved": False,
         "user_role": None,
@@ -1068,9 +1263,707 @@ def init_session_state():
 init_session_state()
 
 # ==========================================
-# 20. بقية الواجهة (CSS، بوابة الدخول، التبويبات، إلخ)
+# 21. CSS المتقدم
 # ==========================================
 
-# ... (باقي الكود كما هو من الإصدار السابق)
+def load_css():
+    """تحميل CSS المتقدم"""
+    st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+    
+    * {
+        font-family: 'Cairo', sans-serif;
+        box-sizing: border-box;
+    }
+    
+    .stApp {
+        background: linear-gradient(135deg, #f0f4fa 0%, #d9e2ef 100%);
+    }
+    
+    .main-box {
+        background: rgba(255, 255, 255, 0.98);
+        padding: 35px;
+        border-radius: 25px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        backdrop-filter: blur(10px);
+        margin: 20px;
+        border: 1px solid rgba(46,125,50,0.2);
+        animation: fadeIn 0.5s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .section-title {
+        color: #1b5e20;
+        border-right: 8px solid #2e7d32;
+        padding-right: 20px;
+        font-size: 1.8rem;
+        font-weight: 900;
+        margin: 30px 0 25px 0;
+        background: linear-gradient(135deg, rgba(46,125,50,0.1), transparent);
+        padding: 12px 20px;
+        border-radius: 12px;
+    }
+    
+    .formula-item {
+        background: linear-gradient(135deg, #f8fff8, #f0f8f0);
+        padding: 15px 25px;
+        border-radius: 12px;
+        margin: 10px 0;
+        border-right: 5px solid #2e7d32;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    
+    .formula-item:hover {
+        background: linear-gradient(135deg, #f0fff0, #e8f5e9);
+        transform: translateX(-5px);
+    }
+    
+    .price-card {
+        background: linear-gradient(135deg, #ffffff, #f8f9fa);
+        padding: 20px;
+        border-radius: 15px;
+        border-right: 6px solid #2e7d32;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .price-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    }
+    
+    .metric-card {
+        background: linear-gradient(135deg, #ffffff, #f8f9fa);
+        padding: 25px;
+        border-radius: 20px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        transition: transform 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-3px);
+    }
+    
+    .metric-card .value {
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: #1b5e20;
+    }
+    
+    .alert-box {
+        background: linear-gradient(135deg, #ffebee, #ffcdd2);
+        border-right: 6px solid #c62828;
+        padding: 18px;
+        border-radius: 12px;
+        margin: 15px 0;
+        color: #c62828;
+        font-weight: 500;
+    }
+    
+    .success-box {
+        background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+        border-right: 6px solid #2e7d32;
+        padding: 18px;
+        border-radius: 12px;
+        margin: 15px 0;
+        color: #1b5e20;
+        font-weight: 500;
+    }
+    
+    .warning-card {
+        background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+        padding: 15px;
+        border-radius: 12px;
+        border-right: 5px solid #f57c00;
+        margin-bottom: 15px;
+        color: #e65100;
+    }
+    
+    .stock-critical {
+        background: linear-gradient(135deg, #ffebee, #ffcdd2);
+        padding: 8px 12px;
+        border-radius: 8px;
+        color: #c62828;
+    }
+    
+    .stock-normal {
+        background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+        padding: 8px 12px;
+        border-radius: 8px;
+        color: #2e7d32;
+    }
+    
+    .profile-img-style {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #d4af37;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+    
+    .mini-left-signature {
+        position: fixed;
+        left: 20px;
+        bottom: 20px;
+        background: linear-gradient(135deg, #1b5e20, #2e7d32);
+        color: white;
+        padding: 10px 25px;
+        border-radius: 30px;
+        font-size: 0.85rem;
+        z-index: 999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .stButton > button {
+        background: linear-gradient(135deg, #2e7d32, #1b5e20);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 12px 24px;
+        font-weight: 700;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        width: 100%;
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #1b5e20, #0d3b0f);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    }
+    
+    .send-code-btn button {
+        background: linear-gradient(135deg, #c62828, #b71c1c) !important;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(198,40,40,0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(198,40,40,0); }
+        100% { box-shadow: 0 0 0 0 rgba(198,40,40,0); }
+    }
+    
+    @media (max-width: 768px) {
+        .main-box {
+            padding: 15px;
+            margin: 10px;
+        }
+        .section-title {
+            font-size: 1.3rem;
+        }
+        .metric-card .value {
+            font-size: 1.8rem;
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+load_css()
+
+# ==========================================
+# 22. الواجهة الرئيسية
+# ==========================================
+
+st.markdown('<div class="main-box">', unsafe_allow_html=True)
+
+# رأس الصفحة
+col_logo, col_title, col_send = st.columns([1, 2, 1])
+
+with col_logo:
+    if img_base64:
+        st.image(f"data:image/jpeg;base64,{img_base64}", width=100)
+    else:
+        st.image("https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=100", width=100)
+
+with col_title:
+    st.markdown("""
+    <h1 style='color: #1b5e20; text-align:center; margin-bottom:0;'>
+        🌾 منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف
+    </h1>
+    <p style='text-align:center; color:#1565C0; font-size:1.2rem; margin-top:5px;'>
+        محرك الاستمثال الخطي المتقدم | البروتين المهضوم (DP) | معادل النشاء (SE)
+    </p>
+    <h3 style='text-align:center; color:#c62828; margin-top:5px;'>
+        الاختصاصي م. عبد القادر إسماعيل تاور
+    </h3>
+    """, unsafe_allow_html=True)
+
+with col_send:
+    st.markdown('<div class="send-code-btn">', unsafe_allow_html=True)
+    if st.button("📧 إرسال الكود للمالك", use_container_width=True, type="primary"):
+        with st.spinner("جاري إرسال الكود..."):
+            if CODE_SENDER.send_code_to_email(OWNER_EMAIL, "طلب يدوي"):
+                st.success("✅ تم إرسال الكود بنجاح!")
+                log_activity("send_code", "تم إرسال الكود للمالك")
+            else:
+                st.error("❌ فشل إرسال الكود")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown("<hr>", unsafe_allow_html=True)
+
+# ==========================================
+# 23. بوابة الدخول
+# ==========================================
+
+client_ip = SECURITY.get_client_ip()
+
+if SECURITY.is_ip_blocked(client_ip):
+    st.markdown(f"""
+    <div class="alert-box">
+        🚫 <b>تم حظر عنوان IP الخاص بك</b><br>
+        الرجاء التواصل مع الدعم الفني
+    </div>
+    """, unsafe_allow_html=True)
+    st.stop()
+
+if not st.session_state["approved"]:
+    st.markdown('<div style="max-width: 500px; margin: 80px auto;">', unsafe_allow_html=True)
+    st.markdown("<h2 style='color:#2E7D32; text-align:center;'>🔒 بوابة الدخول</h2>", unsafe_allow_html=True)
+    
+    # QR Code
+    try:
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data("https://tower-scientific-platform.streamlit.app")
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+        qr_buffer = io.BytesIO()
+        qr_img.save(qr_buffer, format="PNG")
+        qr_base64 = base64.b64encode(qr_buffer.getvalue()).decode()
+        st.markdown(f'<div style="text-align:center;"><img src="data:image/png;base64,{qr_base64}" width="150"></div>', unsafe_allow_html=True)
+    except Exception:
+        pass
+    
+    input_code = st.text_input("🔑 أدخل كود الدخول:", type="password")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("تسجيل الدخول", type="primary", use_container_width=True):
+            if input_code in CODES_DB:
+                st.session_state["approved"] = True
+                st.session_state["user_role"] = CODES_DB[input_code]["role"]
+                st.session_state["session_token"] = secrets.token_urlsafe(32)
+                st.session_state["login_attempts"] = 0
+                
+                SECURITY.log_visitor(st.session_state["user_role"], "login")
+                log_activity("login", "تسجيل دخول ناجح")
+                
+                if st.session_state["user_role"] == "owner":
+                    CODE_SENDER.auto_backup_check()
+                
+                st.rerun()
+            else:
+                SECURITY.log_failed_attempt(input_code)
+                st.session_state["login_attempts"] += 1
+                remaining = 5 - st.session_state["login_attempts"]
+                st.error(f"❌ الكود غير صحيح! متبقي {remaining} محاولات")
+    
+    with col2:
+        if st.button("نسيت الكود", use_container_width=True):
+            st.info("يرجى التواصل مع مدير النظام: abukram128@gmail.com")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.stop()
+
+# ==========================================
+# 24. رسالة ترحيب حسب الدور
+# ==========================================
+
+role_messages = {
+    "owner": "👑 مرحباً بك في منصتك، الاختصاصي م. عبد القادر إسماعيل تاور. جميع أنظمة الأمان والأداء فعالة وجاهزة.",
+    "specialist": "🔬 مرحباً بالزملاء المختصين والأطباء البيطريين. النظام جاهز لخدمتكم مع أحدث تقنيات تركيب الأعلاف.",
+    "breeder": "🌾 أهلاً وسهلاً بالمربين الكرام. نتمنى لكم تجربة ممتعة وخلطات اقتصادية عالية الجودة."
+}
+
+if st.session_state.get("user_role") in role_messages:
+    st.info(role_messages[st.session_state["user_role"]])
+
+st.markdown("---")
+
+# ==========================================
+# 25. التبويبات
+# ==========================================
+
+if st.session_state.get("user_role") == "owner":
+    tab_titles = [
+        "🔬 تركيب الأعلاف",
+        "📊 بورصة الأسعار الحية",
+        "🏭 إدارة المخزون",
+        "🧾 المبيعات والفواتير",
+        "🐔 إدارة مزارع الدواجن",
+        "🔬 المختبر المتكامل",
+        "📈 التحليلات المتقدمة",
+        "👑 لوحة تحكم المالك",
+        "💬 التعليقات",
+        "📖 الدليل"
+    ]
+elif st.session_state.get("user_role") == "specialist":
+    tab_titles = [
+        "🔬 تركيب الأعلاف",
+        "📊 بورصة الأسعار الحية",
+        "🏭 إدارة المخزون",
+        "🧾 المبيعات",
+        "🔬 المختبر المتكامل",
+        "📈 التحليلات",
+        "💬 التعليقات",
+        "📖 الدليل"
+    ]
+else:
+    tab_titles = ["🔬 تركيب الأعلاف", "📖 دليل المستخدم"]
+
+tabs = st.tabs(tab_titles)
+
+# ==========================================
+# 26. التبويب الأول: تركيب الأعلاف (مبسط)
+# ==========================================
+
+with tabs[0]:
+    st.markdown('<div class="section-title">🌍 الموقع الجغرافي وتحديد السوق</div>', unsafe_allow_html=True)
+    
+    col_loc1, col_loc2 = st.columns(2)
+    with col_loc1:
+        country = st.selectbox("🇸🇩 الدولة:", list(COUNTRIES_WITH_FLAGS.keys()))
+    with col_loc2:
+        city = st.text_input("📍 المدينة:", COUNTRIES_WITH_FLAGS.get(country, {}).get("default_city", "الخرطوم"))
+    
+    # تحديث الأسعار
+    current_prices = PRICE_UPDATER.get_live_prices(country, city)
+    local_rate = COUNTRIES_WITH_FLAGS.get(country, {"rate": 1.0})["rate"]
+    local_sym = COUNTRIES_WITH_FLAGS.get(country, {"sym": "USD"})["sym"]
+    
+    last_update = PRICE_UPDATER.get_last_update_time(country, city)
+    if last_update:
+        st.info(f"🔄 آخر تحديث للأسعار: {last_update.strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    st.markdown('<div class="section-title">💰 بورصة الأسعار المباشرة</div>', unsafe_allow_html=True)
+    
+    # عرض الأسعار
+    price_cols = st.columns(4)
+    for idx, (item, price) in enumerate(list(current_prices.items())[:12]):
+        with price_cols[idx % 4]:
+            st.markdown(f"""
+            <div class="price-card">
+                <b>{item}</b><br>
+                <span style="font-size:1.3rem; color:#1b5e20;">${price:.2f}</span><br>
+                <small>{price*local_rate:,.0f} {local_sym}</small>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="section-title">🎯 القطاع والإنتاجية المستهدفة</div>', unsafe_allow_html=True)
+    
+    col_sec, col_sub, col_prod = st.columns(3)
+    with col_sec:
+        sector = st.selectbox("🐏 القطاع الحيواني:", ["الدواجن", "الأغنام", "الماعز", "الأبقار", "الخيول", "الأسماك"])
+    
+    with col_sub:
+        sector_map = {
+            "الدواجن": ["لاحم (بادي)", "لاحم (نامي)", "لاحم (ناهي)", "بياض (بادي)", "بياض (إنتاج)", "بياض (ناهي)", "سمان", "رومي"],
+            "الأغنام": ["تسمين (صحراوي)", "تسمين (بربري)", "تسمين (نعيمي)", "حليب (أغنام)", "صيانة"],
+            "الماعز": ["تسمين", "حليب", "صيانة"],
+            "الأبقار": ["حليب (هولشتاين)", "حليب (فريزيان)", "تسمين (كنانة)", "تسمين (بطانة)", "عجول تسمين"],
+            "الخيول": ["رياضة", "نمو", "صيانة"],
+            "الأسماك": ["بلطي (نمو)", "بلطي (تسمين)", "بوري", "قرموط"]
+        }
+        breed = st.selectbox("🐣 السلالة:", sector_map.get(sector, ["عام"]))
+    
+    with col_prod:
+        production = st.selectbox("📈 مرحلة الإنتاج:", ["بادي", "نامي", "ناهي", "إنتاج", "تحضيري", "صيانة"])
+    
+    # تحديد القيم القياسية
+    standards = get_standard_requirements(sector, breed, production)
+    suggested_dp = standards.get("DP", 16.0)
+    suggested_se = standards.get("SE", 65.0)
+    
+    st.markdown('<div class="section-title">📊 تحديد نسب البروتين والطاقة</div>', unsafe_allow_html=True)
+    
+    col_prot1, col_prot2 = st.columns(2)
+    with col_prot1:
+        protein_type = st.radio("🧬 نوع البروتين:", ["البروتين المهضوم (DP)", "البروتين الخام (CP)"], horizontal=True)
+        protein_source = st.radio("📋 مصدر القيم:", ["قياسي (حسب السلالة)", "يدوي"], horizontal=True)
+    
+    with col_prot2:
+        if protein_source == "قياسي (حسب السلالة)":
+            if protein_type == "البروتين المهضوم (DP)":
+                recommended_protein = suggested_dp
+            else:
+                recommended_protein = standards.get("CP", suggested_dp / 0.85)
+            st.info(f"💡 القيمة القياسية: {recommended_protein:.1f}%")
+            protein_value = st.slider("🥩 نسبة البروتين %:", 5.0, 40.0, recommended_protein, 0.5)
+        else:
+            protein_value = st.slider("🥩 نسبة البروتين %:", 5.0, 40.0, 18.0, 0.5)
+        
+        energy_value = st.slider("⚡ معادل النشاء (SE):", 20.0, 90.0, suggested_se, 1.0)
+    
+    # اختيار المكونات
+    st.markdown('<div class="section-title">📦 اختيار المكونات العلفية</div>', unsafe_allow_html=True)
+    
+    selected_ingredients = []
+    ingredient_prices = {}
+    
+    for cat_name, items in BIG_FEEDS_LIBRARY.items():
+        expanded = "الحبوب" in cat_name or "الأكساب" in cat_name
+        with st.expander(f"📁 {cat_name}", expanded=expanded):
+            cols = st.columns(3)
+            for idx, (ing_name, data) in enumerate(items.items()):
+                with cols[idx % 3]:
+                    is_default = ing_name in ["ذرة صفراء", "كسب فول صويا 44%", "نخالة قمح (ردة)", "ملح الطعام", "الحجر الجيري"]
+                    checked = st.checkbox(ing_name, value=is_default, key=f"feed_{ing_name}")
+                    
+                    if checked:
+                        selected_ingredients.append(ing_name)
+                        price = current_prices.get(ing_name, 300.0)
+                        if st.session_state.get("user_role") == "owner":
+                            price_input = st.number_input(f"💰 سعر {ing_name} ($/طن)", min_value=10.0, value=float(price), step=5.0, key=f"price_{ing_name}")
+                            ingredient_prices[ing_name] = price_input
+                        else:
+                            st.markdown(f"💰 السعر: **`${price:.2f}`**/طن")
+                            ingredient_prices[ing_name] = price
+    
+    # زر التشغيل
+    col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 2])
+    with col_btn2:
+        run_optimization = st.button("🚀 تشغيل المحرك", type="primary", use_container_width=True)
+    
+    if run_optimization:
+        if len(selected_ingredients) < 3:
+            st.warning("⚠️ يرجى اختيار 3 مكونات على الأقل")
+        else:
+            with st.spinner("🔄 جاري حساب التركيبة المثلى..."):
+                try:
+                    c = [ingredient_prices[ing] for ing in selected_ingredients]
+                    bounds = [(0.0, 100.0) for _ in selected_ingredients]
+                    
+                    # قيد المجموع الكلي
+                    A_eq = [[1.0] * len(selected_ingredients)]
+                    b_eq = [100.0]
+                    
+                    # قيد البروتين
+                    protein_row = []
+                    for ing in selected_ingredients:
+                        cp_val = 0.0
+                        dc_val = 0.85
+                        for cat in BIG_FEEDS_LIBRARY.values():
+                            if ing in cat:
+                                cp_val = cat[ing]["CP"]
+                                dc_val = cat[ing]["DC"]
+                                break
+                        if protein_type == "البروتين المهضوم (DP)":
+                            protein_row.append(cp_val * dc_val)
+                        else:
+                            protein_row.append(cp_val)
+                    
+                    A_eq.append(protein_row)
+                    b_eq.append(protein_value * 100)
+                    
+                    # قيد الطاقة
+                    se_row = []
+                    for ing in selected_ingredients:
+                        se_val = 0.0
+                        for cat in BIG_FEEDS_LIBRARY.values():
+                            if ing in cat:
+                                se_val = cat[ing]["SE"]
+                                break
+                        se_row.append(se_val)
+                    
+                    A_ub = [[-x for x in se_row]]
+                    b_ub = [-energy_value * 100]
+                    
+                    # حل التحسين
+                    result = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+                    
+                    if result.success:
+                        formula = {}
+                        computed_se = 0.0
+                        for idx, ing in enumerate(selected_ingredients):
+                            if result.x[idx] > 0.01:
+                                formula[ing] = result.x[idx]
+                                for cat in BIG_FEEDS_LIBRARY.values():
+                                    if ing in cat:
+                                        computed_se += (result.x[idx] / 100) * cat[ing]["SE"]
+                        
+                        ton_cost = result.fun / 100
+                        
+                        st.session_state["active_formula"] = formula
+                        st.session_state["active_cp_tag"] = protein_value
+                        st.session_state["active_se_tag"] = computed_se
+                        st.session_state["active_breed_tag"] = breed
+                        st.session_state["computed_ton_cost"] = ton_cost
+                        
+                        # حفظ في قاعدة البيانات
+                        try:
+                            with get_db() as conn:
+                                conn.execute('''
+                                    INSERT INTO formulas_history (formula_data, target_dp, target_se, protein_type, breed, sector, production, cost, city, user_role)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                ''', (
+                                    json.dumps(formula),
+                                    protein_value if "مهضوم" in protein_type else None,
+                                    computed_se,
+                                    protein_type,
+                                    breed,
+                                    sector,
+                                    production,
+                                    ton_cost,
+                                    city,
+                                    st.session_state.get("user_role")
+                                ))
+                        except Exception as e:
+                            LOGGER.error_logger.error(f"فشل حفظ الخلطة: {e}")
+                        
+                        log_activity("formula_generated", f"خلطة لـ {breed} بتكلفة {ton_cost:.2f}")
+                        
+                        st.success("✅ تم حساب التركيبة المثلى بنجاح!")
+                        
+                        # عرض النتائج
+                        st.markdown("---")
+                        col_res1, col_res2 = st.columns([2, 1])
+                        
+                        with col_res1:
+                            st.markdown("#### 📝 المقادير المعتمدة:")
+                            for ing, pct in formula.items():
+                                st.markdown(f"""
+                                <div class="formula-item">
+                                    ▪️ <b>{ing}:</b> {pct:.2f}% → {pct*10:.1f} كجم/طن
+                                </div>
+                                """, unsafe_allow_html=True)
+                            
+                            col_metric1, col_metric2, col_metric3 = st.columns(3)
+                            with col_metric1:
+                                st.metric("💰 التكلفة للطن", f"${ton_cost:.2f}", delta=f"{ton_cost*local_rate:,.0f} {local_sym}")
+                            with col_metric2:
+                                st.metric("🧬 البروتين", f"{protein_value:.1f}%")
+                            with col_metric3:
+                                st.metric("⚡ معادل النشاء", f"{computed_se:.1f}")
+                            
+                            # أزرار التصدير
+                            col_btn_a, col_btn_b, col_btn_c = st.columns(3)
+                            
+                            with col_btn_a:
+                                share_msg = f"منصة تاور العلمية - خلطة {breed} بتكلفة {ton_cost:.2f}$ للطن"
+                                encoded_share = urllib.parse.quote(share_msg)
+                                st.link_button("📲 مشاركة", f"https://wa.me/?text={encoded_share}", use_container_width=True)
+                            
+                            with col_btn_b:
+                                try:
+                                    pdf_data = pdf_generator.generate_comprehensive_report(
+                                        formula, protein_value, breed, ton_cost, city, 
+                                        ton_cost*local_rate, local_sym, computed_se
+                                    )
+                                    st.download_button(
+                                        "📥 تحميل PDF", 
+                                        pdf_data, 
+                                        f"formula_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", 
+                                        "application/pdf", 
+                                        use_container_width=True
+                                    )
+                                except Exception as e:
+                                    st.error(f"⚠️ فشل إنشاء PDF: {e}")
+                            
+                            with col_btn_c:
+                                if st.button("📧 إرسال الكود", use_container_width=True):
+                                    with st.spinner("جاري الإرسال..."):
+                                        if CODE_SENDER.send_code_to_email(OWNER_EMAIL, "طلب من لوحة التركيب"):
+                                            st.success("تم الإرسال")
+                                        else:
+                                            st.error("فشل الإرسال")
+                        
+                        with col_res2:
+                            # رسم بياني
+                            fig = go.Figure(data=[go.Pie(
+                                labels=list(formula.keys()), 
+                                values=list(formula.values()),
+                                hole=0.3,
+                                marker=dict(colors=px.colors.sequential.Greens_r),
+                                textinfo='label+percent'
+                            )])
+                            fig.update_layout(title="توزيع المكونات", height=400)
+                            st.plotly_chart(fig, use_container_width=True)
+                    
+                    else:
+                        st.error("❌ تعذر إيجاد حل متوافق مع القيود")
+                        st.info("💡 نصيحة: أضف المزيد من المكونات أو وسع حدود القيود")
+                
+                except Exception as e:
+                    st.error(f"⚠️ خطأ: {str(e)}")
+                    LOGGER.error_logger.error(f"خطأ في التحسين: {e}")
+
+# ==========================================
+# 27. تبويب دليل المستخدم (آخر تبويب)
+# ==========================================
+
+with tabs[-1]:
+    st.markdown('<div class="section-title">📖 دليل المستخدم</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div style="background:#f5f5f5; padding:25px; border-radius:15px;">
+    <h3>📌 دليل استخدام منصة تاور العلمية v7.2</h3>
+    
+    <h4>🔑 أكواد الدخول:</h4>
+    <p>- 👑 <b>المالك</b>: <code>202687</code><br>
+    - 🔬 <b>المختصون</b>: <code>2020</code><br>
+    - 🌾 <b>المربون</b>: <code>2026</code></p>
+    
+    <h4>📧 إرسال الكود:</h4>
+    <p>يوجد زر أحمر في أعلى الصفحة لإرسال نسخة من الكود إلى المالك</p>
+    
+    <h4>📊 طريقة الاستخدام:</h4>
+    <p>1. حدد الدولة والمدينة<br>
+    2. اختر القطاع الحيواني والسلالة<br>
+    3. حدد نسب البروتين والطاقة<br>
+    4. اختر المكونات العلفية<br>
+    5. اضغط "تشغيل المحرك"</p>
+    
+    <h4>📞 التواصل:</h4>
+    <p>📱 واتساب: <a href="https://wa.me/249123533489">+249 123 533 489</a><br>
+    📧 البريد: <a href="mailto:abukram128@gmail.com">abukram128@gmail.com</a></p>
+    
+    <hr>
+    <p style="text-align:center;">الاختصاصي م. عبد القادر إسماعيل تاور © 2026</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ==========================================
+# 28. تذييل الصفحة
+# ==========================================
+
+st.markdown("<hr>", unsafe_allow_html=True)
+
+col_f1, col_f2, col_f3 = st.columns(3)
+
+with col_f1:
+    if st.button("💾 نسخ احتياطي", use_container_width=True):
+        with st.spinner("جاري الإنشاء..."):
+            if CODE_SENDER.send_code_to_email(OWNER_EMAIL, "نسخة فورية"):
+                st.success("✅ تم الإرسال")
+
+with col_f2:
+    share_text = "🌾 منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف"
+    encoded = urllib.parse.quote(share_text)
+    st.link_button("📲 مشاركة", f"https://wa.me/?text={encoded}", use_container_width=True)
+
+with col_f3:
+    if st.button("🔄 إعادة تحميل", use_container_width=True):
+        st.rerun()
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# التوقيع
+st.markdown("""
+<div class="mini-left-signature">
+    👨‍🔬 الاختصاصي م. عبد القادر إسماعيل تاور © 2026
+</div>
+""", unsafe_allow_html=True)
+
+# ==========================================
+# نهاية الكود
+# ==========================================
 
 print("✅ تم تحميل المنصة بنجاح!")
