@@ -1,0 +1,12 @@
+# إعدادات البريد الإلكتروني
+SENDER_EMAIL=abukram128@gmail.com
+SENDER_PASSWORD=your_app_password_here
+OWNER_EMAIL=abukram128@gmail.com
+
+# إعدادات الاتصال
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+
+# معلومات التواصل
+WHATSAPP_NUMBER=+249123533489
+GOOGLE_FORM_URL=https://forms.google.com/YOUR_FORM_URL
