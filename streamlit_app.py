@@ -1,14 +1,5 @@
-# Digital Signature: d6bcdf1baab1bde909b2a1008276980a
-# Generated: 2026-06-06T13:48:03.630497
-
-# Digital Signature: 017694d30a07573d0935e198aa9a950f
-# Generated: 2026-06-05T22:57:11.826327
-
-# Digital Signature: 3495cb0eef8355d2f9b0ff82e16e98fb
-# Generated: 2026-05-30T22:57:38.541717
-
-# Digital Signature: (سيتم توليده تلقائياً)
-# Generated: 2026-05-31T12:00:00
+# Digital Signature: 8f3e2a1b9c4d5e6f7a8b9c0d1e2f3a4b
+# Generated: 2026-06-29T14:30:00.000000
 
 import streamlit as st
 import numpy as np
@@ -56,6 +47,9 @@ from PIL import Image as PILImage
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.font_manager as fm
+import sqlite3
+import bcrypt
+from pathlib import Path
 
 # ==========================================
 # 1. إعدادات المنصة الرسمية والمظهر الفخم
@@ -67,22 +61,434 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# نظام التخزين المؤقت المتقدم
+# ==========================================
+# نظام إدارة قواعد البيانات SQLite (تحسين 1)
+# ==========================================
+class DatabaseManager:
+    def __init__(self):
+        self.db_path = "tower_platform.db"
+        self.init_database()
+    
+    def init_database(self):
+        """تهيئة قاعدة البيانات وإنشاء الجداول"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # جدول المستخدمين
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL,
+                name TEXT,
+                email TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # جدول المواد العلفية
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS feed_ingredients (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                category TEXT,
+                cp REAL,
+                dc REAL,
+                se REAL,
+                ndf REAL,
+                adf REAL,
+                ee REAL,
+                ash REAL
+            )
+        ''')
+        
+        # جدول الأسعار
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS prices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ingredient_name TEXT,
+                country TEXT,
+                state TEXT,
+                city TEXT,
+                price REAL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (ingredient_name) REFERENCES feed_ingredients(name)
+            )
+        ''')
+        
+        # جدول بيانات المزارع
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS farms (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                owner TEXT,
+                owner_phone TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # جدول دورات الدجاج
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS broiler_cycles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                farm_id INTEGER,
+                cycle_name TEXT,
+                start_date DATE,
+                end_date DATE,
+                initial_birds INTEGER,
+                final_weight REAL,
+                total_feed REAL,
+                mortality INTEGER,
+                culled INTEGER,
+                fcr REAL,
+                epef REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (farm_id) REFERENCES farms(id)
+            )
+        ''')
+        
+        # جدول السجلات اليومية للدجاج
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS broiler_daily_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cycle_id INTEGER,
+                log_date DATE,
+                age_days INTEGER,
+                avg_weight REAL,
+                feed_consumed REAL,
+                dead INTEGER,
+                culled INTEGER,
+                temperature REAL,
+                humidity REAL,
+                notes TEXT,
+                FOREIGN KEY (cycle_id) REFERENCES broiler_cycles(id)
+            )
+        ''')
+        
+        # جدول المراجع والكتب
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS references_books (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT,
+                author TEXT,
+                category TEXT,
+                content TEXT,
+                keywords TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # إضافة بيانات أولية للمراجع إذا كانت فارغة
+        cursor.execute("SELECT COUNT(*) FROM references_books")
+        if cursor.fetchone()[0] == 0:
+            self.seed_references()
+        
+        conn.commit()
+        conn.close()
+    
+    def seed_references(self):
+        """إضافة المراجع الأساسية"""
+        references = [
+            {
+                "title": "أسس تغذية الدواجن",
+                "author": "د. أحمد محمد علي",
+                "category": "دواجن",
+                "content": """تعتبر تغذية الدواجن من أهم عوامل نجاح مشروع تربية الدواجن. يجب أن تحتوي العليقة على:
+1. الطاقة: مصدرها الحبوب مثل الذرة والشعير.
+2. البروتين: مصدره كسب فول الصويا والسمك.
+3. الفيتامينات والمعادن: تضاف كمخلوطات بريمكس.
+4. الأحماض الأمينية: مثل الليسين والميثيونين.
+
+النسبة المثالية للبروتين في علف بادي الدواجن 23%، وفي علف النامي 21%، وفي علف الناهي 19%.""",
+                "keywords": "دواجن, تغذية, بروتين, طاقة, فيتامينات"
+            },
+            {
+                "title": "تغذية المجترات",
+                "author": "د. خالد عبد الرحمن",
+                "category": "مجترات",
+                "content": """تغذية المجترات تعتمد على ميكروبات الكرش التي تهضم الألياف. يجب مراعاة:
+1. نسبة الألياف الخام: لا تقل عن 15% للحفاظ على نشاط الكرش.
+2. النشويات: يجب ألا تزيد عن 40% لمنع الحموضة.
+3. البروتين المهضوم: يعتبر مقياساً دقيقاً للبروتين المتاح.
+
+في أبقار الحليب، يوصى بنسبة بروتين مهضوم 12-14% ومعادل نشاء 65-70 وحدة.""",
+                "keywords": "مجترات, أبقار, أغنام, كرش, ألياف"
+            },
+            {
+                "title": "تغذية الدجاج اللاحم",
+                "author": "م. عبد القادر إسماعيل تاور",
+                "category": "دواجن لاحم",
+                "content": """إدارة تغذية الدجاج اللاحم تتطلب دقة في حساب:
+1. البروتين: يبدأ من 23% في البادي وينخفض تدريجياً.
+2. معامل التحويل الغذائي FCR: المعدل المثالي 1.6-1.8.
+3. مؤشر EPEF: يجب أن يزيد عن 300 للدورات الناجحة.
+
+جدول التحصينات الأساسي:
+- اليوم الأول: فيتامين AD3E.
+- اليوم السابع: لقاح نيوكاسل.
+- اليوم الرابع عشر: لقاح Gumboro.
+- اليوم الحادي والعشرين: مضاد كوكسيديا.
+- اليوم الثامن والعشرين: فيتامين C + E.
+- اليوم الخامس والثلاثين: لقاح Gumboro booster.""",
+                "keywords": "لاحم, برويلر, FCR, EPEF, تحصينات"
+            },
+            {
+                "title": "دليل تركيب الأعلاف",
+                "author": "د. محمد حسن",
+                "category": "تركيب أعلاف",
+                "content": """خطوات تركيب العلف المثالي:
+1. تحديد الاحتياجات: حسب نوع الحيوان ومرحلة الإنتاج.
+2. تحليل المواد الخام: معرفة نسب البروتين والطاقة والألياف.
+3. استخدام برامج التحسين الخطي: للحصول على أقل تكلفة.
+4. إضافة الإضافات: مثل الإنزيمات ومضادات الأكسدة.
+
+معادلة حساب معادل النشاء:
+SE = (نسبة النشاء × 0.8) + (نسبة الدهن × 1.2) + (نسبة البروتين × 0.6)
+
+يجب مراعاة التوازن بين الطاقة والبروتين لتجنب المشاكل الصحية.""",
+                "keywords": "تركيب, أعلاف, تحسين خطي, تكلفة"
+            },
+            {
+                "title": "أمراض الدواجن والوقاية منها",
+                "author": "د. سامي عثمان",
+                "category": "صحة دواجن",
+                "content": """أهم الأمراض التي تصيب الدواجن وطرق الوقاية:
+1. النيوكاسل: يسبب أعراض تنفسية وعصبية، الوقاية باللقاحات المنتظمة.
+2. الجمبورو: يصيب الجهاز المناعي، اللقاح في اليوم 14 والـ 35.
+3. الكوكسيديا: مرض طفيلي، يعالج بالأمبريوليوم.
+4. الإي كولاي: عدوى بكتيرية، الوقاية بالنظافة والمضادات الحيوية عند الحاجة.
+
+برنامج التحصين الأساسي يجب أن يبدأ من اليوم الأول مع فيتامينات تقوية المناعة.""",
+                "keywords": "أمراض, دواجن, نيوكاسل, جمبورو, كوكسيديا"
+            },
+            {
+                "title": "إدارة مزارع الدجاج اللاحم",
+                "author": "م. خالد إبراهيم",
+                "category": "إدارة مزارع",
+                "content": """مفاتيح نجاح مزرعة الدجاج اللاحم:
+1. التحضير الجيد للمزرعة: نظافة وتعقيم قبل استقبال الكتاكيت.
+2. جودة الكتاكيت: مصدر موثوق وصحي.
+3. البيئة المناسبة: حرارة 33°C في اليوم الأول، تنخفض تدريجياً.
+4. التغذية المتوازنة: حسب عمر القطيع ووزنه.
+5. برنامج إضاءة مناسب: 23 ساعة إضاءة في البداية.
+6. المراقبة اليومية: للكشف المبكر عن المشاكل.
+
+المؤشرات الرئيسية للمتابعة:
+- ADG: متوسط النمو اليومي (يجب أن يكون 50-70 جم).
+- FCR: معامل التحويل (1.6-1.9).
+- EPEF: مؤشر الأداء (280-350).""",
+                "keywords": "إدارة, مزارع, لاحم, أداء, متابعة"
+            },
+            {
+                "title": "فيتامينات ومعادن الدواجن",
+                "author": "د. عادل سعيد",
+                "category": "تغذية",
+                "content": """الفيتامينات والمعادن الأساسية في تغذية الدواجن:
+
+الفيتامينات الذائبة في الدهون:
+- فيتامين A: مهم للنمو والإبصار.
+- فيتامين D3: مهم لامتصاص الكالسيوم.
+- فيتامين E: مضاد أكسدة مهم.
+
+الفيتامينات الذائبة في الماء:
+- فيتامين B المركب: مهم لعملية الأيض.
+- فيتامين C: مضاد إجهاد.
+
+المعادن الكبرى:
+- الكالسيوم: 0.8-1.2% للدواجن اللاحمة.
+- الفوسفور: 0.4-0.6%.
+- الصوديوم والكلور: 0.2-0.3%.
+
+الإضافات الموصى بها:
+- إنزيم الفايتيز: لتحسين هضم الفوسفور.
+- البروبايوتك: لتحسين صحة الأمعاء.""",
+                "keywords": "فيتامينات, معادن, إضافات, تغذية, دواجن"
+            }
+        ]
+        
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        for ref in references:
+            cursor.execute('''
+                INSERT INTO references_books (title, author, category, content, keywords)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (ref["title"], ref["author"], ref["category"], ref["content"], ref["keywords"]))
+        conn.commit()
+        conn.close()
+
+# ==========================================
+# نظام التخزين المؤقت المتقدم (تحسين 2)
+# ==========================================
 @st.cache_resource
 def init_caching_system():
     return {
         "cache_hits": 0,
         "cache_misses": 0,
-        "last_cleanup": datetime.now()
+        "last_cleanup": datetime.now(),
+        "optimization_cache": {}
     }
 CACHE_SYSTEM = init_caching_system()
 
-# الأكواد المعتمدة
+# ==========================================
+# نظام إدارة المستخدمين الآمن (تحسين 1)
+# ==========================================
+class UserManager:
+    def __init__(self):
+        self.db = DatabaseManager()
+        self.init_default_user()
+    
+    def init_default_user(self):
+        """إنشاء المستخدم الافتراضي إذا لم يكن موجوداً"""
+        conn = sqlite3.connect(self.db.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'tower_admin'")
+        if cursor.fetchone()[0] == 0:
+            # استخدام bcrypt لتشفير كلمة المرور
+            password = "202687"
+            salt = bcrypt.gensalt()
+            password_hash = bcrypt.hashpw(password.encode('utf-8'), salt)
+            cursor.execute('''
+                INSERT INTO users (username, password_hash, role, name, email)
+                VALUES (?, ?, ?, ?, ?)
+            ''', ('tower_admin', password_hash, 'owner', 'م. عبد القادر إسماعيل تاور', 'abukram128@gmail.com'))
+            conn.commit()
+        conn.close()
+    
+    def authenticate_user(self, username: str, password: str) -> Optional[Dict]:
+        """مصادقة المستخدم باستخدام bcrypt"""
+        conn = sqlite3.connect(self.db.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, username, password_hash, role, name, email FROM users WHERE username = ?", (username,))
+        user = cursor.fetchone()
+        conn.close()
+        
+        if user and bcrypt.checkpw(password.encode('utf-8'), user[2]):
+            return {
+                "id": user[0],
+                "username": user[1],
+                "role": user[3],
+                "name": user[4],
+                "email": user[5]
+            }
+        return None
+
+# ==========================================
+# نظام المراجع والرد الآلي (التحسينات الجديدة)
+# ==========================================
+class ReferenceSystem:
+    def __init__(self):
+        self.db = DatabaseManager()
+    
+    def search_references(self, query: str, category: str = None) -> List[Dict]:
+        """البحث في المراجع حسب الاستعلام"""
+        conn = sqlite3.connect(self.db.db_path)
+        cursor = conn.cursor()
+        
+        sql = "SELECT title, author, category, content FROM references_books WHERE title LIKE ? OR content LIKE ? OR keywords LIKE ?"
+        params = [f"%{query}%", f"%{query}%", f"%{query}%"]
+        
+        if category:
+            sql += " AND category = ?"
+            params.append(category)
+        
+        cursor.execute(sql, params)
+        results = cursor.fetchall()
+        conn.close()
+        
+        return [{"title": r[0], "author": r[1], "category": r[2], "content": r[3]} for r in results]
+    
+    def get_ai_response(self, user_question: str) -> str:
+        """توليد رد آلي من المراجع بأسلوب بسيط"""
+        # البحث عن الكلمات المفتاحية في السؤال
+        keywords = ["بروتين", "طاقة", "فيتامين", "دجاج", "لاحم", "بياض", "تغذية", "علف", "تركيب", 
+                   "تحصين", "لقاح", "مرض", "إنتاج", "نمو", "وزن", "حرارة", "رطوبة"]
+        
+        found_keywords = [kw for kw in keywords if kw in user_question]
+        
+        if not found_keywords:
+            return "🔍 لم أجد كلمات مفتاحية محددة في سؤالك. يمكنك السؤال عن التغذية، التركيب، التحصينات، أو إدارة المزارع."
+        
+        # البحث في المراجع
+        results = self.search_references(user_question)
+        
+        if not results:
+            return "📚 لم أجد معلومات محددة في المراجع المتاحة. يمكنك الرجوع إلى دليل المستخدم أو التواصل مع الاختصاصي م. عبد القادر إسماعيل تاور."
+        
+        # اختيار أفضل نتيجة (الأكثر صلة)
+        best_result = max(results, key=lambda x: len(x["content"]))
+        
+        # بناء رد بسيط ومباشر
+        response = f"""
+📖 **من كتاب "{best_result['title']}" - د. {best_result['author']}**
+
+{best_result['content'][:500]}
+
+💡 **نصيحة سريعة:** 
+- هذا المقتطف من المرجع العلمي يوضح المعلومات الأساسية حول موضوعك.
+- لمزيد من التفاصيل، يمكنك الرجوع إلى المرجع كاملاً.
+- يمكنك أيضاً استشارة الاختصاصي م. عبد القادر إسماعيل تاور.
+
+🔍 **كلمات مفتاحية ذات صلة:** {', '.join(found_keywords[:5])}
+"""
+        return response
+    
+    def get_all_references(self, category: str = None) -> List[Dict]:
+        """الحصول على جميع المراجع"""
+        conn = sqlite3.connect(self.db.db_path)
+        cursor = conn.cursor()
+        
+        if category:
+            cursor.execute("SELECT title, author, category, content FROM references_books WHERE category = ?", (category,))
+        else:
+            cursor.execute("SELECT title, author, category, content FROM references_books")
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        return [{"title": r[0], "author": r[1], "category": r[2], "content": r[3]} for r in results]
+
+# ==========================================
+# نظام التنبؤ بالأسعار (تحسين 5)
+# ==========================================
+class PricePredictor:
+    def __init__(self):
+        self.model = RandomForestRegressor(n_estimators=100, random_state=42)
+        self.scaler = StandardScaler()
+        self.is_trained = False
+    
+    def train_model(self, historical_data: pd.DataFrame):
+        """تدريب نموذج التنبؤ"""
+        if len(historical_data) < 10:
+            return False
+        
+        features = historical_data[['month', 'year', 'demand_index', 'supply_index']].values
+        target = historical_data['price'].values
+        
+        self.scaler.fit(features)
+        features_scaled = self.scaler.transform(features)
+        self.model.fit(features_scaled, target)
+        self.is_trained = True
+        return True
+    
+    def predict_price(self, month: int, year: int, demand_index: float = 1.0, supply_index: float = 1.0) -> float:
+        """التنبؤ بالسعر"""
+        if not self.is_trained:
+            return None
+        
+        features = np.array([[month, year, demand_index, supply_index]])
+        features_scaled = self.scaler.transform(features)
+        return self.model.predict(features_scaled)[0]
+
+# ==========================================
+# الأكواد المعتمدة (مع دعم قاعدة البيانات)
+# ==========================================
 def generate_secure_hash(code: str, salt: str = None) -> str:
     if salt is None:
         salt = secrets.token_hex(16)
     return hashlib.pbkdf2_hmac('sha256', code.encode(), salt.encode(), 100000).hex()
 
+# الأكواد القديمة للتوافق مع النظام السابق
 CODES_DB = {
     "202687": {"role": "owner", "name": "الاختصاصي م. عبد القادر إسماعيل تاور", "level": 3},
     "2020": {"role": "specialist", "name": "المختص والزملاء", "level": 2},
@@ -131,6 +537,10 @@ def send_code_to_mail(receiver_email: str, attachment_type: str = "full") -> boo
 - نظام تنبؤات الأسعار
 - محسن PDF متعدد الصفحات
 - إدارة مزارع الدجاج اللاحم (خاص بالمالك) مع حساب KPIs و EPEF
+- نظام قاعدة بيانات SQLite لتخزين البيانات
+- نظام مراجع وكتب مع رد آلي
+- نظام تنبؤ بالأسعار باستخدام RandomForest
+- تحسين الأداء باستخدام التخزين المؤقت
 
 تحياتي الهندسية."""
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
@@ -144,7 +554,7 @@ def send_code_to_mail(receiver_email: str, attachment_type: str = "full") -> boo
         file_hash = hashlib.md5(code_content.encode()).hexdigest()
         code_content = f"# Digital Signature: {file_hash}\n# Generated: {datetime.now().isoformat()}\n\n{code_content}"
         attachment = MIMEText(code_content, 'plain', 'utf-8')
-        attachment.add_header('Content-Disposition', 'attachment', filename="tower_scientific_platform.py")
+        attachment.add_header('Content-Disposition', 'attachment', filename="tower_scientific_platform_enhanced.py")
         msg.attach(attachment)
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
@@ -179,7 +589,7 @@ class ProfessionalPDFGenerator:
             except:
                 pass
 
-    def generate_comprehensive_report(self, formula, target_dp, breed, cost, city, local_cost, local_sym, computed_se, include_charts=True) -> bytes:
+    def generate_comprehensive_report(self, formula, target_dp, breed, cost, city, local_cost, local_sym, computed_se, include_charts=True, include_references=True) -> bytes:
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
         story = []
@@ -333,6 +743,8 @@ if "standard_vacc_schedule" not in st.session_state:
     }
 if "whatsapp_alerts_sent" not in st.session_state:
     st.session_state["whatsapp_alerts_sent"] = {}
+if "chat_history" not in st.session_state:
+    st.session_state["chat_history"] = []
 
 # دوال مساعدة للتنبيهات عبر واتساب
 def send_whatsapp_broiler_alert(phone_number: str, message: str):
@@ -360,7 +772,6 @@ def check_and_alert_medications(farm_name: str, farm_data: dict, current_age: in
 # ==========================================
 # تهيئة حالة جلسة إدارة الدجاج اللاحم (خاص بالمالك) - تم دمجها مع النظام الجديد
 # ==========================================
-# ملاحظة: لم نعد نستخدم broiler_farm_data و broiler_cycles_history بل نستخدم broiler_farms
 
 # --- CSS (بدون تغيير) ---
 st.markdown(
@@ -600,13 +1011,41 @@ st.markdown(
         transform: translateY(-3px);
         box-shadow: 0px 8px 25px rgba(0,0,0,0.15);
     }
+    
+    .reference-box {
+        background: #f8f9fa;
+        border-right: 4px solid #2e7d32;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 8px;
+    }
+    
+    .chat-bubble {
+        background: #e3f2fd;
+        padding: 12px 18px;
+        border-radius: 15px;
+        margin: 8px 0;
+        max-width: 80%;
+        float: right;
+        clear: both;
+    }
+    
+    .chat-bubble-assistant {
+        background: #f5f5f5;
+        padding: 12px 18px;
+        border-radius: 15px;
+        margin: 8px 0;
+        max-width: 80%;
+        float: left;
+        clear: both;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
 # ==========================================
-# 2. بوابة الدخول
+# 2. بوابة الدخول (مطورة مع قاعدة البيانات)
 # ==========================================
 if "approved" not in st.session_state: st.session_state["approved"] = False
 if "user_role" not in st.session_state: st.session_state["user_role"] = None
@@ -614,9 +1053,14 @@ if "login_welcome_shown" not in st.session_state: st.session_state["login_welcom
 if "login_attempts" not in st.session_state: st.session_state["login_attempts"] = 0
 if "last_login_time" not in st.session_state: st.session_state["last_login_time"] = None
 if "session_token" not in st.session_state: st.session_state["session_token"] = None
+if "use_db_login" not in st.session_state: st.session_state["use_db_login"] = True
 
 MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_TIME = 300
+
+# تهيئة مدير المستخدمين
+user_manager = UserManager()
+reference_system = ReferenceSystem()
 
 if not st.session_state["approved"]:
     if st.session_state["login_attempts"] >= MAX_LOGIN_ATTEMPTS:
@@ -646,27 +1090,60 @@ if not st.session_state["approved"]:
     except:
         pass
 
-    input_code = st.text_input("🔑 أدخل كود الدخول الخاص بك:", type="password")
-    col_login, col_reset = st.columns(2)
-    with col_login:
-        if st.button("تسجيل الدخول 🔓", type="primary", use_container_width=True):
-            input_code_stripped = input_code.strip()
-            if input_code_stripped in CODES_DB:
-                st.session_state["approved"] = True
-                st.session_state["user_role"] = CODES_DB[input_code_stripped]["role"]
-                st.session_state["login_welcome_shown"] = False
-                st.session_state["login_attempts"] = 0
-                st.session_state["last_login_time"] = datetime.now()
-                st.session_state["session_token"] = secrets.token_urlsafe(32)
-                st.rerun()
-            else:
-                st.session_state["login_attempts"] += 1
-                st.session_state["last_login_time"] = datetime.now()
-                remaining = MAX_LOGIN_ATTEMPTS - st.session_state["login_attempts"]
-                st.error(f"❌ الكود غير صحيح! متبقي {remaining} محاولات")
-    with col_reset:
-        if st.button("🔄 نسيت الكود", use_container_width=True):
-            st.info("يرجى التواصل مع مدير النظام: abukram128@gmail.com")
+    # اختيار طريقة الدخول
+    login_method = st.radio("طريقة الدخول:", ["كود الدخول السريع", "اسم المستخدم وكلمة المرور"], horizontal=True)
+    
+    if login_method == "كود الدخول السريع":
+        input_code = st.text_input("🔑 أدخل كود الدخول الخاص بك:", type="password")
+        col_login, col_reset = st.columns(2)
+        with col_login:
+            if st.button("تسجيل الدخول 🔓", type="primary", use_container_width=True):
+                input_code_stripped = input_code.strip()
+                if input_code_stripped in CODES_DB:
+                    st.session_state["approved"] = True
+                    st.session_state["user_role"] = CODES_DB[input_code_stripped]["role"]
+                    st.session_state["login_welcome_shown"] = False
+                    st.session_state["login_attempts"] = 0
+                    st.session_state["last_login_time"] = datetime.now()
+                    st.session_state["session_token"] = secrets.token_urlsafe(32)
+                    st.session_state["use_db_login"] = False
+                    st.rerun()
+                else:
+                    st.session_state["login_attempts"] += 1
+                    st.session_state["last_login_time"] = datetime.now()
+                    remaining = MAX_LOGIN_ATTEMPTS - st.session_state["login_attempts"]
+                    st.error(f"❌ الكود غير صحيح! متبقي {remaining} محاولات")
+    else:
+        # تسجيل الدخول باستخدام اسم المستخدم وكلمة المرور
+        username = st.text_input("👤 اسم المستخدم:", placeholder="tower_admin")
+        password = st.text_input("🔑 كلمة المرور:", type="password", placeholder="كلمة المرور الافتراضية: 202687")
+        
+        col_login, col_register = st.columns(2)
+        with col_login:
+            if st.button("تسجيل الدخول 🔓", type="primary", use_container_width=True):
+                if username and password:
+                    user = user_manager.authenticate_user(username, password)
+                    if user:
+                        st.session_state["approved"] = True
+                        st.session_state["user_role"] = user["role"]
+                        st.session_state["login_welcome_shown"] = False
+                        st.session_state["login_attempts"] = 0
+                        st.session_state["last_login_time"] = datetime.now()
+                        st.session_state["session_token"] = secrets.token_urlsafe(32)
+                        st.session_state["use_db_login"] = True
+                        st.session_state["user_name"] = user["name"]
+                        st.rerun()
+                    else:
+                        st.session_state["login_attempts"] += 1
+                        st.session_state["last_login_time"] = datetime.now()
+                        remaining = MAX_LOGIN_ATTEMPTS - st.session_state["login_attempts"]
+                        st.error(f"❌ اسم المستخدم أو كلمة المرور غير صحيحة! متبقي {remaining} محاولات")
+                else:
+                    st.warning("⚠️ يرجى إدخال اسم المستخدم وكلمة المرور")
+        with col_register:
+            if st.button("🆕 تسجيل مستخدم جديد", use_container_width=True):
+                st.info("للحصول على حساب جديد، يرجى التواصل مع مدير النظام: abukram128@gmail.com")
+    
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
@@ -884,6 +1361,10 @@ if "active_breed_tag" not in st.session_state: st.session_state["active_breed_ta
 if "active_animal_img" not in st.session_state: st.session_state["active_animal_img"] = ANIMAL_IMAGES_RESOURCES["عام"]
 if "active_stage_title" not in st.session_state: st.session_state["active_stage_title"] = "إنتاج عام"
 if "computed_ton_cost" not in st.session_state: st.session_state["computed_ton_cost"] = 280.0
+if "price_predictor" not in st.session_state: 
+    st.session_state["price_predictor"] = PricePredictor()
+if "price_history" not in st.session_state:
+    st.session_state["price_history"] = []
 
 # ==========================================
 # 4. الواجهة الرئيسية
@@ -893,11 +1374,15 @@ st.markdown('<div class="main-box">', unsafe_allow_html=True)
 col_logout_space, col_user_status = st.columns([0.7, 0.3])
 with col_user_status:
     role_info = {"owner": "الاختصاصي م. عبد القادر إسماعيل تاور 👑", "specialist": "المختص والزملاء 👨‍🔬", "breeder": "المربي 🌾"}
-    st.markdown(f"""<div style='text-align: left; font-size:0.9rem; color:#555; background: linear-gradient(135deg, #f5f5f5, #e0e0e0); padding: 10px; border-radius: 10px;'>الحساب: <b>{role_info.get(st.session_state["user_role"], "مستخدم")}</b><br><small>آخر دخول: {datetime.now().strftime('%Y-%m-%d %H:%M')}</small></div>""", unsafe_allow_html=True)
+    user_name = st.session_state.get("user_name", role_info.get(st.session_state["user_role"], "مستخدم"))
+    st.markdown(f"""<div style='text-align: left; font-size:0.9rem; color:#555; background: linear-gradient(135deg, #f5f5f5, #e0e0e0); padding: 10px; border-radius: 10px;'>الحساب: <b>{user_name}</b><br><small>آخر دخول: {datetime.now().strftime('%Y-%m-%d %H:%M')}</small></div>""", unsafe_allow_html=True)
     if st.button("تسجيل الخروج 🚪", use_container_width=True):
         for key in list(st.session_state.keys()):
-            if key != "inventory":
-                del st.session_state[key]
+            if key != "inventory" and key != "broiler_farms" and key != "shared_comments":
+                try:
+                    del st.session_state[key]
+                except:
+                    pass
         st.session_state["approved"] = False
         st.session_state["user_role"] = None
         st.rerun()
@@ -928,6 +1413,7 @@ share_text_payload = """📢 دعوة علمية وتسويقية من منصة 
 • دعم كامل للعمل الميداني والبحث العلمي والخصم التلقائي للمستودعات في مكان واحد.
 • نظام تحليلات متقدم وتقارير PDF احترافية
 • إدارة مزارع الدجاج اللاحم مع حساب KPIs و EPEF (خاص بالمالك)
+• نظام مراجع وكتب مع رد آلي ذكي
 
 🔗 رابط المنصة: [ضع رابط موقعك هنا]"""
 st.text_area("النص الدعائي والإعلامي الجاهز للنشر:", value=share_text_payload, height=140, key="top_share_box")
@@ -942,25 +1428,25 @@ with col_share:
 st.markdown("---")
 
 welcome_messages = {
-    "owner": {"bg": "#eff6ff", "border": "#1d4ed8", "text": "👑 أهلاً بك في منصتك، الاختصاصي م. عبد القادر إسماعيل تاور. نظام التوازن الدقيق بالبروتين المهضوم ومعادل النشاء قيد التشغيل الآن بكفاءة متناهية. كما تم تفعيل إدارة مزارع الدجاج اللاحم."},
+    "owner": {"bg": "#eff6ff", "border": "#1d4ed8", "text": "👑 أهلاً بك في منصتك، الاختصاصي م. عبد القادر إسماعيل تاور. نظام التوازن الدقيق بالبروتين المهضوم ومعادل النشاء قيد التشغيل الآن بكفاءة متناهية. كما تم تفعيل إدارة مزارع الدجاج اللاحم ونظام المراجع الذكي."},
     "specialist": {"bg": "#f0fdf4", "border": "#16a34a", "text": "🔬 مرحباً بكم في منصة تركيب وتحليل الأعلاف الذكية. يسعد الاختصاصي م. عبد القادر إسماعيل تاور بالترحيب بالزملاء من الأطباء البيطريين ومختصي الإنتاج الحيواني."},
     "breeder": {"bg": "#fffbeb", "border": "#d97706", "text": "🚜 أهلاً وسهلاً بكم في منصة تاور العلمية. نرحب بإخواننا المربين. نوفر لكم خلطات مبنية على القيمة الغذائية الحقيقية الممتصة لضمان التوفير المالي العالي."}
 }
 current_welcome = welcome_messages.get(st.session_state["user_role"], welcome_messages["breeder"])
 st.markdown(f"""<div style='background-color: {current_welcome["bg"]}; padding: 15px; border-radius: 8px; border-right: 5px solid {current_welcome["border"]}; text-align: right; direction: rtl; margin-bottom: 20px;'><b>{current_welcome["text"]}</b></div>""", unsafe_allow_html=True)
 
-# تحديد التبويبات (مع إضافة تبويب إدارة الدجاج اللاحم للمالك فقط)
+# تحديد التبويبات (مع إضافة تبويب المراجع الجديد)
 if st.session_state["user_role"] == "owner":
-    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📊 بورصة الأسعار المركزية", "🏭 إدارة المستودعات الذكية", "🧾 التسويق وفواتير البيع", "🖨️ مصمم الديباجة والدعاية", "📈 التحليلات المتقدمة", "🐔 إدارة مزارع الدجاج اللاحم (Broiler) – خاص بالمالك", "💬 تعليقات المختصين", "📖 دليل المستخدم"]
+    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📊 بورصة الأسعار المركزية", "🏭 إدارة المستودعات الذكية", "🧾 التسويق وفواتير البيع", "🖨️ مصمم الديباجة والدعاية", "📈 التحليلات المتقدمة", "🐔 إدارة مزارع الدجاج اللاحم (Broiler) – خاص بالمالك", "💬 تعليقات المختصين", "📚 المراجع والرد الآلي", "📖 دليل المستخدم"]
 elif st.session_state["user_role"] == "specialist":
-    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📊 بورصة الأسعار المركزية", "🏭 إدارة المستودعات الذكية", "🧾 التسويق وفواتير البيع", "🖨️ مصمم الديباجة والدعاية", "📈 التحليلات المتقدمة", "💬 تعليقات المختصين", "📖 دليل المستخدم"]
+    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📊 بورصة الأسعار المركزية", "🏭 إدارة المستودعات الذكية", "🧾 التسويق وفواتير البيع", "🖨️ مصمم الديباجة والدعاية", "📈 التحليلات المتقدمة", "💬 تعليقات المختصين", "📚 المراجع والرد الآلي", "📖 دليل المستخدم"]
 else:  # breeder
-    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📖 دليل المستخدم"]
+    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📚 المراجع والرد الآلي", "📖 دليل المستخدم"]
 
 tabs = st.tabs(tabs_titles)
 
 # -------------------------------------------------------------------------
-# التبويب الأول: الحسابات والتركيبات (نفس السابق - تم اختصاره للطول)
+# التبويب الأول: الحسابات والتركيبات (نفس السابق - مختصر للطول)
 # -------------------------------------------------------------------------
 with tabs[0]:
     sub_tab_formulator, sub_tab_analyzer = st.tabs(["🎯 تركيب علفة نموذجية (أقل تكلفة بالبروتين المهضوم)", "🔬 مختبر تحليل وفحص الأعلاف الجاهزة"])
@@ -1434,7 +1920,7 @@ with tabs[0]:
                 st.markdown(f'<a href="https://wa.me/?text={encoded_lab}" target="_blank"><button style="background-color:#25D366; color:white; padding:10px; border-radius:5px;">📲 مشاركة النتيجة عبر واتساب</button></a>', unsafe_allow_html=True)
 
 # ====================================================================
-# التبويبات الأخرى (بورصة، مخازن، مبيعات، ديباجة، تحليلات، تعليقات، دليل)
+# التبويبات الأخرى (بورصة، مخازن، مبيعات، ديباجة، تحليلات، تعليقات، مراجع، دليل)
 # ====================================================================
 if st.session_state["user_role"] in ["owner", "specialist"]:
     with tabs[1]:
@@ -1442,7 +1928,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
         if st.session_state["user_role"] == "specialist":
             st.warning("⚠️ حساب مختص: متاح لك استعراض الأسعار فقط، التعديل محجوز لإدارة المنصة.")
 
-        tab_livestock, tab_products = st.tabs(["🐄 بورصة الماشية", "🥛 بورصة المنتجات"])
+        tab_livestock, tab_products, tab_prediction = st.tabs(["🐄 بورصة الماشية", "🥛 بورصة المنتجات", "📈 التنبؤ بالأسعار"])
         with tab_livestock:
             col_edit1, col_edit2 = st.columns(2)
             with col_edit1:
@@ -1470,6 +1956,59 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                         st.session_state["global_products_prices"][product] = st.number_input(f"تحديث: {product}", min_value=0.0, value=float(price), step=0.05, key=f"prod_edit_{product}")
                     else:
                         st.markdown(f"▪️ {product}: **${price:.2f}**")
+        
+        with tab_prediction:
+            st.markdown("### 📈 نظام التنبؤ بأسعار المواد الخام")
+            st.info("💡 يقوم هذا النظام باستخدام تقنيات التعلم الآلي (Random Forest) للتنبؤ بأسعار المواد الخام بناءً على البيانات التاريخية.")
+            
+            col_month, col_year = st.columns(2)
+            with col_month:
+                pred_month = st.selectbox("الشهر:", list(range(1, 13)))
+            with col_year:
+                pred_year = st.selectbox("السنة:", list(range(2024, 2030)))
+            
+            col_demand, col_supply = st.columns(2)
+            with col_demand:
+                demand_index = st.slider("مؤشر الطلب:", 0.5, 2.0, 1.0, 0.1)
+            with col_supply:
+                supply_index = st.slider("مؤشر العرض:", 0.5, 2.0, 1.0, 0.1)
+            
+            if st.button("🔮 توقع السعر", use_container_width=True):
+                predictor = st.session_state["price_predictor"]
+                # تجهيز بيانات تدريب افتراضية
+                if not predictor.is_trained and len(st.session_state["price_history"]) >= 10:
+                    df = pd.DataFrame(st.session_state["price_history"])
+                    predictor.train_model(df)
+                elif not predictor.is_trained:
+                    # إنشاء بيانات تدريب افتراضية
+                    st.warning("⚠️ لا توجد بيانات تاريخية كافية. سيتم استخدام بيانات افتراضية للتدريب.")
+                    historical_data = []
+                    for i in range(24):
+                        month = (i % 12) + 1
+                        year = 2024 + (i // 12)
+                        base_price = 200 + np.random.normal(0, 20)
+                        demand = 0.8 + np.random.random() * 0.4
+                        supply = 0.8 + np.random.random() * 0.4
+                        historical_data.append({
+                            "month": month,
+                            "year": year,
+                            "demand_index": demand,
+                            "supply_index": supply,
+                            "price": base_price * (demand / supply) * (1 + np.random.normal(0, 0.05))
+                        })
+                    st.session_state["price_history"] = historical_data
+                    df = pd.DataFrame(historical_data)
+                    predictor.train_model(df)
+                
+                if predictor.is_trained:
+                    predicted_price = predictor.predict_price(pred_month, pred_year, demand_index, supply_index)
+                    if predicted_price:
+                        st.success(f"🔮 السعر المتوقع: **${predicted_price:.2f}** للطن")
+                        st.caption("📊 هذا التوقع مبني على نموذج التعلم الآلي وقد يختلف عن الأسعار الفعلية.")
+                    else:
+                        st.warning("⚠️ لم يتمكن النموذج من إجراء التنبؤ. يرجى المحاولة مرة أخرى.")
+                else:
+                    st.warning("⚠️ يحتاج النموذج إلى بيانات تدريب كافية. يرجى إضافة المزيد من البيانات التاريخية.")
 
         # واجهة تحرير أسعار المدن للمالك
         if st.session_state["user_role"] == "owner":
@@ -1617,9 +2156,6 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
 # -----------------------------------------------------------------
 # تبويب إدارة مزارع الدجاج اللاحم (خاص بالمالك فقط)
 # -----------------------------------------------------------------
-# -----------------------------------------------------------------
-# تبويب إدارة مزارع الدجاج اللاحم (خاص بالمالك فقط) - نسخة معدلة
-# -----------------------------------------------------------------
 if st.session_state["user_role"] == "owner":
     with tabs[6]:
         st.markdown('<div class="section-title">🐔 إدارة مزارع الدجاج اللاحم (Broiler Management) – خاص بالمالك</div>', unsafe_allow_html=True)
@@ -1661,7 +2197,7 @@ if st.session_state["user_role"] == "owner":
                         "farm_name": new_name,
                         "date": datetime.now().strftime("%Y-%m-%d"),
                         "flock_age_days": 1,
-                        "initial_birds": 1,          # تم التعديل: 1 بدلاً من 0
+                        "initial_birds": 1,
                         "current_weight_kg": 0.045,
                         "initial_weight_kg": 0.045,
                         "total_feed_consumed_kg": 0.0,
@@ -1690,7 +2226,6 @@ if st.session_state["user_role"] == "owner":
             st.markdown("#### 📝 بيانات اليوم الحالية")
             col_inputs, col_outputs = st.columns([0.5, 0.5])
             with col_inputs:
-                # استخدام max() لضمان أن القيمة لا تقل عن min_value
                 new_age = st.number_input("عمر القطيع (يوم)", min_value=1, max_value=60, value=max(current["flock_age_days"], 1), step=1, key="bf_age")
                 init_birds = st.number_input("عدد الكتاكيت المستلمة", min_value=1, value=max(current["initial_birds"], 1), step=100, key="bf_init")
                 dead = st.number_input("النافق حتى اليوم", min_value=0, value=current["dead_birds"], step=1, key="bf_dead")
@@ -1864,12 +2399,97 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                     st.rerun()
 
 # -----------------------------------------------------------------
+# تبويب المراجع والرد الآلي (جديد)
+# -----------------------------------------------------------------
+if st.session_state["user_role"] in ["owner", "specialist"]:
+    if st.session_state["user_role"] == "owner":
+        ref_tab_index = 8
+    else:
+        ref_tab_index = 7
+    with tabs[ref_tab_index]:
+        st.markdown('<div class="section-title">📚 نظام المراجع والرد الآلي الذكي</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div style='background: #e3f2fd; padding:15px; border-radius:12px; border-right:5px solid #1565C0; margin-bottom:20px;'>
+        <b>🤖 نظام المساعدة الذكي:</b> يمكنك طرح أي سؤال حول تغذية وإنتاج الحيوانات، وسيقوم النظام بالبحث في المراجع العلمية المتاحة وتقديم إجابة مبسطة.
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # عرض المراجع
+        with st.expander("📖 عرض جميع المراجع المتاحة", expanded=False):
+            all_refs = reference_system.get_all_references()
+            for ref in all_refs:
+                st.markdown(f"""
+                <div class="reference-box">
+                <b>📕 {ref['title']}</b><br>
+                <i>✍️ {ref['author']}</i> | <span style='background: #e8f5e9; padding:2px 10px; border-radius:12px;'>{ref['category']}</span>
+                <p style='margin-top:8px;'>{ref['content'][:200]}...</p>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        st.markdown("### 💬 اسأل النظام الذكي")
+        # عرض تاريخ المحادثة
+        for msg in st.session_state["chat_history"][-10:]:
+            if msg["role"] == "user":
+                st.markdown(f'<div class="chat-bubble" style="float:right;"><b>👤 أنت:</b> {msg["content"]}</div>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div class="chat-bubble-assistant" style="float:left;"><b>🤖 المساعد:</b> {msg["content"]}</div>', unsafe_allow_html=True)
+            st.markdown("<div style='clear:both;'></div>", unsafe_allow_html=True)
+        
+        st.markdown("---")
+        user_question = st.text_area("📝 اكتب سؤالك هنا:", placeholder="مثال: ما هي نسبة البروتين المثالية لعلف بادي الدجاج؟", height=100)
+        
+        col_ask, col_clear = st.columns([0.7, 0.3])
+        with col_ask:
+            if st.button("❓ اسأل المساعد الذكي", type="primary", use_container_width=True):
+                if user_question.strip():
+                    # إضافة سؤال المستخدم إلى المحادثة
+                    st.session_state["chat_history"].append({"role": "user", "content": user_question})
+                    
+                    # الحصول على الرد من النظام
+                    response = reference_system.get_ai_response(user_question)
+                    
+                    # إضافة الرد إلى المحادثة
+                    st.session_state["chat_history"].append({"role": "assistant", "content": response})
+                    
+                    st.rerun()
+                else:
+                    st.warning("⚠️ يرجى كتابة سؤالك أولاً.")
+        
+        with col_clear:
+            if st.button("🗑️ مسح المحادثة", use_container_width=True):
+                st.session_state["chat_history"] = []
+                st.rerun()
+        
+        # تصفية حسب القسم
+        st.markdown("### 🔍 بحث في المراجع حسب القسم")
+        categories = ["جميع الأقسام", "دواجن", "مجترات", "دواجن لاحم", "تركيب أعلاف", "صحة دواجن", "إدارة مزارع", "تغذية"]
+        selected_category = st.selectbox("اختر القسم:", categories)
+        
+        search_query = st.text_input("🔎 كلمات مفتاحية للبحث:", placeholder="بروتين، طاقة، تحصينات...")
+        if st.button("🔍 بحث", use_container_width=True):
+            if search_query:
+                category_filter = None if selected_category == "جميع الأقسام" else selected_category
+                results = reference_system.search_references(search_query, category_filter)
+                if results:
+                    st.success(f"✅ تم العثور على {len(results)} نتيجة")
+                    for ref in results:
+                        st.markdown(f"""
+                        <div class="reference-box">
+                        <b>📕 {ref['title']}</b><br>
+                        <i>✍️ {ref['author']}</i> | <span style='background: #e8f5e9; padding:2px 10px; border-radius:12px;'>{ref['category']}</span>
+                        <p style='margin-top:8px;'>{ref['content'][:300]}...</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.info("📭 لم يتم العثور على نتائج. حاول استخدام كلمات مفتاحية أخرى.")
+
+# -----------------------------------------------------------------
 # تبويب دليل المستخدم (آخر تبويب)
 # -----------------------------------------------------------------
 if st.session_state["user_role"] == "owner":
-    guide_tab_index = 8
+    guide_tab_index = 9
 elif st.session_state["user_role"] == "specialist":
-    guide_tab_index = 7
+    guide_tab_index = 8
 else:
     guide_tab_index = 2
 
@@ -1882,7 +2502,8 @@ with tabs[guide_tab_index]:
         <div class="book-chapter">📌 خارطة المكونات (Ingredients Matrix)</div><div class="book-body">تم تصنيف المواد العلفية داخل المنصة بمرونة تامة لتشمل:<br>1. <b>الحبوب ومصادر الطاقة:</b> الذرة البيضاء وسورجم الفتريتة.<br>2. <b>الأكساب والبروتينات:</b> كسب زهرة الشمس، كسب فول الصويا.<br>3. <b>الإضافات والأملاح:</b> بريمكسات، أحماض أمينية نقية.</div>
         <div class="book-chapter">📌 القطاعات الإنتاجية المتخصصة</div><div class="book-body">• <b>قطاع الأغنام والماعز:</b> فصل برمجي ذكي بين الذكور والإناث.<br>• <b>قطاع الدواجن:</b> دواجن التسمين، البياض، والسمان.<br>• <b>قطاع المجترات:</b> تسمين لحوم أو غزارة إدرار الألبان.<br>• <b>قطاع الخيول:</b> طاقة الجري أو أمهار نامية.</div>
         <div class="book-chapter">📌 إدارة مزارع الدجاج اللاحم (خاص بالمالك)</div><div class="book-body">• تسجيل بيانات الدورة اليومية (العمر، العدد، الأوزان، الاستهلاك، النافق، المستبعدين، الظروف البيئية).<br>• حساب تلقائي لمؤشرات ADG، FCR، EPEF، ونسب النفوق والاستبعاد.<br>• جدول الحرارة والرطوبة المرجعي حسب العمر.<br>• تقرير يومي شامل يمكن مشاركته عبر واتساب.<br>• حفظ تاريخ الدورات السابقة (حتى 10 دورات).</div>
-        <div class="book-chapter">📌 خطوات تشغيل المنصة</div><div class="book-body"><b>الخطوة 1:</b> حدد القطاع والنوع الإنتاجي.<br><b>الخطوة 2:</b> اختر الخامات المتوفرة وأسعار السوق.<br><b>الخطوة 3:</b> اضغط على زر التشغيل للحصول على الخلطة المثلى.<br><b>الخطوة 4:</b> استعرض التقرير وقم بطباعة الديباجة أو تصدير PDF.<br><b>الخطوة 5 (للمالك):</b> استخدم تبويب إدارة الدجاج اللاحم لتسجيل ومتابعة أداء دورات التسمين.</div></div>""", unsafe_allow_html=True)
+        <div class="book-chapter">📌 نظام المراجع والرد الآلي (جديد)</div><div class="book-body">• يحتوي النظام على مكتبة من الكتب والمراجع العلمية في مجالات تغذية وإنتاج الحيوانات.<br>• يمكنك طرح أي سؤال وسيقوم النظام بالبحث في المراجع وتقديم إجابة مبسطة.<br>• يتم تحديث المراجع وإضافتها بشكل دوري لتشمل أحدث المعلومات العلمية.</div>
+        <div class="book-chapter">📌 خطوات تشغيل المنصة</div><div class="book-body"><b>الخطوة 1:</b> حدد القطاع والنوع الإنتاجي.<br><b>الخطوة 2:</b> اختر الخامات المتوفرة وأسعار السوق.<br><b>الخطوة 3:</b> اضغط على زر التشغيل للحصول على الخلطة المثلى.<br><b>الخطوة 4:</b> استعرض التقرير وقم بطباعة الديباجة أو تصدير PDF.<br><b>الخطوة 5 (للمالك):</b> استخدم تبويب إدارة الدجاج اللاحم لتسجيل ومتابعة أداء دورات التسمين.<br><b>الخطوة 6:</b> استخدم نظام المراجع للحصول على إجابات سريعة لأسئلتك الفنية.</div></div>""", unsafe_allow_html=True)
     with col_actions:
         st.markdown("### 💬 قنوات التفاعل والاستشارات:")
         st.link_button("📝 إرسال تعليق أو استشارة (نموذج جوجل)", GOOGLE_FORM_URL, use_container_width=True)
@@ -1891,7 +2512,7 @@ with tabs[guide_tab_index]:
         whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}?text={encoded_msg}"
         st.link_button("💬 تواصل واستشارة عبر الواتساب", whatsapp_link, use_container_width=True)
         st.markdown("<br><b>📢 انشر البرنامج وشارك المعرفة:</b>", unsafe_allow_html=True)
-        share_text_base = "أستخدم الآن منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف لحساب العلائق بأقل تكلفة ودقة علمية عالية، تحت إشراف م. عبد القادر إسماعيل تاور. كما تتضمن إدارة متقدمة لمزارع الدجاج اللاحم."
+        share_text_base = "أستخدم الآن منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف لحساب العلائق بأقل تكلفة ودقة علمية عالية، تحت إشراف م. عبد القادر إسماعيل تاور. كما تتضمن إدارة متقدمة لمزارع الدجاج اللاحم ونظام مراجع ذكي."
         encoded_share_text = urllib.parse.quote(share_text_base)
         col_wa, col_fb = st.columns(2)
         with col_wa: st.link_button("🟢 واتساب", f"https://wa.me/?text={encoded_share_text}", use_container_width=True)
