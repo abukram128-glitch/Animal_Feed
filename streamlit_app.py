@@ -1,18 +1,21 @@
-# Digital Signature: 110dfcb10bc6902ee96175517109d7c7
-# Generated: 2026-07-02T22:16:27.283609
+# ============================================================================
+# منصة تاور العلمية للإنتاج الحيواني وتركيب الأعلاف
+# الإصدار: 2.0 (مستقر الألوان)
+# المشرف: الاختصاصي م. عبد القادر إسماعيل تاور
+# ============================================================================
 
-# Digital Signature: 8f7e3d9c2b1a5e7f9d4c3b2a1e7f9d4c
-# Generated: 2026-07-02T12:00:00.000000
+# Digital Signature: 110dfcb10bc6902ee96175517109d7c7
+# Generated: 2026-07-08T17:45:00.000000
 
 import streamlit as st
 import numpy as np
-import pandas as pd  
+import pandas as pd
 import json
 import os
 import base64
 import smtplib
 import time
-import urllib.parse  
+import urllib.parse
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from scipy.optimize import linprog
@@ -31,7 +34,14 @@ from typing import Dict, List, Tuple, Optional
 import warnings
 warnings.filterwarnings('ignore')
 
-# استيراد مكتبات توليد الـ PDF المتقدمة ومعالجة اللغة العربية الصحيحة
+# ===== مكتبة الصوت (gTTS) =====
+try:
+    from gtts import gTTS
+    GTTS_AVAILABLE = True
+except ImportError:
+    GTTS_AVAILABLE = False
+
+# ===== مكتبات PDF واللغة العربية =====
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -51,24 +61,48 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.font_manager as fm
 
-# ==========================================
+# ===== دوال الصوت =====
+def play_welcome_audio():
+    """تشغيل صوت ترحيبي (توليد تلقائي أو ملف موجود)."""
+    audio_file = "welcome.mp3"
+    if not os.path.exists(audio_file):
+        if GTTS_AVAILABLE:
+            try:
+                tts = gTTS(
+                    text="مرحباً بك في منصة تاور العلمية للإنتاج الحيواني وتركيب الأعلاف، تحت إشراف الاختصاصي عبد القادر إسماعيل تاور",
+                    lang="ar"
+                )
+                tts.save(audio_file)
+            except Exception as e:
+                st.warning(f"⚠️ تعذر توليد الصوت: {e}")
+                return
+        else:
+            st.warning("⚠️ مكتبة gTTS غير مثبتة، يرجى تثبيتها: pip install gtts")
+            return
+    if os.path.exists(audio_file):
+        try:
+            with open(audio_file, "rb") as f:
+                audio_b64 = base64.b64encode(f.read()).decode()
+            st.components.v1.html(
+                f'<audio autoplay><source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3"></audio>',
+                height=0
+            )
+        except Exception as e:
+            st.warning(f"⚠️ تعذر تشغيل الصوت: {e}")
+
+# ============================================================
 # 1. نظام قاعدة البيانات المحلية (SQLite)
-# ==========================================
+# ============================================================
 import sqlite3
 from dataclasses import dataclass, asdict
 
 class DatabaseManager:
-    """مدير قاعدة البيانات المحلية"""
     def __init__(self, db_path="tower_platform.db"):
         self.db_path = db_path
         self._init_db()
-    
     def _init_db(self):
-        """تهيئة الجداول"""
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        
-        # جدول المستخدمين
         c.execute('''CREATE TABLE IF NOT EXISTS users
                      (user_id TEXT PRIMARY KEY,
                       username TEXT UNIQUE,
@@ -78,8 +112,6 @@ class DatabaseManager:
                       email TEXT,
                       phone TEXT,
                       created_date TEXT)''')
-        
-        # جدول الدورات الإنتاجية
         c.execute('''CREATE TABLE IF NOT EXISTS farm_cycles
                      (cycle_id TEXT PRIMARY KEY,
                       farm_name TEXT,
@@ -99,8 +131,6 @@ class DatabaseManager:
                       notes TEXT,
                       created_by TEXT,
                       created_date TEXT)''')
-        
-        # جدول الخلطات العلفية
         c.execute('''CREATE TABLE IF NOT EXISTS feed_formulas
                      (formula_id TEXT PRIMARY KEY,
                       formula_name TEXT,
@@ -111,8 +141,6 @@ class DatabaseManager:
                       total_cost REAL,
                       created_by TEXT,
                       created_date TEXT)''')
-        
-        # جدول الفواتير
         c.execute('''CREATE TABLE IF NOT EXISTS invoices
                      (invoice_id TEXT PRIMARY KEY,
                       customer_name TEXT,
@@ -123,8 +151,6 @@ class DatabaseManager:
                       status TEXT,
                       created_by TEXT,
                       created_date TEXT)''')
-        
-        # جدول الأسعار التاريخية
         c.execute('''CREATE TABLE IF NOT EXISTS price_history
                      (record_id TEXT PRIMARY KEY,
                       ingredient_name TEXT,
@@ -134,10 +160,8 @@ class DatabaseManager:
                       city TEXT,
                       record_date TEXT,
                       recorded_by TEXT)''')
-        
         conn.commit()
         conn.close()
-    
     def execute_query(self, query: str, params: tuple = ()):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
@@ -146,7 +170,6 @@ class DatabaseManager:
         data = result.fetchall()
         conn.close()
         return data
-    
     def insert_record(self, table: str, data: dict):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
@@ -157,20 +180,18 @@ class DatabaseManager:
         conn.commit()
         conn.close()
 
-# ==========================================
-# 2. نظام المصادقة المتقدم
-# ==========================================
+# ============================================================
+# 2. نظام المصادقة
+# ============================================================
 class AuthManager:
     def __init__(self):
         self.db = DatabaseManager()
         self._create_default_admin()
-    
     def _create_default_admin(self):
         users = self.db.execute_query("SELECT * FROM users WHERE username='admin'")
         if not users:
             self.create_user('admin', 'admin123', 'owner', 'مدير النظام', 'admin@tower.com', '+249123456789')
-    
-    def create_user(self, username: str, password: str, role: str, full_name: str, email: str, phone: str):
+    def create_user(self, username, password, role, full_name, email, phone):
         user_id = secrets.token_hex(16)
         password_hash = hashlib.sha256(password.encode()).hexdigest()
         data = {
@@ -185,8 +206,7 @@ class AuthManager:
         }
         self.db.insert_record('users', data)
         return user_id
-    
-    def authenticate(self, username: str, password: str) -> Optional[dict]:
+    def authenticate(self, username, password):
         users = self.db.execute_query("SELECT * FROM users WHERE username=?", (username,))
         if users:
             user = users[0]
@@ -202,14 +222,13 @@ class AuthManager:
                 }
         return None
 
-# ==========================================
-# 3. نظام التنبؤ بالأسعار
-# ==========================================
+# ============================================================
+# 3. نظام التنبؤ بالأسعار (مبسط)
+# ============================================================
 class PricePredictor:
     def __init__(self):
         self.db = DatabaseManager()
-    
-    def get_ingredient_prices(self, ingredient_name: str, days: int = 30) -> List[dict]:
+    def get_ingredient_prices(self, ingredient_name, days=30):
         results = self.db.execute_query(
             "SELECT * FROM price_history WHERE ingredient_name=? ORDER BY record_date DESC LIMIT ?",
             (ingredient_name, days)
@@ -223,18 +242,15 @@ class PricePredictor:
             'city': r[5],
             'record_date': r[6]
         } for r in results]
-    
-    def predict_price(self, ingredient_name: str, days_ahead: int = 7) -> dict:
+    def predict_price(self, ingredient_name, days_ahead=7):
         prices = self.get_ingredient_prices(ingredient_name, 30)
         if len(prices) < 5:
             return {'prediction': None, 'confidence': 0}
-        
         price_list = [p['price'] for p in prices]
         weights = np.array(range(1, len(price_list) + 1))
         weighted_avg = np.average(price_list, weights=weights)
         trend = (price_list[0] - price_list[-1]) / len(price_list) if len(price_list) > 1 else 0
         prediction = weighted_avg + (trend * days_ahead)
-        
         return {
             'prediction': max(0, prediction),
             'confidence': min(1, len(price_list) / 30),
@@ -242,299 +258,118 @@ class PricePredictor:
             'trend': 'up' if trend > 0 else 'down' if trend < 0 else 'stable'
         }
 
-# ==========================================
+# ============================================================
 # 4. نظام المراجع العلمية
-# ==========================================
+# ============================================================
 class ScientificReferenceSystem:
     REFERENCES = {
         "general_nutrition": {
             "title": "المبادئ الأساسية لتغذية الحيوان",
             "references": [
-                {
-                    "id": "REF001",
-                    "authors": "McDonald, P., Edwards, R.A., Greenhalgh, J.F.D., Morgan, C.A.",
-                    "year": 2011,
-                    "title": "Animal Nutrition",
-                    "publisher": "Pearson Education",
-                    "edition": "7th Edition",
-                    "isbn": "978-1408204238",
-                    "summary": "المرجع الأساسي في تغذية الحيوان، يغطي جميع جوانب التغذية من الهضم إلى متطلبات العناصر الغذائية."
-                },
-                {
-                    "id": "REF002",
-                    "authors": "Cheeke, P.R., Dierenfeld, E.S.",
-                    "year": 2010,
-                    "title": "Comparative Animal Nutrition and Metabolism",
-                    "publisher": "CABI",
-                    "isbn": "978-1845936310",
-                    "summary": "مقارنة بين آليات التغذية والتمثيل الغذائي في مختلف أنواع الحيوانات."
-                }
+                {"id": "REF001", "authors": "McDonald, P., Edwards, R.A., Greenhalgh, J.F.D., Morgan, C.A.",
+                 "year": 2011, "title": "Animal Nutrition", "publisher": "Pearson Education",
+                 "edition": "7th Edition", "isbn": "978-1408204238",
+                 "summary": "المرجع الأساسي في تغذية الحيوان، يغطي جميع جوانب التغذية من الهضم إلى متطلبات العناصر الغذائية."},
+                {"id": "REF002", "authors": "Cheeke, P.R., Dierenfeld, E.S.",
+                 "year": 2010, "title": "Comparative Animal Nutrition and Metabolism",
+                 "publisher": "CABI", "isbn": "978-1845936310",
+                 "summary": "مقارنة بين آليات التغذية والتمثيل الغذائي في مختلف أنواع الحيوانات."}
             ]
         },
         "protein_amino_acids": {
             "title": "البروتين والأحماض الأمينية",
             "references": [
-                {
-                    "id": "REF003",
-                    "authors": "NRC (National Research Council)",
-                    "year": 2012,
-                    "title": "Nutrient Requirements of Swine",
-                    "publisher": "National Academies Press",
-                    "edition": "11th Revised Edition",
-                    "isbn": "978-0309214230",
-                    "summary": "المرجع الرسمي لمتطلبات العناصر الغذائية للخنازير."
-                },
-                {
-                    "id": "REF004",
-                    "authors": "NRC (National Research Council)",
-                    "year": 2001,
-                    "title": "Nutrient Requirements of Dairy Cattle",
-                    "publisher": "National Academies Press",
-                    "edition": "7th Revised Edition",
-                    "isbn": "978-0309069977",
-                    "summary": "المرجع الأساسي في تغذية أبقار الحليب."
-                },
-                {
-                    "id": "REF005",
-                    "authors": "Bryden, W.L., Li, X., Ravindran, G.",
-                    "year": 2009,
-                    "title": "Digestible Amino Acids in Poultry Feed Ingredients",
-                    "publisher": "University of Sydney",
-                    "summary": "دراسة شاملة عن الأحماض الأمينية المهضومة في مواد العلف للدواجن."
-                }
+                {"id": "REF003", "authors": "NRC (National Research Council)",
+                 "year": 2012, "title": "Nutrient Requirements of Swine",
+                 "publisher": "National Academies Press", "edition": "11th Revised Edition",
+                 "isbn": "978-0309214230", "summary": "المرجع الرسمي لمتطلبات العناصر الغذائية للخنازير."},
+                {"id": "REF004", "authors": "NRC (National Research Council)",
+                 "year": 2001, "title": "Nutrient Requirements of Dairy Cattle",
+                 "publisher": "National Academies Press", "edition": "7th Revised Edition",
+                 "isbn": "978-0309069977", "summary": "المرجع الأساسي في تغذية أبقار الحليب."}
             ]
         },
         "energy_carbohydrates": {
             "title": "الطاقة والكربوهيدرات",
             "references": [
-                {
-                    "id": "REF006",
-                    "authors": "Van Soest, P.J.",
-                    "year": 1994,
-                    "title": "Nutritional Ecology of the Ruminant",
-                    "publisher": "Cornell University Press",
-                    "edition": "2nd Edition",
-                    "isbn": "978-0801427725",
-                    "summary": "المرجع الكلاسيكي في تغذية المجترات وتحليل الألياف."
-                },
-                {
-                    "id": "REF007",
-                    "authors": "Blaxter, K.L.",
-                    "year": 1989,
-                    "title": "Energy Metabolism in Animals and Man",
-                    "publisher": "Cambridge University Press",
-                    "isbn": "978-0521369433",
-                    "summary": "دراسة متعمقة في أيض الطاقة في الحيوانات والإنسان."
-                }
+                {"id": "REF006", "authors": "Van Soest, P.J.",
+                 "year": 1994, "title": "Nutritional Ecology of the Ruminant",
+                 "publisher": "Cornell University Press", "edition": "2nd Edition",
+                 "isbn": "978-0801427725", "summary": "المرجع الكلاسيكي في تغذية المجترات وتحليل الألياف."}
             ]
         },
         "minerals_vitamins": {
             "title": "المعادن والفيتامينات",
             "references": [
-                {
-                    "id": "REF008",
-                    "authors": "Underwood, E.J., Suttle, N.F.",
-                    "year": 1999,
-                    "title": "The Mineral Nutrition of Livestock",
-                    "publisher": "CABI",
-                    "edition": "3rd Edition",
-                    "isbn": "978-0851991283",
-                    "summary": "المرجع الشامل في تغذية المعادن للثروة الحيوانية."
-                },
-                {
-                    "id": "REF009",
-                    "authors": "McDowell, L.R.",
-                    "year": 2000,
-                    "title": "Vitamins in Animal Nutrition",
-                    "publisher": "Academic Press",
-                    "isbn": "978-0124833724",
-                    "summary": "دراسة متكاملة عن الفيتامينات ودورها في تغذية الحيوان."
-                }
+                {"id": "REF008", "authors": "Underwood, E.J., Suttle, N.F.",
+                 "year": 1999, "title": "The Mineral Nutrition of Livestock",
+                 "publisher": "CABI", "edition": "3rd Edition", "isbn": "978-0851991283",
+                 "summary": "المرجع الشامل في تغذية المعادن للثروة الحيوانية."}
             ]
         },
         "poultry": {
             "title": "تغذية الدواجن",
             "references": [
-                {
-                    "id": "REF010",
-                    "authors": "Leeson, S., Summers, J.D.",
-                    "year": 2009,
-                    "title": "Commercial Poultry Nutrition",
-                    "publisher": "Nottingham University Press",
-                    "edition": "3rd Edition",
-                    "isbn": "978-1904761578",
-                    "summary": "المرجع العملي في تغذية الدواجن التجارية."
-                },
-                {
-                    "id": "REF011",
-                    "authors": "NRC (National Research Council)",
-                    "year": 1994,
-                    "title": "Nutrient Requirements of Poultry",
-                    "publisher": "National Academies Press",
-                    "edition": "9th Revised Edition",
-                    "isbn": "978-0309048927",
-                    "summary": "المرجع الرسمي لمتطلبات الدواجن."
-                }
+                {"id": "REF010", "authors": "Leeson, S., Summers, J.D.",
+                 "year": 2009, "title": "Commercial Poultry Nutrition",
+                 "publisher": "Nottingham University Press", "edition": "3rd Edition",
+                 "isbn": "978-1904761578", "summary": "المرجع العملي في تغذية الدواجن التجارية."}
             ]
         },
         "ruminants": {
             "title": "تغذية المجترات",
             "references": [
-                {
-                    "id": "REF012",
-                    "authors": "Church, D.C.",
-                    "year": 1993,
-                    "title": "The Ruminant Animal: Digestive Physiology and Nutrition",
-                    "publisher": "Waveland Press",
-                    "isbn": "978-0881337389",
-                    "summary": "المرجع الشامل في فسيولوجيا الهضم والتغذية للمجترات."
-                },
-                {
-                    "id": "REF013",
-                    "authors": "Minson, D.J.",
-                    "year": 1990,
-                    "title": "Forage in Ruminant Nutrition",
-                    "publisher": "Academic Press",
-                    "isbn": "978-0124983108",
-                    "summary": "دراسة متخصصة في تغذية المجترات على الأعلاف الخشنة."
-                }
+                {"id": "REF012", "authors": "Church, D.C.",
+                 "year": 1993, "title": "The Ruminant Animal: Digestive Physiology and Nutrition",
+                 "publisher": "Waveland Press", "isbn": "978-0881337389",
+                 "summary": "المرجع الشامل في فسيولوجيا الهضم والتغذية للمجترات."}
             ]
         },
         "sheep_goats": {
             "title": "تغذية الأغنام والماعز",
             "references": [
-                {
-                    "id": "REF014",
-                    "authors": "NRC (National Research Council)",
-                    "year": 2007,
-                    "title": "Nutrient Requirements of Small Ruminants",
-                    "publisher": "National Academies Press",
-                    "isbn": "978-0309102131",
-                    "summary": "المرجع الرسمي لمتطلبات الأغنام والماعز والمجترات الصغيرة."
-                }
+                {"id": "REF014", "authors": "NRC (National Research Council)",
+                 "year": 2007, "title": "Nutrient Requirements of Small Ruminants",
+                 "publisher": "National Academies Press", "isbn": "978-0309102131",
+                 "summary": "المرجع الرسمي لمتطلبات الأغنام والماعز والمجترات الصغيرة."}
             ]
         },
         "horses": {
             "title": "تغذية الخيول",
             "references": [
-                {
-                    "id": "REF015",
-                    "authors": "NRC (National Research Council)",
-                    "year": 2007,
-                    "title": "Nutrient Requirements of Horses",
-                    "publisher": "National Academies Press",
-                    "edition": "6th Revised Edition",
-                    "isbn": "978-0309102124",
-                    "summary": "المرجع الأساسي في تغذية الخيول ومتطلباتها الغذائية."
-                }
+                {"id": "REF015", "authors": "NRC (National Research Council)",
+                 "year": 2007, "title": "Nutrient Requirements of Horses",
+                 "publisher": "National Academies Press", "edition": "6th Revised Edition",
+                 "isbn": "978-0309102124", "summary": "المرجع الأساسي في تغذية الخيول ومتطلباتها الغذائية."}
             ]
         },
         "aquaculture": {
             "title": "تغذية الأسماك",
             "references": [
-                {
-                    "id": "REF016",
-                    "authors": "Halver, J.E., Hardy, R.W.",
-                    "year": 2002,
-                    "title": "Fish Nutrition",
-                    "publisher": "Academic Press",
-                    "edition": "3rd Edition",
-                    "isbn": "978-0123196521",
-                    "summary": "المرجع الشامل في تغذية الأسماك والمزارع المائية."
-                }
-            ]
-        },
-        "animal_production": {
-            "title": "الإنتاج الحيواني",
-            "references": [
-                {
-                    "id": "REF017",
-                    "authors": "Ensminger, M.E., Parker, R.O.",
-                    "year": 2002,
-                    "title": "Animal Science",
-                    "publisher": "Pearson Education",
-                    "edition": "5th Edition",
-                    "isbn": "978-0131120417",
-                    "summary": "المرجع الشامل في علوم الإنتاج الحيواني."
-                }
-            ]
-        },
-        "feed_formulation": {
-            "title": "تركيب الأعلاف",
-            "references": [
-                {
-                    "id": "REF018",
-                    "authors": "Pond, W.G., Church, D.C., Pond, K.R.",
-                    "year": 1995,
-                    "title": "Basic Animal Nutrition and Feeding",
-                    "publisher": "Wiley",
-                    "edition": "4th Edition",
-                    "isbn": "978-0471308643",
-                    "summary": "المرجع الأساسي في تغذية الحيوان وتركيب الأعلاف."
-                },
-                {
-                    "id": "REF019",
-                    "authors": "CNCPS (Cornell Net Carbohydrate and Protein System)",
-                    "year": 2010,
-                    "title": "CNCPS Feed Library and Nutrient Requirements",
-                    "publisher": "Cornell University",
-                    "summary": "النظام المتقدم لتحليل الأعلاف وتقدير الاحتياجات الغذائية."
-                }
+                {"id": "REF016", "authors": "Halver, J.E., Hardy, R.W.",
+                 "year": 2002, "title": "Fish Nutrition",
+                 "publisher": "Academic Press", "edition": "3rd Edition",
+                 "isbn": "978-0123196521", "summary": "المرجع الشامل في تغذية الأسماك والمزارع المائية."}
             ]
         },
         "broiler": {
             "title": "إنتاج الدجاج اللاحم",
             "references": [
-                {
-                    "id": "REF020",
-                    "authors": "Ross 308 Broiler Management Guide",
-                    "year": 2020,
-                    "title": "Ross Broiler Management Handbook",
-                    "publisher": "Aviagen",
-                    "summary": "الدليل الشامل لإدارة الدجاج اللاحم سلالة روس."
-                },
-                {
-                    "id": "REF021",
-                    "authors": "Cobb-Vantress",
-                    "year": 2020,
-                    "title": "Cobb 500 Broiler Management Guide",
-                    "publisher": "Cobb-Vantress",
-                    "summary": "الدليل المتخصص لإدارة دجاج اللاحم سلالة كوب."
-                },
-                {
-                    "id": "REF022",
-                    "authors": "ASPCA",
-                    "year": 2019,
-                    "title": "Poultry Welfare Standards",
-                    "publisher": "ASPCA",
-                    "summary": "معايير رعاية الدواجن ورفاهيتها."
-                }
+                {"id": "REF020", "authors": "Ross 308 Broiler Management Guide",
+                 "year": 2020, "title": "Ross Broiler Management Handbook",
+                 "publisher": "Aviagen", "summary": "الدليل الشامل لإدارة الدجاج اللاحم سلالة روس."}
             ]
         },
         "digestible_protein": {
             "title": "البروتين المهضوم",
             "references": [
-                {
-                    "id": "REF023",
-                    "authors": "INRA (Institut National de la Recherche Agronomique)",
-                    "year": 2007,
-                    "title": "INRA Feeding System for Ruminants",
-                    "publisher": "Wageningen Academic Publishers",
-                    "isbn": "978-9086860197",
-                    "summary": "النظام الفرنسي المتقدم لتغذية المجترات وتقدير البروتين المهضوم."
-                },
-                {
-                    "id": "REF024",
-                    "authors": "Pesti, G.M., Miller, B.R.",
-                    "year": 2009,
-                    "title": "Least-Cost Feed Formulation: Theory and Practice",
-                    "publisher": "University of Georgia",
-                    "summary": "النظرية والتطبيق العملي لتركيب الأعلاف بأقل تكلفة."
-                }
+                {"id": "REF023", "authors": "INRA (Institut National de la Recherche Agronomique)",
+                 "year": 2007, "title": "INRA Feeding System for Ruminants",
+                 "publisher": "Wageningen Academic Publishers", "isbn": "978-9086860197",
+                 "summary": "النظام الفرنسي المتقدم لتغذية المجترات وتقدير البروتين المهضوم."}
             ]
         }
     }
-    
     KNOWLEDGE_BASE = {
         "ما هو البروتين المهضوم": {
             "answer": "البروتين المهضوم (Digestible Protein) هو كمية البروتين التي يستطيع الحيوان هضمها وامتصاصها فعلياً من العلف. يتم حسابه بضرب نسبة البروتين الخام في معامل الهضم لكل مادة علفية. هذا المقياس أدق من البروتين الخام لأنه يعكس القيمة الغذائية الحقيقية التي يستفيد منها الحيوان.",
@@ -560,39 +395,17 @@ class ScientificReferenceSystem:
             "answer": "مؤشر الأداء الأوروبي EPEF (European Production Efficiency Factor) هو مقياس شامل لكفاءة إنتاج الدجاج اللاحم. يحسب بالمعادلة: EPEF = (الحيوية × الوزن الحي) / (العمر × معامل التحويل الغذائي) × 100.",
             "reference": "REF020",
             "simplified": "EPEF هو رقم يعبر عن كفاءة مزرعة الدجاج، وكلما كان أعلى دل ذلك على إنتاجية أفضل."
-        },
-        "ما هو الفرق بين البروتين الخام والمهضوم": {
-            "answer": "البروتين الخام (CP) هو إجمالي محتوى النيتروجين في العلف مضروباً في 6.25، بينما البروتين المهضوم (DP) هو الجزء الذي يتم هضمه وامتصاصه فعلياً. DP = CP × معامل الهضم.",
-            "reference": "REF023",
-            "simplified": "البروتين الخام هو كل البروتين الموجود، أما المهضوم فهو الجزء الذي يستفيد منه الحيوان فعلياً."
-        },
-        "كيف يتم حساب معامل التحويل الغذائي FCR": {
-            "answer": "معامل التحويل الغذائي FCR = كمية العلف المستهلك / كمية الوزن المكتسب. مثال: إذا استهلك طائر 3 كجم علف واكتسب 1.5 كجم وزن، فإن FCR = 3/1.5 = 2.0.",
-            "reference": "REF018",
-            "simplified": "FCR يبين كمية العلف التي يحتاجها الحيوان ليكتسب كيلو جرام واحد من الوزن."
-        },
-        "كيف يمكن تحسين كفاءة مزرعة الدجاج": {
-            "answer": "تحسين كفاءة مزرعة الدجاج يتم من خلال: 1. استخدام برامج تغذية دقيقة. 2. تطبيق بروتوكول تحصين صارم. 3. التحكم الدقيق في البيئة. 4. مراقبة جودة العلف والماء.",
-            "reference": "REF021",
-            "simplified": "لتحسين مزرعة الدجاج: استخدم تغذية دقيقة، حافظ على نظافة البيئة، طبق برامج تحصين، وراقب أداء القطيع يومياً."
-        },
-        "ما هي أهمية بيكربونات الصوديوم في أعلاف المجترات": {
-            "answer": "تستخدم بيكربونات الصوديوم في أعلاف المجترات كمنظم لحموضة الكرش. تعمل على معادلة الأحماض الناتجة عن تخمر الكربوهيدرات، وتمنع حدوث الحماض الكرشي.",
-            "reference": "REF012",
-            "simplified": "بيكربونات الصوديوم تحافظ على توازن الحموضة في كرش الحيوان، مما يمنع مشاكل الهضم."
         }
     }
-    
     @staticmethod
-    def get_reference(ref_id: str) -> Optional[dict]:
+    def get_reference(ref_id):
         for category in ScientificReferenceSystem.REFERENCES.values():
             for ref in category.get("references", []):
                 if ref.get("id") == ref_id:
                     return ref
         return None
-    
     @staticmethod
-    def get_knowledge_answer(question: str) -> Optional[dict]:
+    def get_knowledge_answer(question):
         for key, value in ScientificReferenceSystem.KNOWLEDGE_BASE.items():
             if key in question:
                 ref = ScientificReferenceSystem.get_reference(value.get("reference", ""))
@@ -603,9 +416,9 @@ class ScientificReferenceSystem:
                 }
         return None
 
-# ==========================================
+# ============================================================
 # 5. إعدادات المنصة
-# ==========================================
+# ============================================================
 st.set_page_config(
     page_title="منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف",
     page_icon="🌾",
@@ -615,11 +428,7 @@ st.set_page_config(
 
 @st.cache_resource
 def init_caching_system():
-    return {
-        "cache_hits": 0,
-        "cache_misses": 0,
-        "last_cleanup": datetime.now()
-    }
+    return {"cache_hits": 0, "cache_misses": 0, "last_cleanup": datetime.now()}
 CACHE_SYSTEM = init_caching_system()
 
 CODES_DB = {
@@ -639,7 +448,7 @@ WHATSAPP_NUMBER = "+249123533489"
 GOOGLE_FORM_URL = "https://forms.google.com/YOUR_FORM_URL"
 
 @st.cache_data(ttl=3600)
-def get_image_base64(paths: List[str]) -> Optional[str]:
+def get_image_base64(paths):
     for path in paths:
         if os.path.exists(path):
             try:
@@ -650,7 +459,7 @@ def get_image_base64(paths: List[str]) -> Optional[str]:
     return None
 img_base64 = get_image_base64(PHOTO_OPTIONS)
 
-def send_code_to_mail(receiver_email: str, attachment_type: str = "full") -> bool:
+def send_code_to_mail(receiver_email, attachment_type="full"):
     if SENDER_EMAIL == "YOUR_EMAIL@gmail.com" or not SENDER_PASSWORD:
         st.error("⚠️ خطأ إعدادات: يرجى تحديث بيانات الـ SMTP داخل السورس كود أولاً.")
         return False
@@ -687,16 +496,16 @@ def send_code_to_mail(receiver_email: str, attachment_type: str = "full") -> boo
 class ArabicTextProcessor:
     @staticmethod
     @lru_cache(maxsize=1000)
-    def fix_arabic_text(text: str) -> str:
+    def fix_arabic_text(text):
         reshaped_text = arabic_reshaper.reshape(text)
         bidi_text = get_display(reshaped_text)
         return bidi_text
 
 arabic_processor = ArabicTextProcessor()
 
-# ==========================================
+# ============================================================
 # 6. مولد PDF
-# ==========================================
+# ============================================================
 class ProfessionalPDFGenerator:
     def __init__(self):
         self.font_name = 'Helvetica'
@@ -706,22 +515,18 @@ class ProfessionalPDFGenerator:
                 self.font_name = 'Amiri'
             except:
                 pass
-
-    def generate_comprehensive_report(self, formula, target_dp, breed, cost, city, local_cost, local_sym, computed_se, include_charts=True) -> bytes:
+    def generate_comprehensive_report(self, formula, target_dp, breed, cost, city, local_cost, local_sym, computed_se, include_charts=True):
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
         story = []
-
         def p(text, size=12, align=TA_RIGHT, color=HexColor('#000000')):
             safe_text = arabic_processor.fix_arabic_text(str(text))
             return Paragraph(safe_text, ParagraphStyle('style', fontName=self.font_name, fontSize=size, alignment=align, textColor=color, spaceAfter=6, leading=size*1.5))
-
         story.append(p("تقرير فني شامل - منصة تاور العلمية", size=22, align=TA_CENTER, color=HexColor('#1b5e20')))
         story.append(Spacer(1, 12))
         for line in [f"المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور", f"الموقع الجغرافي: {city}", f"الفصيل المستهدف: {breed}", f"تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %H:%M')}"]:
             story.append(p(line, size=11))
         story.append(Spacer(1, 15))
-
         tdata = [
             [arabic_processor.fix_arabic_text('المعيار'), arabic_processor.fix_arabic_text('القيمة')],
             [arabic_processor.fix_arabic_text('البروتين المهضوم (DP)'), f'{target_dp:.2f}%'],
@@ -742,7 +547,6 @@ class ProfessionalPDFGenerator:
         ]))
         story.append(t)
         story.append(Spacer(1, 20))
-
         story.append(p("المقادير المعتمدة لتركيب الطن الواحد:", size=14, color=HexColor('#2e7d32')))
         story.append(Spacer(1, 10))
         ing_data = [[arabic_processor.fix_arabic_text('المكون'), arabic_processor.fix_arabic_text('النسبة %'), arabic_processor.fix_arabic_text('كجم/طن')]]
@@ -761,7 +565,6 @@ class ProfessionalPDFGenerator:
         ]))
         story.append(t2)
         story.append(Spacer(1, 15))
-
         if include_charts and len(formula) > 1:
             try:
                 fig, ax = plt.subplots(figsize=(6, 3.5))
@@ -779,7 +582,6 @@ class ProfessionalPDFGenerator:
                 story.append(Image(buf, width=400, height=230))
             except:
                 pass
-
         story.append(Spacer(1, 25))
         story.append(p("تم التوليد بواسطة منصة تاور العلمية © 2026 | تحت إشراف م. عبد القادر إسماعيل تاور", size=9, align=TA_CENTER, color=HexColor('#666666')))
         doc.build(story)
@@ -788,56 +590,49 @@ class ProfessionalPDFGenerator:
 
 pdf_generator = ProfessionalPDFGenerator()
 
-# ==========================================
+# ============================================================
 # 7. كلاس إدارة مزارع الدجاج اللاحم
-# ==========================================
+# ============================================================
 class BroilerFarmManager:
     @staticmethod
-    def calculate_adg(current_weight_g: float, initial_weight_g: float, age_days: int) -> float:
+    def calculate_adg(current_weight_g, initial_weight_g, age_days):
         if age_days <= 0:
             return 0.0
         return (current_weight_g - initial_weight_g) / age_days
-
     @staticmethod
-    def calculate_fcr(total_feed_kg: float, total_weight_gain_kg: float) -> float:
+    def calculate_fcr(total_feed_kg, total_weight_gain_kg):
         if total_weight_gain_kg <= 0:
             return 0.0
         return total_feed_kg / total_weight_gain_kg
-
     @staticmethod
-    def calculate_mortality_rate(dead_count: int, initial_count: int) -> float:
+    def calculate_mortality_rate(dead_count, initial_count):
         if initial_count <= 0:
             return 0.0
         return (dead_count / initial_count) * 100.0
-
     @staticmethod
-    def calculate_cull_rate(culled_count: int, initial_count: int) -> float:
+    def calculate_cull_rate(culled_count, initial_count):
         if initial_count <= 0:
             return 0.0
         return (culled_count / initial_count) * 100.0
-
     @staticmethod
-    def calculate_livability(initial_count: int, dead_count: int) -> float:
+    def calculate_livability(initial_count, dead_count):
         return 100.0 - BroilerFarmManager.calculate_mortality_rate(dead_count, initial_count)
-
     @staticmethod
-    def calculate_epef(livability: float, body_weight_kg: float, age_days: int, fcr: float) -> float:
+    def calculate_epef(livability, body_weight_kg, age_days, fcr):
         if age_days <= 0 or fcr <= 0:
             return 0.0
         return (livability * body_weight_kg) / (age_days * fcr) * 100.0
-
     @staticmethod
     def get_temp_humidity_table():
-        data = {
+        return pd.DataFrame({
             "العمر (يوم)": [1, 7, 14, 21, 28, 35, 42],
             "درجة الحرارة (مئوي)": [33, 30, 28, 26, 24, 22, 21],
             "الرطوبة النسبية (%)": [65, 65, 65, 60, 60, 55, 55]
-        }
-        return pd.DataFrame(data)
+        })
 
-# ==========================================
+# ============================================================
 # 8. مكتبة الأعلاف الكاملة
-# ==========================================
+# ============================================================
 BIG_FEEDS_LIBRARY = {
     "🌾 الحبوب ومصادر الطاقة الكبرى": {
         "ذرة صفراء": {"CP": 8.5, "DC": 0.85, "SE": 80.0, "NDF": 9.5, "ADF": 3.2, "EE": 3.8, "ASH": 1.3},
@@ -912,7 +707,6 @@ def load_city_prices():
         except:
             pass
     return {}
-
 def save_city_prices(data):
     with open(CITY_PRICES_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -934,9 +728,8 @@ class InventoryManager:
                         "price_history": [],
                         "supplier": "غير محدد"
                     }
-
     @staticmethod
-    def check_stock_levels() -> Dict[str, str]:
+    def check_stock_levels():
         warnings = {}
         for item, data in st.session_state["inventory"].items():
             qty = data if isinstance(data, (int, float)) else data["quantity"]
@@ -978,7 +771,7 @@ EXCHANGE_RATES = {
 class MarketPriceEngine:
     @staticmethod
     @lru_cache(maxsize=128)
-    def get_adjusted_market_data(country: str, state_or_region: str, city: str) -> Dict[str, float]:
+    def get_adjusted_market_data(country, state_or_region, city):
         feed_prices = {}
         for cat in BIG_FEEDS_LIBRARY.values():
             for ing in cat:
@@ -1036,9 +829,9 @@ if "active_animal_img" not in st.session_state: st.session_state["active_animal_
 if "active_stage_title" not in st.session_state: st.session_state["active_stage_title"] = "إنتاج عام"
 if "computed_ton_cost" not in st.session_state: st.session_state["computed_ton_cost"] = 280.0
 
-# ==========================================
+# ============================================================
 # 9. حالة الجلسة
-# ==========================================
+# ============================================================
 if "approved" not in st.session_state: st.session_state["approved"] = False
 if "user_role" not in st.session_state: st.session_state["user_role"] = None
 if "login_welcome_shown" not in st.session_state: st.session_state["login_welcome_shown"] = False
@@ -1051,25 +844,26 @@ if "selected_farm" not in st.session_state:
     st.session_state["selected_farm"] = None
 if "standard_vacc_schedule" not in st.session_state:
     st.session_state["standard_vacc_schedule"] = {
-        1:   {"type": "فيتامين", "name": "فيتامين AD3E", "dose": "1 مل/لتر ماء", "route": "مياه الشرب"},
-        7:   {"type": "لقاح", "name": "نيوكاسل (Lasota)", "dose": "قطرة عين", "route": "قطرة عين/أنف"},
-        14:  {"type": "لقاح", "name": "Gumboro (Intermediate)", "dose": "قطرة فم", "route": "مياه الشرب"},
-        21:  {"type": "دواء", "name": "مضاد كوكسيديا (Amprolium)", "dose": "1 جم/لتر", "route": "مياه الشرب لمدة 3 أيام"},
-        28:  {"type": "فيتامين", "name": "فيتامين C + E", "dose": "0.5 جم/لتر", "route": "مياه الشرب"},
-        35:  {"type": "لقاح", "name": "Gumboro booster", "dose": "قطرة فم", "route": "مياه الشرب"},
+        1: {"type": "فيتامين", "name": "فيتامين AD3E", "dose": "1 مل/لتر ماء", "route": "مياه الشرب"},
+        7: {"type": "لقاح", "name": "نيوكاسل (Lasota)", "dose": "قطرة عين", "route": "قطرة عين/أنف"},
+        14: {"type": "لقاح", "name": "Gumboro (Intermediate)", "dose": "قطرة فم", "route": "مياه الشرب"},
+        21: {"type": "دواء", "name": "مضاد كوكسيديا (Amprolium)", "dose": "1 جم/لتر", "route": "مياه الشرب لمدة 3 أيام"},
+        28: {"type": "فيتامين", "name": "فيتامين C + E", "dose": "0.5 جم/لتر", "route": "مياه الشرب"},
+        35: {"type": "لقاح", "name": "Gumboro booster", "dose": "قطرة فم", "route": "مياه الشرب"},
     }
 if "whatsapp_alerts_sent" not in st.session_state:
     st.session_state["whatsapp_alerts_sent"] = {}
 if "query_history" not in st.session_state:
     st.session_state["query_history"] = []
+if "audio_played" not in st.session_state:
+    st.session_state["audio_played"] = False
 
-# دوال مساعدة
-def send_whatsapp_broiler_alert(phone_number: str, message: str):
+def send_whatsapp_broiler_alert(phone_number, message):
     encoded_msg = urllib.parse.quote(message)
     whatsapp_url = f"https://wa.me/{phone_number}?text={encoded_msg}"
     st.markdown(f"<div style='background:#e8f5e9; padding:10px; border-radius:8px; direction:ltr;'>📲 <b>تنبيه عبر واتساب:</b> <a href='{whatsapp_url}' target='_blank'>اضغط لإرسال الرسالة إلى {phone_number}</a><br>{message}</div>", unsafe_allow_html=True)
 
-def check_and_alert_medications(farm_name: str, farm_data: dict, current_age: int):
+def check_and_alert_medications(farm_name, farm_data, current_age):
     phone = farm_data.get("owner_phone", WHATSAPP_NUMBER)
     schedule = st.session_state["standard_vacc_schedule"]
     alerts = []
@@ -1086,9 +880,9 @@ def check_and_alert_medications(farm_name: str, farm_data: dict, current_age: in
     else:
         st.success("✅ لا توجد تحصينات أو أدوية مستحقة اليوم.")
 
-# ==========================================
-# 10. CSS
-# ==========================================
+# ============================================================
+# 10. CSS المحسّن (ألوان ثابتة وواضحة)
+# ============================================================
 st.markdown(
     """
     <style>
@@ -1096,6 +890,7 @@ st.markdown(
     
     * {
         font-family: 'Cairo', 'Tajawal', sans-serif;
+        color: #1a1a1a !important;  /* غامق لكل النصوص */
     }
     
     html, body, [data-testid="stAppViewContainer"] {
@@ -1115,15 +910,16 @@ st.markdown(
         border-radius: 15px;
         box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.18);
         margin-bottom: 50px;
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(5px);
     }
     
-    h1, h2, h3, h4, h5, p, span, li { 
-        font-family: 'Cairo', sans-serif; 
+    h1, h2, h3, h4, h5, p, span, li, div, label, .stMarkdown, .stTextInput, .stNumberInput, .stSelectbox {
+        color: #1a1a1a !important;
+        text-shadow: none !important;
     }
     
     .formula-item {
-        background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(232,245,233,0.9) 100%);
+        background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(232,245,233,0.95) 100%);
         padding: 15px 20px;
         border-radius: 12px;
         margin-bottom: 10px;
@@ -1141,7 +937,7 @@ st.markdown(
     }
     
     .section-title {
-        color: #1b5e20;
+        color: #1b5e20 !important;
         border-right: 6px solid #2e7d32;
         padding-right: 15px;
         text-align: right;
@@ -1162,6 +958,9 @@ st.markdown(
         direction: rtl;
         text-align: right;
         box-shadow: 0px 8px 25px rgba(0,0,0,0.1);
+    }
+    .sack-tag * {
+        color: #1a1a1a !important;
     }
     
     .profile-img-style {
@@ -1195,7 +994,7 @@ st.markdown(
         left: 20px;
         bottom: 20px;
         background: linear-gradient(135deg, #1b5e20, #2e7d32);
-        color: white;
+        color: white !important;
         padding: 8px 20px;
         font-size: 0.85rem;
         border-radius: 25px;
@@ -1204,12 +1003,15 @@ st.markdown(
         direction: rtl;
         backdrop-filter: blur(5px);
     }
+    .mini-left-signature * {
+        color: white !important;
+    }
     
     .stock-critical { 
         background: linear-gradient(135deg, #ffebee, #ffcdd2); 
         padding: 8px 12px; 
         border-radius: 8px; 
-        color: #c62828; 
+        color: #c62828 !important; 
         font-weight: bold;
         border: 1px solid #ef5350;
     }
@@ -1218,7 +1020,7 @@ st.markdown(
         background: linear-gradient(135deg, #e8f5e9, #c8e6c9); 
         padding: 8px 12px; 
         border-radius: 8px; 
-        color: #2e7d32;
+        color: #2e7d32 !important;
         border: 1px solid #66bb6a;
     }
     
@@ -1232,6 +1034,9 @@ st.markdown(
         text-align: right;
         box-shadow: 0px 4px 15px rgba(0,0,0,0.1);
     }
+    .price-card * {
+        color: #1a1a1a !important;
+    }
     
     .warning-card {
         background: linear-gradient(135deg, #fff3e0, #ffe0b2);
@@ -1241,8 +1046,11 @@ st.markdown(
         margin-bottom: 15px;
         direction: rtl;
         text-align: right;
-        color: #e65100;
+        color: #e65100 !important;
         box-shadow: 0px 4px 15px rgba(0,0,0,0.1);
+    }
+    .warning-card * {
+        color: #e65100 !important;
     }
     
     .manual-book {
@@ -1254,10 +1062,13 @@ st.markdown(
         direction: rtl;
         text-align: right;
     }
+    .manual-book * {
+        color: #1a1a1a !important;
+    }
     
     .book-chapter {
         background: linear-gradient(135deg, #1a237e, #283593);
-        color: #ffffff;
+        color: #ffffff !important;
         padding: 15px 20px;
         border-radius: 10px;
         font-weight: bold;
@@ -1266,17 +1077,23 @@ st.markdown(
         box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         letter-spacing: 0.5px;
     }
+    .book-chapter * {
+        color: #ffffff !important;
+    }
     
     .book-body {
         padding: 20px 25px;
         font-size: 1.1rem;
         line-height: 1.8;
-        color: #2c3e50;
+        color: #2c3e50 !important;
         border-left: 4px solid #3498db;
         margin-bottom: 20px;
         background: linear-gradient(to right, #f8f9fa, #ffffff);
         border-radius: 0 10px 10px 0;
         box-shadow: 0px 2px 10px rgba(0,0,0,0.05);
+    }
+    .book-body * {
+        color: #2c3e50 !important;
     }
     
     .metric-card {
@@ -1287,53 +1104,58 @@ st.markdown(
         text-align: center;
         transition: transform 0.3s ease;
     }
+    .metric-card * {
+        color: #1a1a1a !important;
+    }
     
     .metric-card:hover {
         transform: translateY(-5px);
         box-shadow: 0px 8px 30px rgba(0,0,0,0.15);
     }
     
-    .analytics-container {
-        background: linear-gradient(135deg, #f5f5f5, #ffffff);
-        padding: 25px;
-        border-radius: 15px;
-        box-shadow: 0px 4px 20px rgba(0,0,0,0.08);
-        margin: 20px 0;
+    /* تحسين ألوان الأزرار والنصوص التفاعلية */
+    .stButton > button {
+        color: #1a1a1a !important;
+        background-color: #e8f5e9 !important;
+        border: 1px solid #2e7d32 !important;
+        font-weight: bold !important;
+    }
+    .stButton > button:hover {
+        background-color: #c8e6c9 !important;
     }
     
-    .pulse-animation {
-        animation: pulse 2s infinite;
+    /* إصلاح ألوان المدخلات */
+    .stTextInput > div > div > input,
+    .stNumberInput > div > div > input,
+    .stSelectbox > div > div > select {
+        color: #1a1a1a !important;
+        background-color: #ffffff !important;
     }
     
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
+    /* لون التبويبات */
+    .stTabs [data-baseweb="tab-list"] button {
+        color: #1a1a1a !important;
     }
-    
-    .gradient-text {
-        background: linear-gradient(135deg, #1b5e20, #4caf50);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
+        color: #1b5e20 !important;
         font-weight: bold;
     }
     
-    .card-hover {
-        transition: all 0.3s ease;
+    /* إزالة أي رمادية من المتنبئات */
+    .stAlert, .stInfo, .stSuccess, .stWarning, .stError {
+        color: #1a1a1a !important;
     }
-    
-    .card-hover:hover {
-        transform: translateY(-3px);
-        box-shadow: 0px 8px 25px rgba(0,0,0,0.15);
+    .stAlert * {
+        color: #1a1a1a !important;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# ==========================================
+# ============================================================
 # 11. بوابة الدخول
-# ==========================================
+# ============================================================
 MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_TIME = 300
 
@@ -1351,7 +1173,7 @@ if not st.session_state["approved"]:
 
     st.markdown('<div class="main-box" style="max-width: 500px; margin: 100px auto; direction: rtl;">', unsafe_allow_html=True)
     st.markdown("<h2 style='color: #2E7D32; text-align:center;'>🔒 بوابـة الدخـول الذكيـة</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#555;'>منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#1a1a1a;'>منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف</p>", unsafe_allow_html=True)
 
     try:
         qr = qrcode.QRCode(version=1, box_size=10, border=5)
@@ -1415,6 +1237,11 @@ if not st.session_state["approved"]:
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
+# تشغيل الصوت الترحيبي بعد المصادقة (مرة واحدة)
+if st.session_state["approved"] and not st.session_state.get("audio_played", False):
+    play_welcome_audio()
+    st.session_state["audio_played"] = True
+
 if not st.session_state["login_welcome_shown"]:
     role_messages = {
         "owner": "👋 مرحباً بك في منصتك، الاختصاصي م. عبد القادر إسماعيل تاور",
@@ -1425,15 +1252,15 @@ if not st.session_state["login_welcome_shown"]:
     st.toast(role_messages.get(st.session_state["user_role"], "مرحباً"), icon=role_icons.get(st.session_state["user_role"], "🌾"))
     st.session_state["login_welcome_shown"] = True
 
-# ==========================================
+# ============================================================
 # 12. الواجهة الرئيسية
-# ==========================================
+# ============================================================
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
 col_logout_space, col_user_status = st.columns([0.7, 0.3])
 with col_user_status:
     role_info = {"owner": "الاختصاصي م. عبد القادر إسماعيل تاور 👑", "specialist": "المختص والزملاء 👨‍🔬", "breeder": "المربي 🌾"}
-    st.markdown(f"""<div style='text-align: left; font-size:0.9rem; color:#555; background: linear-gradient(135deg, #f5f5f5, #e0e0e0); padding: 10px; border-radius: 10px;'>الحساب: <b>{role_info.get(st.session_state["user_role"], "مستخدم")}</b><br><small>آخر دخول: {datetime.now().strftime('%Y-%m-%d %H:%M')}</small></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div style='text-align: left; font-size:0.9rem; color:#1a1a1a; background: linear-gradient(135deg, #f5f5f5, #e0e0e0); padding: 10px; border-radius: 10px;'>الحساب: <b>{role_info.get(st.session_state["user_role"], "مستخدم")}</b><br><small>آخر دخول: {datetime.now().strftime('%Y-%m-%d %H:%M')}</small></div>""", unsafe_allow_html=True)
     if st.button("تسجيل الخروج 🚪", use_container_width=True):
         for key in list(st.session_state.keys()):
             if key != "inventory":
@@ -1489,9 +1316,9 @@ welcome_messages = {
 current_welcome = welcome_messages.get(st.session_state["user_role"], welcome_messages["breeder"])
 st.markdown(f"""<div style='background-color: {current_welcome["bg"]}; padding: 15px; border-radius: 8px; border-right: 5px solid {current_welcome["border"]}; text-align: right; direction: rtl; margin-bottom: 20px;'><b>{current_welcome["text"]}</b></div>""", unsafe_allow_html=True)
 
-# ==========================================
+# ============================================================
 # 13. تحديد التبويبات
-# ==========================================
+# ============================================================
 if st.session_state["user_role"] == "owner":
     tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📊 بورصة الأسعار المركزية", "🏭 إدارة المستودعات الذكية", "🧾 التسويق وفواتير البيع", "🖨️ مصمم الديباجة والدعاية", "📈 التحليلات المتقدمة", "🐔 إدارة مزارع الدجاج اللاحم (Broiler) – خاص بالمالك", "💬 تعليقات المختصين", "📚 المراجع العلمية", "💡 المساعدة الذكية", "📖 دليل المستخدم"]
 elif st.session_state["user_role"] == "specialist":
@@ -1501,15 +1328,13 @@ else:  # breeder
 
 tabs = st.tabs(tabs_titles)
 
-# ==========================================
-# 14. التبويب الأول: النمذجة والحسابات العلفية (الكامل)
-# ==========================================
+# ============================================================
+# 14. التبويب الأول: النمذجة والحسابات العلفية
+# ============================================================
 with tabs[0]:
     sub_tab_formulator, sub_tab_analyzer = st.tabs(["🎯 تركيب علفة نموذجية (أقل تكلفة بالبروتين المهضوم)", "🔬 مختبر تحليل وفحص الأعلاف الجاهزة"])
 
-    # -------------------------------------------------------------------------
-    # التبويب الفرعي: تركيب العلف
-    # -------------------------------------------------------------------------
+    # ========== تركيب العلف ==========
     with sub_tab_formulator:
         st.markdown('<div class="section-title">🌍 أولاً: تحديد الموقع الجغرافي وبورصة الأسعار</div>', unsafe_allow_html=True)
         col_country, col_state, col_city = st.columns(3)
@@ -1660,7 +1485,6 @@ with tabs[0]:
                 default_dp = 29.5 if "زريعة" in prod_stage else 25.0
                 default_se = 70.0
 
-        # تقدير الوزن بالشريط (للمجترات والخيول)
         if show_measurements:
             st.markdown('<div class="section-title">📐 القياسات الجسدية وتقدير الأوزان</div>', unsafe_allow_html=True)
             col_h, col_l, col_ag = st.columns(3)
@@ -1750,7 +1574,6 @@ with tabs[0]:
         st.markdown("---")
         nz_placeholder = st.empty()
 
-        # زر تشغيل المحرك
         if st.button("🚀 تشغيل محرك الاستمثال الخطي (بالبروتين المهضوم ومعادل النشاء)", type="primary", use_container_width=True):
             with nz_placeholder.container():
                 st.warning("⚠️ **إشعار هام بشأن الإنزيمات ومضافات الأعلاف:** يرجى التأكد من موازنة درجات حرارة كبس العلف لضمان عدم تثبيط الإنزيمات والفيتامينات الدقيقة. (سيختفي هذا الإشعار تلقائياً بعد 40 ثانية)")
@@ -1797,7 +1620,6 @@ with tabs[0]:
                 A_ub.append(fiber_indicators)
                 b_ub.append(18.0)
 
-            # الحدود الديناميكية
             dynamic_limits = {
                 "مولاس قصب السكر": {"default": 12.0, "دواجن": 5.0, "خيول": 8.0, "أسماك": 5.0},
                 "يوريا علفية محصنة (المجترات فقط)": {"default": 1.0, "دواجن": 0.0, "خيول": 0.0, "أسماك": 0.0},
@@ -1902,9 +1724,7 @@ with tabs[0]:
             time.sleep(40)
             nz_placeholder.empty()
 
-    # -------------------------------------------------------------------------
-    # التبويب الفرعي: مختبر التحليل
-    # -------------------------------------------------------------------------
+    # ========== مختبر التحليل ==========
     with sub_tab_analyzer:
         st.markdown('<div class="section-title">🔬 مختبر فحص وتحليل الخلطات الجاهزة</div>', unsafe_allow_html=True)
         st.write("اكتب مقادير خلطتك الحالية بالكيلوجرام، وسيقوم المختبر بتحليلها برمجياً لتقدير نسبة البروتين المهضوم ومعادل النشاء الإجمالي.")
@@ -2023,9 +1843,9 @@ with tabs[0]:
                 encoded_lab = urllib.parse.quote(lab_share_text)
                 st.markdown(f'<a href="https://wa.me/?text={encoded_lab}" target="_blank"><button style="background-color:#25D366; color:white; padding:10px; border-radius:5px;">📲 مشاركة النتيجة عبر واتساب</button></a>', unsafe_allow_html=True)
 
-# ==========================================
+# ============================================================
 # 15. تبويب بورصة الأسعار
-# ==========================================
+# ============================================================
 if st.session_state["user_role"] in ["owner", "specialist"]:
     with tabs[1]:
         st.markdown('<div class="section-title">📊 لوحة تحكم بورصة تاور المركزية الشاملة</div>', unsafe_allow_html=True)
@@ -2061,9 +1881,9 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                     else:
                         st.markdown(f"▪️ {product}: **${price:.2f}**")
 
-# ==========================================
+# ============================================================
 # 16. تبويب إدارة المخازن
-# ==========================================
+# ============================================================
 if st.session_state["user_role"] in ["owner", "specialist"]:
     with tabs[2]:
         st.markdown('<div class="section-title">🏭 لوحة التحكم الذكية بالمخازن والمستودعات المركزية</div>', unsafe_allow_html=True)
@@ -2102,9 +1922,9 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                     else:
                         st.session_state["inventory"][ing_name] = new_qty
 
-# ==========================================
+# ============================================================
 # 17. تبويب الفواتير
-# ==========================================
+# ============================================================
 if st.session_state["user_role"] in ["owner", "specialist"]:
     with tabs[3]:
         st.markdown('<div class="section-title">💰 نظام تسويق المنتجات وإصدار الفواتير مع الخصم التلقائي</div>', unsafe_allow_html=True)
@@ -2151,9 +1971,9 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
         else:
             st.info("ℹ️ تأكيد الفواتير وحركات الخصم متاحة حصرياً لإدارة المالك.")
 
-# ==========================================
+# ============================================================
 # 18. تبويب مصمم الديباجة
-# ==========================================
+# ============================================================
 if st.session_state["user_role"] in ["owner", "specialist"]:
     with tabs[4]:
         st.markdown('<div class="section-title">👑 مصمم ديباجات الطباعة الفنية على جوالات الأعلاف</div>', unsafe_allow_html=True)
@@ -2169,27 +1989,21 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
             if st.button("📥 تصدير الديباجة كـ PDF", use_container_width=True):
                 st.success("تم تجهيز الديباجة للطباعة!")
 
-# ==========================================
+# ============================================================
 # 19. تبويب التحليلات المتقدمة
-# ==========================================
+# ============================================================
 if st.session_state["user_role"] in ["owner", "specialist"]:
     with tabs[5]:
         st.markdown('<div class="section-title">📈 التحليلات المتقدمة ولوحة المؤشرات</div>', unsafe_allow_html=True)
-        
-        # مؤشرات الأداء
         col_met1, col_met2, col_met3, col_met4 = st.columns(4)
         with col_met1: st.markdown("""<div class="metric-card"><h3 style="color: #1b5e20;">عدد الخلطات</h3><h2 style="color: #2e7d32;">1,247</h2><p>خلطة تم توليدها</p></div>""", unsafe_allow_html=True)
         with col_met2: st.markdown("""<div class="metric-card"><h3 style="color: #1565C0;">متوسط التكلفة</h3><h2 style="color: #1976D2;">$285</h2><p>لطن العلف</p></div>""", unsafe_allow_html=True)
         with col_met3: st.markdown("""<div class="metric-card"><h3 style="color: #E65100;">نسبة التوفير</h3><h2 style="color: #F57C00;">18%</h2><p>مقارنة بالتقليدي</p></div>""", unsafe_allow_html=True)
         with col_met4: st.markdown("""<div class="metric-card"><h3 style="color: #2E7D32;">رضا العملاء</h3><h2 style="color: #388E3C;">96%</h2><p>تقييم إيجابي</p></div>""", unsafe_allow_html=True)
-        
         st.markdown("---")
-        
-        # نظام التنبؤ بالأسعار
         st.subheader("🔮 تنبؤات الأسعار")
         predictor = PricePredictor()
         ingredients = ["ذرة صفراء", "كسب فول صويا 44%", "نخالة قمح"]
-        
         col_preds = st.columns(3)
         for idx, ing in enumerate(ingredients):
             with col_preds[idx]:
@@ -2202,10 +2016,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                         delta=f"{pred['prediction'] - pred.get('current_price', 0):.2f}",
                         help=f"الثقة: {pred.get('confidence', 0)*100:.0f}%"
                     )
-        
         st.markdown("---")
-        
-        # الرسوم البيانية
         col_chart1, col_chart2 = st.columns(2)
         with col_chart1:
             st.subheader("📊 توزيع استخدام المواد العلفية")
@@ -2222,9 +2033,9 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
             fig.update_layout(title='اتجاه أسعار المواد الخام خلال العام', xaxis_title='التاريخ', yaxis_title='السعر ($/طن)', hovermode='x unified')
             st.plotly_chart(fig, use_container_width=True)
 
-# ==========================================
+# ============================================================
 # 20. تبويب إدارة مزارع الدجاج اللاحم (خاص بالمالك)
-# ==========================================
+# ============================================================
 if st.session_state["user_role"] == "owner":
     with tabs[6]:
         st.markdown('<div class="section-title">🐔 إدارة مزارع الدجاج اللاحم (Broiler Management) – خاص بالمالك</div>', unsafe_allow_html=True)
@@ -2235,7 +2046,6 @@ if st.session_state["user_role"] == "owner":
         </div>
         """, unsafe_allow_html=True)
 
-        # إدارة المزارع
         col_farms = st.columns([0.4, 0.6])
         with col_farms[0]:
             st.markdown("#### 🏠 إدارة المزارع المسجلة")
@@ -2285,7 +2095,6 @@ if st.session_state["user_role"] == "owner":
                 st.success("تمت إضافة المزرعة بنجاح!")
                 st.rerun()
 
-        # عرض بيانات المزرعة المختارة
         if selected and selected in st.session_state["broiler_farms"]:
             st.session_state["selected_farm"] = selected
             farm = st.session_state["broiler_farms"][selected]
@@ -2443,191 +2252,148 @@ if st.session_state["user_role"] == "owner":
             if not st.session_state.get("show_add_farm", False):
                 st.info("👈 يرجى إضافة مزرعة جديدة أو اختيار مزرعة مسجلة من القائمة.")
 
-# ==========================================
+# ============================================================
 # 21. تبويب تعليقات المختصين
-# ==========================================
+# ============================================================
 if st.session_state["user_role"] in ["owner", "specialist"]:
     comments_tab_index = 7 if st.session_state["user_role"] == "owner" else 6
     with tabs[comments_tab_index]:
         st.markdown('<div class="section-title">💬 قناة التواصل والتعليقات الفنية</div>', unsafe_allow_html=True)
         st.markdown("### 📝 دفتر الملاحظات الفنية المشتركة:")
         st.text_area("التعليقات الحالية:", value=st.session_state["shared_comments"], height=200, disabled=True)
-        col_comment1, col_comment2 = st.columns([0.7, 0.3])
-        with col_comment1: new_comment = st.text_input("✍️ أكتب تعليقك الفني هنا:")
-        with col_comment2:
-            if st.button("📌 حفظ ونشر التعليق", use_container_width=True):
-                if new_comment.strip():
-                    prefix = "• [توجيه الاختصاصي م. عبد القادر إسماعيل تاور]" if st.session_state["user_role"] == "owner" else "• [ملاحظة مختص]"
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    st.session_state["shared_comments"] += f"{prefix} ({timestamp}): {new_comment.strip()}\n"
-                    st.success("تمت إضافة الملاحظة بنجاح!")
-                    time.sleep(0.5)
-                    st.rerun()
-
-# ==========================================
-# 22. تبويب المراجع العلمية
-# ==========================================
-if "📚 المراجع العلمية" in tabs_titles:
-    ref_tab_index = tabs_titles.index("📚 المراجع العلمية")
-    with tabs[ref_tab_index]:
-        st.markdown('<div class="section-title">📚 المراجع العلمية المعتمدة</div>', unsafe_allow_html=True)
-        
-        topics = {
-            "general_nutrition": "المبادئ الأساسية لتغذية الحيوان",
-            "protein_amino_acids": "البروتين والأحماض الأمينية",
-            "energy_carbohydrates": "الطاقة والكربوهيدرات",
-            "minerals_vitamins": "المعادن والفيتامينات",
-            "poultry": "تغذية الدواجن",
-            "ruminants": "تغذية المجترات",
-            "sheep_goats": "تغذية الأغنام والماعز",
-            "horses": "تغذية الخيول",
-            "aquaculture": "تغذية الأسماك",
-            "animal_production": "الإنتاج الحيواني",
-            "feed_formulation": "تركيب الأعلاف",
-            "broiler": "إنتاج الدجاج اللاحم",
-            "digestible_protein": "البروتين المهضوم"
-        }
-        
-        selected_topic = st.selectbox("اختر الموضوع:", list(topics.values()))
-        topic_key = None
-        for key, value in topics.items():
-            if value == selected_topic:
-                topic_key = key
-                break
-        
-        if topic_key and topic_key in ScientificReferenceSystem.REFERENCES:
-            ref_data = ScientificReferenceSystem.REFERENCES[topic_key]
-            st.markdown(f"### {ref_data['title']}")
-            for ref in ref_data.get("references", []):
-                with st.expander(f"📖 {ref.get('title', 'مرجع')} ({ref.get('year', '')})"):
-                    cols = st.columns([0.7, 0.3])
-                    with cols[0]:
-                        st.markdown(f"""
-                        **المؤلفون:** {ref.get('authors', 'غير محدد')}
-                        **الناشر:** {ref.get('publisher', 'غير محدد')}
-                        **الطبعة:** {ref.get('edition', 'غير محدد')}
-                        **الرقم المرجعي:** `{ref.get('id', '')}`
-                        """)
-                    with cols[1]:
-                        st.info(f"**الملخص:**\n{ref.get('summary', 'لا يوجد ملخص')}")
-
-# ==========================================
-# 23. تبويب المساعدة الذكية
-# ==========================================
-if "💡 المساعدة الذكية" in tabs_titles:
-    help_tab_index = tabs_titles.index("💡 المساعدة الذكية")
-    with tabs[help_tab_index]:
-        st.markdown('<div class="section-title">💡 المساعدة الذكية - اسأل المنصة</div>', unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div style='background: #e3f2fd; padding: 15px; border-radius: 12px; border-right: 5px solid #1565C0; margin-bottom: 20px;'>
-        <b>🤖 المساعد العلمي لمنصة تاور:</b> اكتب سؤالك حول أي موضوع متعلق بالتغذية والإنتاج الحيواني، 
-        وسيقوم النظام بالرد عليك بأسلوب علمي مبسط مع المراجع المعتمدة.
-        </div>
-        """, unsafe_allow_html=True)
-        
-        quick_questions = ["ما هو البروتين المهضوم", "ما هو معادل النشاء", "ما هو مؤشر EPEF", "كيف يتم تركيب العلف الأمثل", "ما هي أهمية إضافة الإنزيمات للأعلاف"]
-        cols = st.columns(len(quick_questions))
-        for idx, q in enumerate(quick_questions):
-            with cols[idx]:
-                if st.button(q, use_container_width=True, key=f"quick_q_{idx}"):
-                    st.session_state["smart_question"] = q
-                    st.rerun()
-        
-        st.markdown("---")
-        
-        question = st.text_area("✍️ اكتب سؤالك هنا:", 
-                               value=st.session_state.get("smart_question", ""),
-                               placeholder="مثال: كيف يمكن تحسين كفاءة مزرعة الدجاج؟",
-                               height=80)
-        
-        if st.button("🔍 اسأل المنصة", type="primary", use_container_width=True):
-            if question.strip():
-                with st.spinner("🔬 جاري البحث في قاعدة المعرفة العلمية..."):
-                    knowledge = ScientificReferenceSystem.get_knowledge_answer(question)
-                    
-                    if knowledge:
-                        st.markdown("### 🤖 الرد العلمي:")
-                        st.markdown(f"""
-                        <div style='background: #f5f5f5; padding: 20px; border-radius: 12px; border-right: 5px solid #2e7d32;'>
-                            <p style='font-size: 1.1rem; line-height: 1.8;'>{knowledge['simplified']}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        with st.expander("🔬 التفاصيل العلمية والمراجع"):
-                            st.markdown(f"**الشرح العلمي:**\n\n{knowledge['answer']}")
-                            if knowledge.get('reference'):
-                                ref = knowledge['reference']
-                                st.markdown(f"**📚 المرجع:** {ref.get('authors', '')} ({ref.get('year', '')}) - {ref.get('title', '')}")
-                                st.markdown(f"**الناشر:** {ref.get('publisher', '')}")
-                                if ref.get('isbn'):
-                                    st.markdown(f"**ISBN:** {ref.get('isbn')}")
-                    else:
-                        st.info("لم أجد إجابة محددة لهذا السؤال. يمكنك طرح سؤال آخر أو التواصل مع فريق الدعم الفني.")
-                    
-                    st.session_state["query_history"].append({
-                        "question": question,
-                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M")
-                    })
-                    
-                    st.balloons()
+        col_comment1, col_comment2 = st.columns(2)
+        with col_comment1:
+            if st.session_state["user_role"] == "owner":
+                new_comment = st.text_area("📝 إضافة تعليق جديد (المالك):", placeholder="اكتب توجيهاً أو ملاحظة...")
+                if st.button("➕ نشر التعليق"):
+                    if new_comment:
+                        st.session_state["shared_comments"] += f"\n• [المالك {datetime.now().strftime('%Y-%m-%d %H:%M')}]: {new_comment}"
+                        st.success("تم نشر التعليق!")
+                        st.rerun()
             else:
-                st.warning("⚠️ يرجى كتابة سؤالك أولاً")
-        
-        if st.session_state.get("query_history"):
-            with st.expander("📋 سجل الاستفسارات السابقة"):
-                for idx, q in enumerate(st.session_state["query_history"][-5:]):
-                    st.markdown(f"**{idx+1}. {q['timestamp']}:** {q['question']}")
+                st.info("المختصون يمكنهم إضافة تعليقاتهم أدناه.")
+                spec_comment = st.text_area("📝 تعليق مختص:", placeholder="أضف ملاحظتك الفنية...")
+                if st.button("➕ إضافة تعليق مختص"):
+                    if spec_comment:
+                        st.session_state["shared_comments"] += f"\n• [مختص {datetime.now().strftime('%Y-%m-%d %H:%M')}]: {spec_comment}"
+                        st.success("تم إضافة التعليق!")
+                        st.rerun()
+        with col_comment2:
+            st.markdown("#### 📊 الإحصائيات")
+            st.metric("عدد التعليقات", len(st.session_state["shared_comments"].split('\n')))
+            if st.button("🗑️ تفريغ التعليقات", use_container_width=True):
+                if st.session_state["user_role"] == "owner":
+                    st.session_state["shared_comments"] = ""
+                    st.success("تم تفريغ جميع التعليقات!")
+                    st.rerun()
+                else:
+                    st.warning("هذه الخاصية للمالك فقط.")
 
-# ==========================================
+# ============================================================
+# 22. تبويب المراجع العلمية
+# ============================================================
+ref_tab_index = 8 if st.session_state["user_role"] == "owner" else (7 if st.session_state["user_role"] == "specialist" else 1)
+with tabs[ref_tab_index]:
+    st.markdown('<div class="section-title">📚 المراجع العلمية المعتمدة في التغذية والإنتاج الحيواني</div>', unsafe_allow_html=True)
+    ref_categories = list(ScientificReferenceSystem.REFERENCES.keys())
+    selected_cat = st.selectbox("اختر التخصص:", ref_categories, format_func=lambda x: ScientificReferenceSystem.REFERENCES[x]["title"])
+    if selected_cat:
+        cat_data = ScientificReferenceSystem.REFERENCES[selected_cat]
+        st.markdown(f"## {cat_data['title']}")
+        for ref in cat_data["references"]:
+            with st.expander(f"📖 {ref['title']} ({ref['year']})"):
+                st.markdown(f"**المؤلفون:** {ref['authors']}")
+                st.markdown(f"**الناشر:** {ref['publisher']}")
+                if 'edition' in ref:
+                    st.markdown(f"**الطبعة:** {ref['edition']}")
+                if 'isbn' in ref:
+                    st.markdown(f"**ISBN:** {ref['isbn']}")
+                st.markdown(f"**ملخص:** {ref['summary']}")
+                st.markdown(f"**الرقم المرجعي:** `{ref['id']}`")
+    st.markdown("---")
+    st.markdown("### 🧠 بنك المعرفة السريع (اسألني عن أي مصطلح)")
+    user_question = st.text_input("اكتب سؤالك عن التغذية أو الإنتاج الحيواني:")
+    if user_question:
+        answer = ScientificReferenceSystem.get_knowledge_answer(user_question)
+        if answer:
+            st.markdown(f"**الإجابة المبسطة:** {answer['simplified']}")
+            st.markdown(f"**التفصيل العلمي:** {answer['answer']}")
+            if answer['reference']:
+                ref = answer['reference']
+                st.markdown(f"**المصدر:** {ref['authors']} ({ref['year']}) - {ref['title']} - {ref['publisher']}")
+        else:
+            st.warning("لم أجد إجابة مباشرة، يمكنك البحث في المراجع أعلاه.")
+
+# ============================================================
+# 23. تبويب المساعدة الذكية
+# ============================================================
+help_tab_index = 9 if st.session_state["user_role"] == "owner" else (8 if st.session_state["user_role"] == "specialist" else 2)
+with tabs[help_tab_index]:
+    st.markdown('<div class="section-title">💡 المساعدة الذكية والأسئلة الشائعة</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div style='background: #e3f2fd; padding:20px; border-radius:12px; direction: rtl; text-align: right;'>
+    <h3>🌟 الأسئلة المتكررة:</h3>
+    <ul>
+    <li><b>كيف أبدأ في تركيب علفة؟</b> اختر القطاع الحيواني، حدد الموقع الجغرافي، ثم اختر المكونات واضغط على زر التشغيل.</li>
+    <li><b>ما هو البروتين المهضوم؟</b> هو البروتين الذي يستطيع الحيوان هضمه فعلياً، وهو أدق من البروتين الخام.</li>
+    <li><b>كيف أحسب معادل النشاء؟</b> المحرك يحسبه تلقائياً بناءً على مكونات الخلطة.</li>
+    <li><b>هل يمكنني تعديل الأسعار؟</b> نعم، المالك فقط يمكنه تعديل أسعار المواد الخام والماشية.</li>
+    <li><b>كيف أحصل على تقرير PDF؟</b> بعد تشغيل المحرك، ستجد زر تحميل التقرير.</li>
+    </ul>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown("### 🔧 دعم فني")
+    st.markdown("للتواصل مع الدعم الفني: [abukram128@gmail.com](mailto:abukram128@gmail.com)")
+
+# ============================================================
 # 24. تبويب دليل المستخدم
-# ==========================================
-guide_tab_index = -1
-if "📖 دليل المستخدم" in tabs_titles:
-    guide_tab_index = tabs_titles.index("📖 دليل المستخدم")
-
+# ============================================================
+guide_tab_index = 10 if st.session_state["user_role"] == "owner" else (9 if st.session_state["user_role"] == "specialist" else 3)
 with tabs[guide_tab_index]:
-    st.markdown('<div class="section-title">📖 كتيب دليل المستخدم والتقانة الفنية</div>', unsafe_allow_html=True)
-    col_guide, col_actions = st.columns([0.65, 0.35])
-    with col_guide:
-        st.markdown("""<div class="manual-book"><div style="text-align: center; border-bottom: 2px double #2c3e50; padding-bottom: 15px; margin-bottom: 20px;"><h2 style="color: #2e7d32; margin: 0;">📖 الكتيب الرقمي الذكي لإدارة وتشغيل المنصة</h2><p style="color: #7f8c8d; font-style: italic; margin: 5px 0 0 0;">إصدار هندسي محدث بأحدث تقنيات العرض لعام 2026</p><p style="color: #2c3e50; font-weight: bold; margin: 5px 0 0 0;">المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور</p></div>
-        <div class="book-chapter">📌 الرؤية التقنية والهندسية للمنصة</div><div class="book-body">تعتمد <b>منصة تاور العلمية</b> على معايير التغذية الدقيقة المعتمدة عالمياً. يتم صياغة قيود الاستمثال الخطي عبر مكتبة <code>SciPy</code> بالاعتماد على <b>البروتين المهضوم الحقيقي (Digestible Protein)</b> كحاصل ضرب نسبة البروتين الخام في معامل الهضم العضوي لكل خامة، بالتكامل مع قيود <b>معادل النشاء (Starch Equivalent)</b> لتقييم كفاءة طاقة العلف.</div>
-        <div class="book-chapter">📌 خارطة المكونات (Ingredients Matrix)</div><div class="book-body">تم تصنيف المواد العلفية داخل المنصة بمرونة تامة لتشمل:<br>1. <b>الحبوب ومصادر الطاقة:</b> الذرة البيضاء وسورجم الفتريتة.<br>2. <b>الأكساب والبروتينات:</b> كسب زهرة الشمس، كسب فول الصويا.<br>3. <b>الإضافات والأملاح:</b> بريمكسات، أحماض أمينية نقية.</div>
-        <div class="book-chapter">📌 القطاعات الإنتاجية المتخصصة</div><div class="book-body">• <b>قطاع الأغنام والماعز:</b> فصل برمجي ذكي بين الذكور والإناث.<br>• <b>قطاع الدواجن:</b> دواجن التسمين، البياض، والسمان.<br>• <b>قطاع المجترات:</b> تسمين لحوم أو غزارة إدرار الألبان.<br>• <b>قطاع الخيول:</b> طاقة الجري أو أمهار نامية.</div>
-        <div class="book-chapter">📌 إدارة مزارع الدجاج اللاحم (خاص بالمالك)</div><div class="book-body">• تسجيل بيانات الدورة اليومية (العمر، العدد، الأوزان، الاستهلاك، النافق، المستبعدين، الظروف البيئية).<br>• حساب تلقائي لمؤشرات ADG، FCR، EPEF، ونسب النفوق والاستبعاد.<br>• جدول الحرارة والرطوبة المرجعي حسب العمر.<br>• تقرير يومي شامل يمكن مشاركته عبر واتساب.<br>• حفظ تاريخ الدورات السابقة (حتى 10 دورات).</div>
-        <div class="book-chapter">📌 المراجع العلمية المعتمدة</div><div class="book-body">تعتمد المنصة على مراجع علمية موثوقة مثل NRC، INRA، وكبرى الجامعات العالمية، مع تحديث مستمر لقواعد البيانات لتضمين أحدث الأبحاث العلمية.</div>
-        <div class="book-chapter">📌 خطوات تشغيل المنصة</div><div class="book-body"><b>الخطوة 1:</b> حدد القطاع والنوع الإنتاجي.<br><b>الخطوة 2:</b> اختر الخامات المتوفرة وأسعار السوق.<br><b>الخطوة 3:</b> اضغط على زر التشغيل للحصول على الخلطة المثلى.<br><b>الخطوة 4:</b> استعرض التقرير وقم بطباعة الديباجة أو تصدير PDF.<br><b>الخطوة 5 (للمالك):</b> استخدم تبويب إدارة الدجاج اللاحم لتسجيل ومتابعة أداء دورات التسمين.</div></div>""", unsafe_allow_html=True)
-    with col_actions:
-        st.markdown("### 💬 قنوات التفاعل والاستشارات:")
-        st.link_button("📝 إرسال تعليق أو استشارة (نموذج جوجل)", GOOGLE_FORM_URL, use_container_width=True)
-        welcome_msg = "السلام عليكم م. عبد القادر، أود الحصول على استشارة فنية بخصوص تركيب الأعلاف وحساب العلائق..."
-        encoded_msg = urllib.parse.quote(welcome_msg)
-        whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}?text={encoded_msg}"
-        st.link_button("💬 تواصل واستشارة عبر الواتساب", whatsapp_link, use_container_width=True)
-        st.markdown("<br><b>📢 انشر البرنامج وشارك المعرفة:</b>", unsafe_allow_html=True)
-        share_text_base = "أستخدم الآن منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف لحساب العلائق بأقل تكلفة ودقة علمية عالية، تحت إشراف م. عبد القادر إسماعيل تاور. كما تتضمن إدارة متقدمة لمزارع الدجاج اللاحم."
-        encoded_share_text = urllib.parse.quote(share_text_base)
-        col_wa, col_fb = st.columns(2)
-        with col_wa: st.link_button("🟢 واتساب", f"https://wa.me/?text={encoded_share_text}", use_container_width=True)
-        with col_fb: st.link_button("🔵 فيسبوك", f"https://www.facebook.com/sharer/sharer.php?u=https://yourplatform.com&quote={encoded_share_text}", use_container_width=True)
+    st.markdown('<div class="section-title">📖 دليل المستخدم الشامل</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="manual-book">
+    <h3>🎯 الغرض من المنصة</h3>
+    <p>منصة تاور العلمية هي أداة ذكية لتركيب الأعلاف الحيوانية بأقل تكلفة، مع تحقيق التوازن الغذائي المطلوب بناءً على البروتين المهضوم ومعادل النشاء.</p>
+    
+    <div class="book-chapter">الفصل الأول: تسجيل الدخول</div>
+    <div class="book-body">
+    يمكنك الدخول باستخدام كود سري أو اسم مستخدم وكلمة مرور. الكود الافتراضي للمالك هو <b>202687</b>.
+    </div>
+    
+    <div class="book-chapter">الفصل الثاني: تركيب العلفة</div>
+    <div class="book-body">
+    <ol>
+    <li>اختر الموقع الجغرافي (الدولة، الولاية، المدينة) لتحديد الأسعار المحلية.</li>
+    <li>اختر القطاع الحيواني (أغنام، ماعز، أبقار، خيول، دواجن، أسماك).</li>
+    <li>اختر السلالة ونوع الإنتاج.</li>
+    <li>حدد نسبة البروتين المهضوم ومعادل النشاء (يمكنك استخدام القيم المقترحة أو تعديلها).</li>
+    <li>اختر المكونات من المكتبة المتاحة (يمكنك اختيار عدة مواد).</li>
+    <li>اضغط على زر تشغيل المحرك للحصول على الخلطة المثلى.</li>
+    </ol>
+    </div>
+    
+    <div class="book-chapter">الفصل الثالث: إدارة المخازن والفواتير</div>
+    <div class="book-body">
+    يمكن للمالك تحديث أرصدة المخازن، وإصدار فواتير البيع مع الخصم التلقائي من المخزون.
+    </div>
+    
+    <div class="book-chapter">الفصل الرابع: إدارة مزارع الدجاج</div>
+    <div class="book-body">
+    خاصة بالمالك، تتيح لك تسجيل مزارع الدجاج اللاحم، وتدوين البيانات اليومية (الوزن، العلف، النافق، التحصينات)، وحساب مؤشرات الأداء مثل ADG، FCR، EPEF.
+    </div>
+    
+    <div class="book-chapter">الفصل الخامس: المراجع والمساعدة</div>
+    <div class="book-body">
+    يمكنك الاطلاع على المراجع العلمية المعتمدة، وطرح الأسئلة في بنك المعرفة السريع، والحصول على مساعدة فورية.
+    </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-# ==========================================
-# 25. أرشفة السورس كود للمالك
-# ==========================================
-if st.session_state["user_role"] == "owner":
-    st.markdown("<br><hr style='border-top: 1px dashed #2e7d32;'>", unsafe_allow_html=True)
-    st.markdown("<h3 style='color: #1565C0; text-align:right;'>📨 أرشفة شفرة المصدر البرمجية</h3>", unsafe_allow_html=True)
-    col_mail_info, col_btn = st.columns([0.7, 0.3])
-    with col_mail_info:
-        st.info(f"🔒 حماية الخصوصية نشطة: سيتم إرسال ملف الكود مباشرة إلى البريد الشخصي للمالك: ({OWNER_EMAIL})")
-    with col_btn:
-        if st.button("إرسال نسخة الكود للمالك 🚀", use_container_width=True, type="secondary"):
-            with st.spinner("جاري تأمين الاتصال السحابي وإرسال السورس كود..."):
-                if send_code_to_mail(OWNER_EMAIL):
-                    st.success(f"📥 تم إرسال السورس كود المحدث بأمان كملف (.py) إلى بريدك الهندسي.")
+# ============================================================
+# 25. التذييل الثابت
+# ============================================================
+st.markdown('<div class="mini-left-signature">🌾 منصة تاور العلمية | الاختصاصي م. عبد القادر إسماعيل تاور © 2026</div>', unsafe_allow_html=True)
 
-# ==========================================
-# 26. التذييل
-# ==========================================
 st.markdown('</div>', unsafe_allow_html=True)
-st.markdown("""<div class="mini-left-signature">👨‍🔬 الاختصاصي م. عبد القادر إسماعيل تاور © 2026 | منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف</div>""", unsafe_allow_html=True)
