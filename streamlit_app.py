@@ -1,5 +1,5 @@
 # Digital Signature: d6bcdf1baab1bde909b2a1008276980a
-# Generated: 2026-07-14T22:00:00.000000
+# Generated: 2026-07-15T02:00:00.000000
 # المشرف العام: المهندس عبدالقادر إسماعيل تاور
 
 import os
@@ -50,17 +50,29 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.font_manager as fm
 
-# ========== 🔐 الحماية الأساسية (تم تعطيلها للسماح بالتشغيل الفوري) ==========
-# لم نعد نطلب مفتاح البيئة، بل نعرض تحذيراً فقط
-ENV_KEY = os.environ.get("TOWER_PLATFORM_KEY", "")
-if ENV_KEY != "d6bcdf1baab1bde909b2a1008276980a":
-    st.warning("⚠️ لم يتم تعيين مفتاح البيئة. يمكنك المتابعة، لكن يُنصح بتعيينه للأمان.")
-    # نستمر في التنفيذ دون إيقاف
-
-# ========== 🛡️ نظام التحقق بالبريد الإلكتروني (OTP) - إلزامي ==========
+# ========== 🔐 نظام التحقق بالبريد الإلكتروني (OTP - لمرة واحدة) ==========
 ALLOWED_EMAIL = "abukram128@gmail.com"
 OTP_STORAGE = {}
 OTP_EXPIRY_SECONDS = 300
+VERIFICATION_FILE = "verified.txt"  # ملف لحفظ حالة التحقق
+
+def is_device_verified() -> bool:
+    if os.path.exists(VERIFICATION_FILE):
+        try:
+            with open(VERIFICATION_FILE, "r", encoding="utf-8") as f:
+                stored_email = f.read().strip()
+                return stored_email == ALLOWED_EMAIL
+        except:
+            return False
+    return False
+
+def mark_device_verified():
+    with open(VERIFICATION_FILE, "w", encoding="utf-8") as f:
+        f.write(ALLOWED_EMAIL)
+
+def reset_device_verification():
+    if os.path.exists(VERIFICATION_FILE):
+        os.remove(VERIFICATION_FILE)
 
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
@@ -616,7 +628,6 @@ class MarketPriceEngine:
             multiplier = 1.04
         for k in feed_prices:
             feed_prices[k] *= multiplier
-        # دمج الأسعار المحدّثة من الروابط
         live_feed = st.session_state.get("live_feed_prices", {})
         for k, v in live_feed.items():
             if k in feed_prices:
@@ -680,14 +691,15 @@ h1,h2,h3,h4,h5,p,span,li { font-family: 'Cairo', sans-serif; }
 </style>
 """, unsafe_allow_html=True)
 
-# ========== منطق الدخول مع OTP ==========
+# ========== منطق الدخول مع OTP (لمرة واحدة) ==========
 if "approved" not in st.session_state: st.session_state["approved"] = False
 if "user_role" not in st.session_state: st.session_state["user_role"] = None
 if "login_welcome_shown" not in st.session_state: st.session_state["login_welcome_shown"] = False
 if "login_attempts" not in st.session_state: st.session_state["login_attempts"] = 0
 if "last_login_time" not in st.session_state: st.session_state["last_login_time"] = None
 if "session_token" not in st.session_state: st.session_state["session_token"] = None
-if "otp_verified" not in st.session_state: st.session_state["otp_verified"] = False
+if "otp_verified" not in st.session_state:
+    st.session_state["otp_verified"] = is_device_verified()  # نتحقق من الملف
 if "otp_sent" not in st.session_state: st.session_state["otp_sent"] = False
 if "otp_email" not in st.session_state: st.session_state["otp_email"] = ""
 
@@ -710,7 +722,6 @@ if not st.session_state["approved"]:
     st.markdown("<h2 style='color: #2E7D32; text-align:center;'>🔒 بوابـة الدخـول الذكيـة</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#555;'>منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف</p>")
 
-    # QR Code
     try:
         qr = qrcode.QRCode(version=1, box_size=10, border=5)
         qr.add_data("https://tower-scientific-platform.streamlit.app")
@@ -734,8 +745,6 @@ if not st.session_state["approved"]:
                 st.session_state["login_attempts"] = 0
                 st.session_state["last_login_time"] = datetime.now()
                 st.session_state["session_token"] = secrets.token_urlsafe(32)
-                st.session_state["otp_verified"] = False
-                st.session_state["otp_sent"] = False
                 st.rerun()
             else:
                 st.session_state["login_attempts"] += 1
@@ -748,11 +757,11 @@ if not st.session_state["approved"]:
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
-# ========== التحقق بالبريد الإلكتروني ==========
+# ========== التحقق بالبريد الإلكتروني (مرة واحدة) ==========
 if st.session_state["approved"] and not st.session_state["otp_verified"]:
     st.markdown('<div class="main-box" style="max-width: 500px; margin: 50px auto; direction: rtl;">', unsafe_allow_html=True)
     st.markdown("<h3 style='color:#2E7D32; text-align:center;'>📧 التحقق بالبريد الإلكتروني</h3>")
-    st.markdown("<p style='text-align:center;'>أدخل بريدك الإلكتروني لتتلقى رمز التحقق.</p>")
+    st.markdown("<p style='text-align:center;'>أدخل بريدك الإلكتروني لتتلقى رمز التحقق. (يطلب مرة واحدة فقط لهذا الجهاز)</p>")
 
     email_input = st.text_input("البريد الإلكتروني", value=st.session_state["otp_email"])
     if st.button("📨 إرسال رمز التحقق", use_container_width=True):
@@ -774,9 +783,10 @@ if st.session_state["approved"] and not st.session_state["otp_verified"]:
         otp_input = st.text_input("🔢 أدخل رمز التحقق (6 أرقام)", type="password")
         if st.button("🔓 تحقق", use_container_width=True):
             if verify_otp(st.session_state["otp_email"], otp_input):
+                mark_device_verified()
                 st.session_state["otp_verified"] = True
                 st.session_state["login_welcome_shown"] = False
-                st.success("✅ تم التحقق بنجاح! مرحباً بك.")
+                st.success("✅ تم التحقق بنجاح! لن يُطلب منك الرمز مرة أخرى على هذا الجهاز.")
                 time.sleep(1)
                 st.rerun()
             else:
@@ -855,7 +865,7 @@ st.markdown("---")
 
 # ========== رسالة ترحيبية ==========
 welcome_messages = {
-    "owner": {"bg": "#eff6ff", "border": "#1d4ed8", "text": "👑 أهلاً بك في منصتك، المهندس عبدالقادر إسماعيل تاور. نظام التوازن الدقيق بالبروتين المهضوم ومعادل النشاء قيد التشغيل الآن بكفاءة متناهية. كما تم تفعيل إدارة مزارع الدجاج اللاحم ونظام البورصة والتحقق بالبريد الإلكتروني."},
+    "owner": {"bg": "#eff6ff", "border": "#1d4ed8", "text": "👑 أهلاً بك في منصتك، المهندس عبدالقادر إسماعيل تاور. نظام التوازن الدقيق بالبروتين المهضوم ومعادل النشاء قيد التشغيل الآن بكفاءة متناهية. كما تم تفعيل إدارة مزارع الدجاج اللاحم ونظام البورصة والتحقق بالبريد الإلكتروني (مرة واحدة)."},
     "specialist": {"bg": "#f0fdf4", "border": "#16a34a", "text": "🔬 مرحباً بكم في منصة تركيب وتحليل الأعلاف الذكية. يسعد المهندس عبدالقادر إسماعيل تاور بالترحيب بالزملاء من الأطباء البيطريين ومختصي الإنتاج الحيواني."},
     "breeder": {"bg": "#fffbeb", "border": "#d97706", "text": "🚜 أهلاً وسهلاً بكم في منصة تاور العلمية. نرحب بإخواننا المربين. نوفر لكم خلطات مبنية على القيمة الغذائية الحقيقية الممتصة لضمان التوفير المالي العالي."}
 }
