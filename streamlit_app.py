@@ -1,5 +1,5 @@
 # Digital Signature: d6bcdf1baab1bde909b2a1008276980a
-# Generated: 2026-07-15T02:00:00.000000
+# Generated: 2026-07-15T04:00:00.000000
 # المشرف العام: المهندس عبدالقادر إسماعيل تاور
 
 import os
@@ -50,65 +50,6 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.font_manager as fm
 
-# ========== 🔐 نظام التحقق بالبريد الإلكتروني (OTP - لمرة واحدة) ==========
-ALLOWED_EMAIL = "abukram128@gmail.com"
-OTP_STORAGE = {}
-OTP_EXPIRY_SECONDS = 300
-VERIFICATION_FILE = "verified.txt"  # ملف لحفظ حالة التحقق
-
-def is_device_verified() -> bool:
-    if os.path.exists(VERIFICATION_FILE):
-        try:
-            with open(VERIFICATION_FILE, "r", encoding="utf-8") as f:
-                stored_email = f.read().strip()
-                return stored_email == ALLOWED_EMAIL
-        except:
-            return False
-    return False
-
-def mark_device_verified():
-    with open(VERIFICATION_FILE, "w", encoding="utf-8") as f:
-        f.write(ALLOWED_EMAIL)
-
-def reset_device_verification():
-    if os.path.exists(VERIFICATION_FILE):
-        os.remove(VERIFICATION_FILE)
-
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-SENDER_EMAIL = "abukram128@gmail.com"
-SENDER_PASSWORD = "oynz rdli tsdy ekdq"
-
-def send_otp_email(receiver_email: str, otp_code: str) -> bool:
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = receiver_email
-        msg['Subject'] = "🔐 رمز التحقق - منصة تاور العلمية"
-        body = f"السلام عليكم،\n\nرمز التحقق الخاص بك هو: {otp_code}\n\nهذا الرمز صالح لمدة 5 دقائق.\n\nمع تحيات المهندس عبدالقادر إسماعيل تاور."
-        msg.attach(MIMEText(body, 'plain', 'utf-8'))
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
-        server.quit()
-        return True
-    except Exception as e:
-        st.error(f"❌ فشل إرسال رمز التحقق: {e}")
-        return False
-
-def generate_otp() -> str:
-    import random
-    return ''.join(random.choices('0123456789', k=6))
-
-def verify_otp(email: str, otp_input: str) -> bool:
-    if email not in OTP_STORAGE:
-        return False
-    stored_otp, timestamp = OTP_STORAGE[email]
-    if (datetime.now() - timestamp).seconds > OTP_EXPIRY_SECONDS:
-        return False
-    return stored_otp == otp_input
-
 # ========== إعدادات المنصة ==========
 st.set_page_config(
     page_title="منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف",
@@ -133,6 +74,12 @@ OWNER_EMAIL = "abukram128@gmail.com"
 WHATSAPP_NUMBER = "+249123533489"
 GOOGLE_FORM_URL = "https://forms.google.com/YOUR_FORM_URL"
 
+# إعدادات SMTP (لإرسال السورس كود فقط)
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SENDER_EMAIL = "abukram128@gmail.com"
+SENDER_PASSWORD = "oynz rdli tsdy ekdq"
+
 @st.cache_data(ttl=3600)
 def get_image_base64(paths: List[str]) -> Optional[str]:
     for path in paths:
@@ -156,7 +103,7 @@ def send_code_to_mail(receiver_email: str, attachment_type: str = "full") -> boo
     body = """السلام عليكم مهندس عبدالقادر،
 
 مرفق مع هذه الرسالة النسخة البرمجية الكاملة والمستقرة لمنصتكم الذكية (منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف) 
-بعد تحديث الدليل والواجهات بالكامل وتضمين معايير البروتين المهضوم ومعادل النشاء ونظام إدارة مزارع الدجاج اللاحم، بالإضافة إلى نظام ربط البورصة عبر روابط JSON ونظام التحقق بالبريد الإلكتروني.
+بعد تحديث الدليل والواجهات بالكامل وتضمين معايير البروتين المهضوم ومعادل النشاء ونظام إدارة مزارع الدجاج اللاحم، بالإضافة إلى نظام ربط البورصة عبر روابط JSON.
 
 تحياتي الهندسية."""
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
@@ -691,17 +638,13 @@ h1,h2,h3,h4,h5,p,span,li { font-family: 'Cairo', sans-serif; }
 </style>
 """, unsafe_allow_html=True)
 
-# ========== منطق الدخول مع OTP (لمرة واحدة) ==========
+# ========== منطق الدخول (بدون OTP) ==========
 if "approved" not in st.session_state: st.session_state["approved"] = False
 if "user_role" not in st.session_state: st.session_state["user_role"] = None
 if "login_welcome_shown" not in st.session_state: st.session_state["login_welcome_shown"] = False
 if "login_attempts" not in st.session_state: st.session_state["login_attempts"] = 0
 if "last_login_time" not in st.session_state: st.session_state["last_login_time"] = None
 if "session_token" not in st.session_state: st.session_state["session_token"] = None
-if "otp_verified" not in st.session_state:
-    st.session_state["otp_verified"] = is_device_verified()  # نتحقق من الملف
-if "otp_sent" not in st.session_state: st.session_state["otp_sent"] = False
-if "otp_email" not in st.session_state: st.session_state["otp_email"] = ""
 
 MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_TIME = 300
@@ -757,45 +700,7 @@ if not st.session_state["approved"]:
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
-# ========== التحقق بالبريد الإلكتروني (مرة واحدة) ==========
-if st.session_state["approved"] and not st.session_state["otp_verified"]:
-    st.markdown('<div class="main-box" style="max-width: 500px; margin: 50px auto; direction: rtl;">', unsafe_allow_html=True)
-    st.markdown("<h3 style='color:#2E7D32; text-align:center;'>📧 التحقق بالبريد الإلكتروني</h3>")
-    st.markdown("<p style='text-align:center;'>أدخل بريدك الإلكتروني لتتلقى رمز التحقق. (يطلب مرة واحدة فقط لهذا الجهاز)</p>")
-
-    email_input = st.text_input("البريد الإلكتروني", value=st.session_state["otp_email"])
-    if st.button("📨 إرسال رمز التحقق", use_container_width=True):
-        if email_input.strip() == ALLOWED_EMAIL:
-            otp = generate_otp()
-            if send_otp_email(email_input, otp):
-                OTP_STORAGE[email_input] = (otp, datetime.now())
-                st.session_state["otp_sent"] = True
-                st.session_state["otp_email"] = email_input
-                st.success("✅ تم إرسال رمز التحقق إلى بريدك الإلكتروني.")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("❌ فشل إرسال الرمز، حاول مرة أخرى.")
-        else:
-            st.error("⚠️ البريد الإلكتروني غير معتمد. يرجى استخدام البريد المخصص للمالك.")
-
-    if st.session_state["otp_sent"]:
-        otp_input = st.text_input("🔢 أدخل رمز التحقق (6 أرقام)", type="password")
-        if st.button("🔓 تحقق", use_container_width=True):
-            if verify_otp(st.session_state["otp_email"], otp_input):
-                mark_device_verified()
-                st.session_state["otp_verified"] = True
-                st.session_state["login_welcome_shown"] = False
-                st.success("✅ تم التحقق بنجاح! لن يُطلب منك الرمز مرة أخرى على هذا الجهاز.")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("❌ رمز غير صحيح أو منتهي الصلاحية.")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.stop()
-
-# ========== بعد التحقق ==========
+# ========== بعد تسجيل الدخول ==========
 if not st.session_state["login_welcome_shown"]:
     role_messages = {
         "owner": "👋 مرحباً بك في منصتك، المهندس عبدالقادر إسماعيل تاور",
@@ -819,7 +724,6 @@ with col_user_status:
                 del st.session_state[key]
         st.session_state["approved"] = False
         st.session_state["user_role"] = None
-        st.session_state["otp_verified"] = False
         st.rerun()
 
 col_logo, col_title = st.columns([0.3, 0.7])
@@ -865,7 +769,7 @@ st.markdown("---")
 
 # ========== رسالة ترحيبية ==========
 welcome_messages = {
-    "owner": {"bg": "#eff6ff", "border": "#1d4ed8", "text": "👑 أهلاً بك في منصتك، المهندس عبدالقادر إسماعيل تاور. نظام التوازن الدقيق بالبروتين المهضوم ومعادل النشاء قيد التشغيل الآن بكفاءة متناهية. كما تم تفعيل إدارة مزارع الدجاج اللاحم ونظام البورصة والتحقق بالبريد الإلكتروني (مرة واحدة)."},
+    "owner": {"bg": "#eff6ff", "border": "#1d4ed8", "text": "👑 أهلاً بك في منصتك، المهندس عبدالقادر إسماعيل تاور. نظام التوازن الدقيق بالبروتين المهضوم ومعادل النشاء قيد التشغيل الآن بكفاءة متناهية. كما تم تفعيل إدارة مزارع الدجاج اللاحم ونظام البورصة."},
     "specialist": {"bg": "#f0fdf4", "border": "#16a34a", "text": "🔬 مرحباً بكم في منصة تركيب وتحليل الأعلاف الذكية. يسعد المهندس عبدالقادر إسماعيل تاور بالترحيب بالزملاء من الأطباء البيطريين ومختصي الإنتاج الحيواني."},
     "breeder": {"bg": "#fffbeb", "border": "#d97706", "text": "🚜 أهلاً وسهلاً بكم في منصة تاور العلمية. نرحب بإخواننا المربين. نوفر لكم خلطات مبنية على القيمة الغذائية الحقيقية الممتصة لضمان التوفير المالي العالي."}
 }
