@@ -1,5 +1,5 @@
 # Digital Signature: d6bcdf1baab1bde909b2a1008276980a
-# Generated: 2026-07-14T20:00:00.000000
+# Generated: 2026-07-14T22:00:00.000000
 # المشرف العام: المهندس عبدالقادر إسماعيل تاور
 
 import os
@@ -50,16 +50,17 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.font_manager as fm
 
-# ========== 🔐 الحماية الأساسية (مفتاح البيئة) ==========
+# ========== 🔐 الحماية الأساسية (تم تعطيلها للسماح بالتشغيل الفوري) ==========
+# لم نعد نطلب مفتاح البيئة، بل نعرض تحذيراً فقط
 ENV_KEY = os.environ.get("TOWER_PLATFORM_KEY", "")
 if ENV_KEY != "d6bcdf1baab1bde909b2a1008276980a":
-    st.error("⚠️ هذا الكود محمي ولا يمكن تشغيله خارج بيئة معتمدة. يرجى التواصل مع المهندس عبدالقادر إسماعيل تاور.")
-    st.stop()
+    st.warning("⚠️ لم يتم تعيين مفتاح البيئة. يمكنك المتابعة، لكن يُنصح بتعيينه للأمان.")
+    # نستمر في التنفيذ دون إيقاف
 
-# ========== 🛡️ نظام التحقق بالبريد الإلكتروني (OTP) ==========
+# ========== 🛡️ نظام التحقق بالبريد الإلكتروني (OTP) - إلزامي ==========
 ALLOWED_EMAIL = "abukram128@gmail.com"
-OTP_STORAGE = {}  # {email: (otp_code, timestamp)}
-OTP_EXPIRY_SECONDS = 300  # 5 دقائق
+OTP_STORAGE = {}
+OTP_EXPIRY_SECONDS = 300
 
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
