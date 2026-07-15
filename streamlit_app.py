@@ -1,6 +1,6 @@
 # Digital Signature: d6bcdf1baab1bde909b2a1008276980a
-# Generated: 2026-07-15T10:00:00.000000
-# المشرف العام: المهندس عبدالقادر إسماعيل تاور
+# Generated: 2026-07-15T14:00:00.000000
+# المشرف العام: الاختصاصي عبدالقادر إسماعيل تاور
 
 import os
 import streamlit as st
@@ -33,6 +33,7 @@ warnings.filterwarnings('ignore')
 # ========== مكتبات الصوت ==========
 from gtts import gTTS
 import io
+import re
 
 # ========== مكتبات PDF والعربية ==========
 from reportlab.pdfgen import canvas
@@ -54,11 +55,22 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.font_manager as fm
 
-# ========== دوال الصوت ==========
+# ========== دالة إزالة التشكيل ==========
+def remove_diacritics(text: str) -> str:
+    """
+    إزالة علامات التشكيل (الحركات، التنوين، الشدة) من النص العربي.
+    يحافظ على الحروف والكلمات مع إزالة الرموز العلوية والسفلية.
+    """
+    diacritics = re.compile(r'[\u064B-\u0652\u0670]')  # نطاق علامات التشكيل
+    return re.sub(diacritics, '', text)
+
+# ========== دوال الصوت (مُحسَّنة) ==========
 def text_to_speech_audio(text: str, lang: str = 'ar') -> io.BytesIO:
-    """تحويل النص إلى كلام وإرجاع كائن BytesIO للصوت."""
+    """تحويل النص إلى كلام بعد إزالة التشكيل لتحسين النطق."""
     try:
-        tts = gTTS(text=text, lang=lang, slow=False)
+        # تنظيف النص من التشكيل
+        cleaned_text = remove_diacritics(text)
+        tts = gTTS(text=cleaned_text, lang=lang, slow=False)
         audio_bytes = io.BytesIO()
         tts.write_to_fp(audio_bytes)
         audio_bytes.seek(0)
@@ -75,13 +87,13 @@ def play_welcome_audio():
     باستخدام محرك الاستمثال الخطي القائم على البروتين المهضوم ومعادل النشاء. 
     كما توفر إدارة متكاملة للمزارع، وبورصة الأسعار، وتحليلات متقدمة. 
     نتمنى لكم تجربة ممتعة ومفيدة. 
-    مع تحيات المهندس عبدالقادر إسماعيل تاور."""
+    مع تحيات الاختصاصي عبدالقادر إسماعيل تاور."""
     audio = text_to_speech_audio(welcome_text)
     if audio:
         st.audio(audio, format='audio/mp3')
 
 def play_guide_audio():
-    """تشغيل الدليل الصوتي."""
+    """تشغيل الدليل الصوتي (مع تنظيف التشكيل)."""
     guide_text = """مرحباً بكم في دليل منصة تاور العلمية.
     
     هذه المنصة مصممة لمساعدة المربين والمختصين في تركيب أعلاف متوازنة بأقل تكلفة ممكنة.
@@ -114,7 +126,7 @@ def init_caching_system():
 CACHE_SYSTEM = init_caching_system()
 
 CODES_DB = {
-    "202687": {"role": "owner", "name": "المهندس عبدالقادر إسماعيل تاور", "level": 3},
+    "202687": {"role": "owner", "name": "الاختصاصي عبدالقادر إسماعيل تاور", "level": 3},
     "2020": {"role": "specialist", "name": "المختص والزملاء", "level": 2},
     "2026": {"role": "breeder", "name": "المربي", "level": 1}
 }
@@ -150,10 +162,10 @@ def send_code_to_mail(receiver_email: str, attachment_type: str = "full") -> boo
     msg['From'] = SENDER_EMAIL
     msg['To'] = receiver_email
     msg['Subject'] = "🌾 السورس كود الكامل والمطور - منصة تاور العلمية"
-    body = """السلام عليكم مهندس عبدالقادر،
+    body = """السلام عليكم الاختصاصي عبدالقادر،
 
 مرفق مع هذه الرسالة النسخة البرمجية الكاملة والمستقرة لمنصتكم الذكية (منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف) 
-بعد تحديث الدليل والواجهات بالكامل وتضمين معايير البروتين المهضوم ومعادل النشاء ونظام إدارة مزارع الدجاج اللاحم، بالإضافة إلى نظام ربط البورصة عبر روابط JSON، وتوسيع مكتبة المواد العلفية، وإضافة خاصية الترحيب والدليل الصوتي.
+بعد تحديث الدليل والواجهات بالكامل وتضمين معايير البروتين المهضوم ومعادل النشاء ونظام إدارة مزارع الدجاج اللاحم، بالإضافة إلى نظام ربط البورصة عبر روابط JSON، وتوسيع مكتبة المواد العلفية، وإضافة خاصية الترحيب والدليل الصوتي مع تحسين النطق، وإضافة فيديو شرح.
 
 تحياتي الهندسية."""
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
@@ -211,7 +223,7 @@ class ProfessionalPDFGenerator:
 
         story.append(p("تقرير فني شامل - منصة تاور العلمية", size=22, align=TA_CENTER, color=HexColor('#1b5e20')))
         story.append(Spacer(1, 12))
-        for line in [f"المشرف العام: المهندس عبدالقادر إسماعيل تاور", f"الموقع الجغرافي: {city}", f"الفصيل المستهدف: {breed}", f"تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %H:%M')}"]:
+        for line in [f"المشرف العام: الاختصاصي عبدالقادر إسماعيل تاور", f"الموقع الجغرافي: {city}", f"الفصيل المستهدف: {breed}", f"تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %H:%M')}"]:
             story.append(p(line, size=11))
         story.append(Spacer(1, 15))
 
@@ -273,7 +285,7 @@ class ProfessionalPDFGenerator:
                 pass
 
         story.append(Spacer(1, 25))
-        story.append(p("تم التوليد بواسطة منصة تاور العلمية © 2026 | تحت إشراف المهندس عبدالقادر إسماعيل تاور", size=9, align=TA_CENTER, color=HexColor('#666666')))
+        story.append(p("تم التوليد بواسطة منصة تاور العلمية © 2026 | تحت إشراف الاختصاصي عبدالقادر إسماعيل تاور", size=9, align=TA_CENTER, color=HexColor('#666666')))
         doc.build(story)
         buffer.seek(0)
         return buffer.getvalue()
@@ -340,11 +352,9 @@ def fetch_prices_from_url(url: str, mapping: Dict[str, str]) -> Dict[str, float]
         return {}
 
 def update_all_prices_from_feeds():
-    """تحديث جميع الأسعار من الروابط المحفوظة لكل منطقة."""
     feeds = st.session_state["price_feeds"]
     updated = False
     for region, urls in feeds.items():
-        # تحديث أسعار الحيوانات
         if "livestock" in urls and urls["livestock"]:
             mapping = {
                 "عجول تسمين هولشتاين / محسن ($)": "beef",
@@ -361,7 +371,6 @@ def update_all_prices_from_feeds():
                     if k in st.session_state["global_livestock_prices"]:
                         st.session_state["global_livestock_prices"][k] = v
                 updated = True
-        # تحديث أسعار المنتجات
         if "products" in urls and urls["products"]:
             mapping = {
                 "كيلو لحم بقري صافي ($)": "beef_meat",
@@ -378,7 +387,6 @@ def update_all_prices_from_feeds():
                     if k in st.session_state["global_products_prices"]:
                         st.session_state["global_products_prices"][k] = v
                 updated = True
-        # تحديث أسعار الخامات العلفية
         if "feeds" in urls and urls["feeds"]:
             mapping = {
                 "ذرة صفراء": "corn", "ذرة بيضاء": "white_corn", "شعير مطحون": "barley",
@@ -502,7 +510,6 @@ BIG_FEEDS_LIBRARY = {
         "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 3.0},
         "كبريتات الحديدوز (معادل الجوسيبول)": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 98.0},
         "مستخلص الخمائر والجدر الخلوية (MOS)": {"CP": 12.0, "DC": 0.50, "SE": 10.0, "NDF": 2.5, "ADF": 1.5, "EE": 1.5, "ASH": 8.5},
-        # إضافات جديدة
         "خميرة الخبز (Baker's Yeast)": {"CP": 45.0, "DC": 0.90, "SE": 55.0, "NDF": 5.0, "ADF": 2.0, "EE": 2.0, "ASH": 6.0},
         "مسحوق الحليب (كامل الدسم)": {"CP": 25.0, "DC": 0.95, "SE": 60.0, "NDF": 0.0, "ADF": 0.0, "EE": 26.0, "ASH": 8.0},
         "دهن نباتي صالح للعلف": {"CP": 0.0, "DC": 0.0, "SE": 85.0, "NDF": 0.0, "ADF": 0.0, "EE": 99.0, "ASH": 0.5},
@@ -586,7 +593,7 @@ if "global_products_prices" not in st.session_state:
     }
 if "shared_comments" not in st.session_state:
     st.session_state["shared_comments"] = (
-        "• [توجيه المهندس عبدالقادر إسماعيل تاور]: يرجى من جميع الزملاء إضافة تعليقاتهم هنا لتبادل الخبرات التركيبية.\n"
+        "• [توجيه الاختصاصي عبدالقادر إسماعيل تاور]: يرجى من جميع الزملاء إضافة تعليقاتهم هنا لتبادل الخبرات التركيبية.\n"
         "• [ملاحظة مختص]: تم مراجعة جودة كسب زهرة الشمس المتاح حالياً بالأسواق ونوصي بضبط ألياف الخيل بناءً عليه.\n"
     )
 
@@ -617,7 +624,6 @@ class MarketPriceEngine:
             "الحجر الجيري (بودرة بلاط)": 40.0, "فوسفات ثنائي الكالسيوم (DCP)": 280.0,
             "ملح الطعام": 30.0, "مضاد سموم فطرية": 950.0,
             "بيكربونات الصوديوم (الصودا)": 340.0,
-            # المواد الجديدة
             "خميرة الخبز (Baker's Yeast)": 500.0,
             "مسحوق الحليب (كامل الدسم)": 850.0,
             "دهن نباتي صالح للعلف": 650.0,
@@ -642,7 +648,6 @@ class MarketPriceEngine:
             multiplier = 1.04
         for k in feed_prices:
             feed_prices[k] *= multiplier
-        # دمج الأسعار المحدّثة من الروابط
         live_feed = st.session_state.get("live_feed_prices", {})
         for k, v in live_feed.items():
             if k in feed_prices:
@@ -764,14 +769,14 @@ if not st.session_state["approved"]:
                 st.error(f"❌ الكود غير صحيح! متبقي {remaining} محاولات")
     with col_reset:
         if st.button("🔄 نسيت الكود", use_container_width=True):
-            st.info("يرجى التواصل مع المهندس عبدالقادر إسماعيل تاور.")
+            st.info("يرجى التواصل مع الاختصاصي عبدالقادر إسماعيل تاور.")
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
 # ========== بعد تسجيل الدخول ==========
 if not st.session_state["login_welcome_shown"]:
     role_messages = {
-        "owner": "👋 مرحباً بك في منصتك، المهندس عبدالقادر إسماعيل تاور",
+        "owner": "👋 مرحباً بك في منصتك، الاختصاصي عبدالقادر إسماعيل تاور",
         "specialist": "🔬 أهلاً بالزملاء من الأطباء البيطريين ومختصي الإنتاج الحيواني.",
         "breeder": "🚜 أهلاً وسهلاً بإخواننا المربين، شركاء النجاح."
     }
@@ -789,7 +794,7 @@ st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
 col_logout_space, col_user_status = st.columns([0.7, 0.3])
 with col_user_status:
-    role_info = {"owner": "المهندس عبدالقادر إسماعيل تاور 👑", "specialist": "المختص والزملاء 👨‍🔬", "breeder": "المربي 🌾"}
+    role_info = {"owner": "الاختصاصي عبدالقادر إسماعيل تاور 👑", "specialist": "المختص والزملاء 👨‍🔬", "breeder": "المربي 🌾"}
     st.markdown(f"""<div style='text-align: left; font-size:0.9rem; color:#555; background: linear-gradient(135deg, #f5f5f5, #e0e0e0); padding: 10px; border-radius: 10px;'>الحساب: <b>{role_info.get(st.session_state["user_role"], "مستخدم")}</b><br><small>آخر دخول: {datetime.now().strftime('%Y-%m-%d %H:%M')}</small></div>""", unsafe_allow_html=True)
     if st.button("تسجيل الخروج 🚪", use_container_width=True):
         for key in list(st.session_state.keys()):
@@ -808,7 +813,7 @@ with col_logo:
 with col_title:
     st.markdown("<h1 style='color: #1b5e20; text-align:right; margin-bottom:0;'>منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف 🌾</h1>", unsafe_allow_html=True)
     st.markdown("<p style='color: #1565C0; text-align:right; font-size:1.2rem; margin-top:5px; margin-bottom:0;'>محرك الاستمثال الخطي المتقدم القائم على البروتين المهضوم (DP) ومعادل النشاء (SE)</p>", unsafe_allow_html=True)
-    st.markdown("<h3 style='color: #c62828; text-align:right; font-weight: bold; margin-top: 5px;'>المهندس عبدالقادر إسماعيل تاور</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color: #c62828; text-align:right; font-weight: bold; margin-top: 5px;'>الاختصاصي عبدالقادر إسماعيل تاور</h3>", unsafe_allow_html=True)
 
 st.markdown("<hr style='border-top: 3px solid #2e7d32;'>", unsafe_allow_html=True)
 
@@ -818,7 +823,7 @@ share_text_payload = """📢 دعوة علمية وتسويقية من منصة 
 
 إلى كل مهتم بتطوير الثروة الحيوانية؛ من أطباء بيطريين، اختصاصيي إنتاج حيواني، ومربين طموحين:
 يسعدنا دعوتكم لاستخدام وتجربة المنصة المتقدمة لتركيب وتطوير الأعلاف، بإشراف وتصميم:
-[ المهندس عبدالقادر إسماعيل تاور ]
+[ الاختصاصي عبدالقادر إسماعيل تاور ]
 
 🎯 ما تقدمه المنصة:
 • حلول برمجية ذكية لتركيب أعلاف اقتصادية على أساس البروتين المهضوم ومعادل النشاء (Least-Cost Formulation).
@@ -828,7 +833,7 @@ share_text_payload = """📢 دعوة علمية وتسويقية من منصة 
 • إدارة مزارع الدجاج اللاحم مع حساب KPIs و EPEF (خاص بالمالك)
 • نظام ربط البورصة عبر روابط JSON لتحديث الأسعار تلقائياً.
 • مكتبة أعلاف موسعة تشمل خميرة الخبز، مسحوق الحليب، دهون نباتية، وزيت سمك.
-• دليل صوتي شامل لشرح استخدام المنصة.
+• دليل صوتي شامل مع تحسين النطق، وفيديو شرح تعريفي.
 
 🔗 رابط المنصة: [ضع رابط موقعك هنا]"""
 st.text_area("النص الدعائي والإعلامي الجاهز للنشر:", value=share_text_payload, height=140, key="top_share_box")
@@ -844,8 +849,8 @@ st.markdown("---")
 
 # ========== رسالة ترحيبية ==========
 welcome_messages = {
-    "owner": {"bg": "#eff6ff", "border": "#1d4ed8", "text": "👑 أهلاً بك في منصتك، المهندس عبدالقادر إسماعيل تاور. نظام التوازن الدقيق بالبروتين المهضوم ومعادل النشاء قيد التشغيل الآن بكفاءة متناهية. كما تم تفعيل إدارة مزارع الدجاج اللاحم ونظام البورصة، وتم توسيع مكتبة المواد العلفية، وأضفنا خاصية الدليل الصوتي."},
-    "specialist": {"bg": "#f0fdf4", "border": "#16a34a", "text": "🔬 مرحباً بكم في منصة تركيب وتحليل الأعلاف الذكية. يسعد المهندس عبدالقادر إسماعيل تاور بالترحيب بالزملاء من الأطباء البيطريين ومختصي الإنتاج الحيواني."},
+    "owner": {"bg": "#eff6ff", "border": "#1d4ed8", "text": "👑 أهلاً بك في منصتك، الاختصاصي عبدالقادر إسماعيل تاور. نظام التوازن الدقيق بالبروتين المهضوم ومعادل النشاء قيد التشغيل الآن بكفاءة متناهية. كما تم تفعيل إدارة مزارع الدجاج اللاحم ونظام البورصة، وتم توسيع مكتبة المواد العلفية، وأضفنا خاصية الدليل الصوتي المُحسَّن وفيديو الشرح."},
+    "specialist": {"bg": "#f0fdf4", "border": "#16a34a", "text": "🔬 مرحباً بكم في منصة تركيب وتحليل الأعلاف الذكية. يسعد الاختصاصي عبدالقادر إسماعيل تاور بالترحيب بالزملاء من الأطباء البيطريين ومختصي الإنتاج الحيواني."},
     "breeder": {"bg": "#fffbeb", "border": "#d97706", "text": "🚜 أهلاً وسهلاً بكم في منصة تاور العلمية. نرحب بإخواننا المربين. نوفر لكم خلطات مبنية على القيمة الغذائية الحقيقية الممتصة لضمان التوفير المالي العالي."}
 }
 current_welcome = welcome_messages.get(st.session_state["user_role"], welcome_messages["breeder"])
@@ -853,11 +858,11 @@ st.markdown(f"""<div style='background-color: {current_welcome["bg"]}; padding: 
 
 # ========== تحديد التبويبات ==========
 if st.session_state["user_role"] == "owner":
-    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📊 بورصة الأسعار المركزية", "🏭 إدارة المستودعات الذكية", "🧾 التسويق وفواتير البيع", "🖨️ مصمم الديباجة والدعاية", "📈 التحليلات المتقدمة", "🐔 إدارة مزارع الدجاج اللاحم (Broiler) – خاص بالمالك", "💬 تعليقات المختصين", "📖 دليل المستخدم (مع الصوت)"]
+    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📊 بورصة الأسعار المركزية", "🏭 إدارة المستودعات الذكية", "🧾 التسويق وفواتير البيع", "🖨️ مصمم الديباجة والدعاية", "📈 التحليلات المتقدمة", "🐔 إدارة مزارع الدجاج اللاحم (Broiler) – خاص بالمالك", "💬 تعليقات المختصين", "📖 دليل المستخدم (مع الصوت والفيديو)"]
 elif st.session_state["user_role"] == "specialist":
-    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📊 بورصة الأسعار المركزية", "🏭 إدارة المستودعات الذكية", "🧾 التسويق وفواتير البيع", "🖨️ مصمم الديباجة والدعاية", "📈 التحليلات المتقدمة", "💬 تعليقات المختصين", "📖 دليل المستخدم (مع الصوت)"]
+    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📊 بورصة الأسعار المركزية", "🏭 إدارة المستودعات الذكية", "🧾 التسويق وفواتير البيع", "🖨️ مصمم الديباجة والدعاية", "📈 التحليلات المتقدمة", "💬 تعليقات المختصين", "📖 دليل المستخدم (مع الصوت والفيديو)"]
 else:
-    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📖 دليل المستخدم (مع الصوت)"]
+    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📖 دليل المستخدم (مع الصوت والفيديو)"]
 
 tabs = st.tabs(tabs_titles)
 
@@ -1193,14 +1198,14 @@ with tabs[0]:
 
                     col_share, col_pdf = st.columns(2)
                     with col_share:
-                        share_message = f"منصة تاور العلمية - الخلطة المعتمدة: {sub_type} ({gender_option})، بتكلفة إنتاج {ton_cost:.2f}$ للطن. المشرف: المهندس عبدالقادر إسماعيل تاور."
+                        share_message = f"منصة تاور العلمية - الخلطة المعتمدة: {sub_type} ({gender_option})، بتكلفة إنتاج {ton_cost:.2f}$ للطن. المشرف: الاختصاصي عبدالقادر إسماعيل تاور."
                         encoded_share_msg = urllib.parse.quote(share_message)
                         st.link_button("📲 مشاركة الفاتورة عبر واتساب", f"https://wa.me/?text={encoded_share_msg}")
                     with col_pdf:
                         try:
                             pdf_data = pdf_generator.generate_comprehensive_report(formula_results, st.session_state["active_cp_tag"], f"{sub_type} ({gender_option})", ton_cost, user_city, ton_cost*local_rate, local_sym, computed_se_total, include_charts=True)
                             st.download_button("📥 تحميل التقرير الفني PDF", pdf_data, file_name=f"Tower_Scientific_Platform_{user_city}.pdf", mime="application/pdf", use_container_width=True)
-                            share_text = f"تقرير خلطة منصة تاور العلمية:\nالفصيل: {sub_type}\nالتكلفة: ${ton_cost:.2f}/طن\nالبروتين: {st.session_state['active_cp_tag']:.1f}%\nالمشرف: المهندس عبدالقادر إسماعيل تاور"
+                            share_text = f"تقرير خلطة منصة تاور العلمية:\nالفصيل: {sub_type}\nالتكلفة: ${ton_cost:.2f}/طن\nالبروتين: {st.session_state['active_cp_tag']:.1f}%\nالمشرف: الاختصاصي عبدالقادر إسماعيل تاور"
                             encoded_share = urllib.parse.quote(share_text)
                             st.markdown(f'<a href="https://wa.me/?text={encoded_share}" target="_blank"><button style="background-color:#25D366; color:white; padding:10px; border-radius:5px;">📲 مشاركة التقرير عبر واتساب</button></a>', unsafe_allow_html=True)
                         except Exception as pdf_err:
@@ -1436,7 +1441,6 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
             else:
                 st.info("لا توجد روابط محفوظة لهذه المنطقة.")
             
-            # زر تحديث الأسعار
             col_update1, col_update2 = st.columns([0.3, 0.7])
             with col_update1:
                 if st.button("🔄 تحديث الأسعار من الروابط المحفوظة", type="primary", use_container_width=True):
@@ -1570,7 +1574,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
         trade_brand = st.text_input("اسم البراند التجاري:", "منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف")
         col_preview, col_options = st.columns([0.7, 0.3])
         with col_preview:
-            st.markdown(f"""<div class="sack-tag"><img src="{st.session_state['active_animal_img']}" class="animal-banner-img"><h2 style="text-align: center; margin-top:0; color: #1b5e20;">🌟 {trade_brand} 🌟</h2><h3 style="text-align: center; color: #c62828; margin-top:0; font-weight: bold;">المهندس عبدالقادر إسماعيل تاور</h3><p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:10px; color:#1b5e20; border-radius: 8px;">🎯 {st.session_state['active_stage_title']} | DP: {st.session_state['active_cp_tag']:.1f}% | SE: {st.session_state['active_se_tag']:.1f} وحدة</p><div style="text-align: center; margin-top: 15px;"><small style="color: #666;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d')}</small></div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="sack-tag"><img src="{st.session_state['active_animal_img']}" class="animal-banner-img"><h2 style="text-align: center; margin-top:0; color: #1b5e20;">🌟 {trade_brand} 🌟</h2><h3 style="text-align: center; color: #c62828; margin-top:0; font-weight: bold;">الاختصاصي عبدالقادر إسماعيل تاور</h3><p style="text-align: center; font-weight: bold; background-color:#e8f5e9; padding:10px; color:#1b5e20; border-radius: 8px;">🎯 {st.session_state['active_stage_title']} | DP: {st.session_state['active_cp_tag']:.1f}% | SE: {st.session_state['active_se_tag']:.1f} وحدة</p><div style="text-align: center; margin-top: 15px;"><small style="color: #666;">تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d')}</small></div></div>""", unsafe_allow_html=True)
         with col_options:
             st.markdown("#### خيارات التخصيص:")
             show_qr = st.checkbox("إضافة QR Code", value=True)
@@ -1847,7 +1851,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
         with col_comment2:
             if st.button("📌 حفظ ونشر التعليق", use_container_width=True):
                 if new_comment.strip():
-                    prefix = "• [توجيه المهندس عبدالقادر إسماعيل تاور]" if st.session_state["user_role"] == "owner" else "• [ملاحظة مختص]"
+                    prefix = "• [توجيه الاختصاصي عبدالقادر إسماعيل تاور]" if st.session_state["user_role"] == "owner" else "• [ملاحظة مختص]"
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
                     st.session_state["shared_comments"] += f"{prefix} ({timestamp}): {new_comment.strip()}\n"
                     st.success("تمت إضافة الملاحظة بنجاح!")
@@ -1855,7 +1859,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                     st.rerun()
 
 # ======================================================================================
-# التبويب التاسع: دليل المستخدم (مع الصوت)
+# التبويب التاسع: دليل المستخدم (مع الصوت والفيديو)
 # ======================================================================================
 if st.session_state["user_role"] == "owner":
     guide_tab_index = 8
@@ -1867,15 +1871,29 @@ else:
 with tabs[guide_tab_index]:
     st.markdown('<div class="section-title">📖 كتيب دليل المستخدم والتقانة الفنية</div>', unsafe_allow_html=True)
     
-    # زر تشغيل الدليل الصوتي
-    col_audio, _ = st.columns([0.3, 0.7])
+    # أزرار الصوت والفيديو
+    col_audio, col_video = st.columns(2)
     with col_audio:
         if st.button("🔊 تشغيل الدليل الصوتي", use_container_width=True):
             play_guide_audio()
+    with col_video:
+        # زر لعرض فيديو الشرح (يمكن تخصيص الرابط)
+        if st.button("🎬 تشغيل فيديو الشرح", use_container_width=True):
+            st.session_state["show_video"] = True
+    
+    # عرض الفيديو إذا تم الضغط على الزر
+    if st.session_state.get("show_video", False):
+        st.markdown("### 📺 فيديو توضيحي للمنصة")
+        # يمكنك وضع رابط فيديو يوتيوب أو أي مصدر آخر
+        video_url = "https://www.youtube.com/embed/YOUR_VIDEO_ID"  # استبدل بـ رابط الفيديو الفعلي
+        st.video(video_url)
+        if st.button("إخفاء الفيديو"):
+            st.session_state["show_video"] = False
+            st.rerun()
     
     col_guide, col_actions = st.columns([0.65, 0.35])
     with col_guide:
-        st.markdown("""<div class="manual-book"><div style="text-align: center; border-bottom: 2px double #2c3e50; padding-bottom: 15px; margin-bottom: 20px;"><h2 style="color: #2e7d32; margin: 0;">📖 الكتيب الرقمي الذكي لإدارة وتشغيل المنصة</h2><p style="color: #7f8c8d; font-style: italic; margin: 5px 0 0 0;">إصدار هندسي محدث بأحدث تقنيات العرض لعام 2026</p><p style="color: #2c3e50; font-weight: bold; margin: 5px 0 0 0;">المشرف العام: المهندس عبدالقادر إسماعيل تاور</p></div>
+        st.markdown("""<div class="manual-book"><div style="text-align: center; border-bottom: 2px double #2c3e50; padding-bottom: 15px; margin-bottom: 20px;"><h2 style="color: #2e7d32; margin: 0;">📖 الكتيب الرقمي الذكي لإدارة وتشغيل المنصة</h2><p style="color: #7f8c8d; font-style: italic; margin: 5px 0 0 0;">إصدار هندسي محدث بأحدث تقنيات العرض لعام 2026</p><p style="color: #2c3e50; font-weight: bold; margin: 5px 0 0 0;">المشرف العام: الاختصاصي عبدالقادر إسماعيل تاور</p></div>
         <div class="book-chapter">📌 الرؤية التقنية والهندسية للمنصة</div><div class="book-body">تعتمد <b>منصة تاور العلمية</b> على معايير التغذية الدقيقة المعتمدة عالمياً. يتم صياغة قيود الاستمثال الخطي عبر مكتبة <code>SciPy</code> بالاعتماد على <b>البروتين المهضوم الحقيقي (Digestible Protein)</b> كحاصل ضرب نسبة البروتين الخام في معامل الهضم العضوي لكل خامة، بالتكامل مع قيود <b>معادل النشاء (Starch Equivalent)</b> لتقييم كفاءة طاقة العلف.</div>
         <div class="book-chapter">📌 خارطة المكونات (Ingredients Matrix)</div><div class="book-body">تم تصنيف المواد العلفية داخل المنصة بمرونة تامة لتشمل:<br>1. <b>الحبوب ومصادر الطاقة:</b> الذرة البيضاء وسورجم الفتريتة.<br>2. <b>الأكساب والبروتينات:</b> كسب زهرة الشمس، كسب فول الصويا.<br>3. <b>الإضافات والأملاح:</b> بريمكسات، أحماض أمينية نقية، بالإضافة إلى خميرة الخبز، مسحوق الحليب، دهون نباتية، وزيت سمك.</div>
         <div class="book-chapter">📌 القطاعات الإنتاجية المتخصصة</div><div class="book-body">• <b>قطاع الأغنام والماعز:</b> فصل برمجي ذكي بين الذكور والإناث.<br>• <b>قطاع الدواجن:</b> دواجن التسمين، البياض، والسمان.<br>• <b>قطاع المجترات:</b> تسمين لحوم أو غزارة إدرار الألبان.<br>• <b>قطاع الخيول:</b> طاقة الجري أو أمهار نامية.</div>
@@ -1884,12 +1902,12 @@ with tabs[guide_tab_index]:
     with col_actions:
         st.markdown("### 💬 قنوات التفاعل والاستشارات:")
         st.link_button("📝 إرسال تعليق أو استشارة (نموذج جوجل)", GOOGLE_FORM_URL, use_container_width=True)
-        welcome_msg = "السلام عليكم مهندس عبدالقادر، أود الحصول على استشارة فنية بخصوص تركيب الأعلاف وحساب العلائق..."
+        welcome_msg = "السلام عليكم الاختصاصي عبدالقادر، أود الحصول على استشارة فنية بخصوص تركيب الأعلاف وحساب العلائق..."
         encoded_msg = urllib.parse.quote(welcome_msg)
         whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}?text={encoded_msg}"
         st.link_button("💬 تواصل واستشارة عبر الواتساب", whatsapp_link, use_container_width=True)
         st.markdown("<br><b>📢 انشر البرنامج وشارك المعرفة:</b>", unsafe_allow_html=True)
-        share_text_base = "أستخدم الآن منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف لحساب العلائق بأقل تكلفة ودقة علمية عالية، تحت إشراف المهندس عبدالقادر إسماعيل تاور. كما تتضمن إدارة متقدمة لمزارع الدجاج اللاحم، ومكتبة موسعة، ودليل صوتي."
+        share_text_base = "أستخدم الآن منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف لحساب العلائق بأقل تكلفة ودقة علمية عالية، تحت إشراف الاختصاصي عبدالقادر إسماعيل تاور. كما تتضمن إدارة متقدمة لمزارع الدجاج اللاحم، ومكتبة موسعة، ودليل صوتي وفيديو."
         encoded_share_text = urllib.parse.quote(share_text_base)
         col_wa, col_fb = st.columns(2)
         with col_wa: st.link_button("🟢 واتساب", f"https://wa.me/?text={encoded_share_text}", use_container_width=True)
@@ -1911,4 +1929,4 @@ if st.session_state["user_role"] == "owner":
                     st.success(f"📥 تم إرسال السورس كود المحدث بأمان كملف (.py) إلى بريدك الهندسي.")
 
 st.markdown('</div>', unsafe_allow_html=True)
-st.markdown("""<div class="mini-left-signature">👨‍🔬 المهندس عبدالقادر إسماعيل تاور © 2026 | منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف</div>""", unsafe_allow_html=True)
+st.markdown("""<div class="mini-left-signature">👨‍🔬 الاختصاصي عبدالقادر إسماعيل تاور © 2026 | منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف</div>""", unsafe_allow_html=True)
