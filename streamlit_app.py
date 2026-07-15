@@ -1,5 +1,5 @@
 # Digital Signature: d6bcdf1baab1bde909b2a1008276980a
-# Generated: 2026-07-15T04:00:00.000000
+# Generated: 2026-07-15T10:00:00.000000
 # المشرف العام: المهندس عبدالقادر إسماعيل تاور
 
 import os
@@ -30,6 +30,10 @@ from typing import Dict, List, Tuple, Optional
 import warnings
 warnings.filterwarnings('ignore')
 
+# ========== مكتبات الصوت ==========
+from gtts import gTTS
+import io
+
 # ========== مكتبات PDF والعربية ==========
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
@@ -49,6 +53,52 @@ from PIL import Image as PILImage
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.font_manager as fm
+
+# ========== دوال الصوت ==========
+def text_to_speech_audio(text: str, lang: str = 'ar') -> io.BytesIO:
+    """تحويل النص إلى كلام وإرجاع كائن BytesIO للصوت."""
+    try:
+        tts = gTTS(text=text, lang=lang, slow=False)
+        audio_bytes = io.BytesIO()
+        tts.write_to_fp(audio_bytes)
+        audio_bytes.seek(0)
+        return audio_bytes
+    except Exception as e:
+        st.error(f"⚠️ فشل توليد الصوت: {e}")
+        return None
+
+def play_welcome_audio():
+    """تشغيل صوت الترحيب عند بدء التشغيل."""
+    welcome_text = """السلام عليكم ورحمة الله وبركاته. 
+    مرحباً بكم في منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف. 
+    هذه المنصة تقدم لكم حلولاً متقدمة لتركيب الأعلاف بأقل تكلفة، 
+    باستخدام محرك الاستمثال الخطي القائم على البروتين المهضوم ومعادل النشاء. 
+    كما توفر إدارة متكاملة للمزارع، وبورصة الأسعار، وتحليلات متقدمة. 
+    نتمنى لكم تجربة ممتعة ومفيدة. 
+    مع تحيات المهندس عبدالقادر إسماعيل تاور."""
+    audio = text_to_speech_audio(welcome_text)
+    if audio:
+        st.audio(audio, format='audio/mp3')
+
+def play_guide_audio():
+    """تشغيل الدليل الصوتي."""
+    guide_text = """مرحباً بكم في دليل منصة تاور العلمية.
+    
+    هذه المنصة مصممة لمساعدة المربين والمختصين في تركيب أعلاف متوازنة بأقل تكلفة ممكنة.
+    
+    الخطوة الأولى: اختيار القطاع الإنتاجي مثل الأغنام، الماعز، الأبقار، الخيول، الدواجن، أو الأسماك.
+    الخطوة الثانية: تحديد السلالة والمرحلة الإنتاجية.
+    الخطوة الثالثة: تحديد نسبة البروتين المهضوم ومعادل النشاء المطلوبين.
+    الخطوة الرابعة: اختيار المواد العلفية المتوفرة من المكتبة، مع إمكانية تعديل أسعارها.
+    الخطوة الخامسة: الضغط على زر تشغيل المحرك للحصول على الخلطة المثلى، مع تقرير PDF ورسوم بيانية.
+    
+    بالإضافة إلى ذلك، يمكنكم استخدام تبويب بورصة الأسعار لمتابعة أسعار الماشية والمنتجات وتحديثها عبر روابط JSON.
+    كما توفر المنصة إدارة متقدمة لمزارع الدجاج اللاحم مع حساب مؤشرات الأداء مثل ADG و FCR و EPEF.
+    
+    نتمنى لكم الاستفادة القصوى من هذه المنصة، وشكراً لاستخدامكم لها."""
+    audio = text_to_speech_audio(guide_text)
+    if audio:
+        st.audio(audio, format='audio/mp3')
 
 # ========== إعدادات المنصة ==========
 st.set_page_config(
@@ -103,7 +153,7 @@ def send_code_to_mail(receiver_email: str, attachment_type: str = "full") -> boo
     body = """السلام عليكم مهندس عبدالقادر،
 
 مرفق مع هذه الرسالة النسخة البرمجية الكاملة والمستقرة لمنصتكم الذكية (منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف) 
-بعد تحديث الدليل والواجهات بالكامل وتضمين معايير البروتين المهضوم ومعادل النشاء ونظام إدارة مزارع الدجاج اللاحم، بالإضافة إلى نظام ربط البورصة عبر روابط JSON.
+بعد تحديث الدليل والواجهات بالكامل وتضمين معايير البروتين المهضوم ومعادل النشاء ونظام إدارة مزارع الدجاج اللاحم، بالإضافة إلى نظام ربط البورصة عبر روابط JSON، وتوسيع مكتبة المواد العلفية، وإضافة خاصية الترحيب والدليل الصوتي.
 
 تحياتي الهندسية."""
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
@@ -274,7 +324,7 @@ class BroilerFarmManager:
             "الرطوبة النسبية (%)": [65, 65, 65, 60, 60, 55, 55]
         })
 
-# ========== دوال جلب الأسعار من الروابط ==========
+# ========== دوال جلب الأسعار من الروابط (مُحسَّنة) ==========
 def fetch_prices_from_url(url: str, mapping: Dict[str, str]) -> Dict[str, float]:
     try:
         response = requests.get(url, timeout=10)
@@ -290,9 +340,11 @@ def fetch_prices_from_url(url: str, mapping: Dict[str, str]) -> Dict[str, float]
         return {}
 
 def update_all_prices_from_feeds():
+    """تحديث جميع الأسعار من الروابط المحفوظة لكل منطقة."""
     feeds = st.session_state["price_feeds"]
     updated = False
     for region, urls in feeds.items():
+        # تحديث أسعار الحيوانات
         if "livestock" in urls and urls["livestock"]:
             mapping = {
                 "عجول تسمين هولشتاين / محسن ($)": "beef",
@@ -309,6 +361,7 @@ def update_all_prices_from_feeds():
                     if k in st.session_state["global_livestock_prices"]:
                         st.session_state["global_livestock_prices"][k] = v
                 updated = True
+        # تحديث أسعار المنتجات
         if "products" in urls and urls["products"]:
             mapping = {
                 "كيلو لحم بقري صافي ($)": "beef_meat",
@@ -325,6 +378,7 @@ def update_all_prices_from_feeds():
                     if k in st.session_state["global_products_prices"]:
                         st.session_state["global_products_prices"][k] = v
                 updated = True
+        # تحديث أسعار الخامات العلفية
         if "feeds" in urls and urls["feeds"]:
             mapping = {
                 "ذرة صفراء": "corn", "ذرة بيضاء": "white_corn", "شعير مطحون": "barley",
@@ -336,7 +390,9 @@ def update_all_prices_from_feeds():
                 "مسحوق أسماك (Fishmeal 60%)": "fishmeal", "مركزات دواجن وسمان": "poultry_conc",
                 "مركزات خيول ومجترات": "ruminant_conc", "الحجر الجيري (بودرة بلاط)": "limestone",
                 "فوسفات ثنائي الكالسيوم (DCP)": "dcp", "ملح الطعام": "salt",
-                "مضاد سموم فطرية": "mycotoxin", "بيكربونات الصوديوم (الصودا)": "sodium_bicarb"
+                "مضاد سموم فطرية": "mycotoxin", "بيكربونات الصوديوم (الصودا)": "sodium_bicarb",
+                "خميرة الخبز": "yeast", "مسحوق الحليب": "milk_powder",
+                "دهن نباتي": "veg_oil", "زيت سمك": "fish_oil"
             }
             new_prices = fetch_prices_from_url(urls["feeds"], mapping)
             if new_prices:
@@ -365,6 +421,7 @@ if "whatsapp_alerts_sent" not in st.session_state: st.session_state["whatsapp_al
 if "price_feeds" not in st.session_state: st.session_state["price_feeds"] = {}
 if "last_price_update" not in st.session_state: st.session_state["last_price_update"] = None
 if "live_feed_prices" not in st.session_state: st.session_state["live_feed_prices"] = {}
+if "welcome_played" not in st.session_state: st.session_state["welcome_played"] = False
 
 def send_whatsapp_broiler_alert(phone_number: str, message: str):
     encoded_msg = urllib.parse.quote(message)
@@ -388,7 +445,7 @@ def check_and_alert_medications(farm_name: str, farm_data: dict, current_age: in
     else:
         st.success("✅ لا توجد تحصينات أو أدوية مستحقة اليوم.")
 
-# ========== مكتبة الأعلاف الكاملة ==========
+# ========== مكتبة الأعلاف الموسعة ==========
 BIG_FEEDS_LIBRARY = {
     "🌾 الحبوب ومصادر الطاقة الكبرى": {
         "ذرة صفراء": {"CP": 8.5, "DC": 0.85, "SE": 80.0, "NDF": 9.5, "ADF": 3.2, "EE": 3.8, "ASH": 1.3},
@@ -444,7 +501,12 @@ BIG_FEEDS_LIBRARY = {
         "إنزيم الفايتيز الزامي (Phytase Super-D)": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 5.0},
         "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 3.0},
         "كبريتات الحديدوز (معادل الجوسيبول)": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 98.0},
-        "مستخلص الخمائر والجدر الخلوية (MOS)": {"CP": 12.0, "DC": 0.50, "SE": 10.0, "NDF": 2.5, "ADF": 1.5, "EE": 1.5, "ASH": 8.5}
+        "مستخلص الخمائر والجدر الخلوية (MOS)": {"CP": 12.0, "DC": 0.50, "SE": 10.0, "NDF": 2.5, "ADF": 1.5, "EE": 1.5, "ASH": 8.5},
+        # إضافات جديدة
+        "خميرة الخبز (Baker's Yeast)": {"CP": 45.0, "DC": 0.90, "SE": 55.0, "NDF": 5.0, "ADF": 2.0, "EE": 2.0, "ASH": 6.0},
+        "مسحوق الحليب (كامل الدسم)": {"CP": 25.0, "DC": 0.95, "SE": 60.0, "NDF": 0.0, "ADF": 0.0, "EE": 26.0, "ASH": 8.0},
+        "دهن نباتي صالح للعلف": {"CP": 0.0, "DC": 0.0, "SE": 85.0, "NDF": 0.0, "ADF": 0.0, "EE": 99.0, "ASH": 0.5},
+        "زيت سمك غني بالأوميغا 3": {"CP": 0.0, "DC": 0.0, "SE": 80.0, "NDF": 0.0, "ADF": 0.0, "EE": 98.0, "ASH": 0.5}
     },
     "🪨 الأملاح والمعادن ومنظمات الهضم": {
         "الحجر الجيري (بودرة بلاط)": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 99.5},
@@ -554,7 +616,12 @@ class MarketPriceEngine:
             "مركزات خيول ومجترات": 600.0,
             "الحجر الجيري (بودرة بلاط)": 40.0, "فوسفات ثنائي الكالسيوم (DCP)": 280.0,
             "ملح الطعام": 30.0, "مضاد سموم فطرية": 950.0,
-            "بيكربونات الصوديوم (الصودا)": 340.0
+            "بيكربونات الصوديوم (الصودا)": 340.0,
+            # المواد الجديدة
+            "خميرة الخبز (Baker's Yeast)": 500.0,
+            "مسحوق الحليب (كامل الدسم)": 850.0,
+            "دهن نباتي صالح للعلف": 650.0,
+            "زيت سمك غني بالأوميغا 3": 1200.0
         }
         feed_prices.update(base_prices)
         multiplier = 1.0
@@ -575,6 +642,7 @@ class MarketPriceEngine:
             multiplier = 1.04
         for k in feed_prices:
             feed_prices[k] *= multiplier
+        # دمج الأسعار المحدّثة من الروابط
         live_feed = st.session_state.get("live_feed_prices", {})
         for k, v in live_feed.items():
             if k in feed_prices:
@@ -711,6 +779,11 @@ if not st.session_state["login_welcome_shown"]:
     st.toast(role_messages.get(st.session_state["user_role"], "مرحباً"), icon=role_icons.get(st.session_state["user_role"], "🌾"))
     st.session_state["login_welcome_shown"] = True
 
+# ========== تشغيل صوت الترحيب (مرة واحدة) ==========
+if not st.session_state["welcome_played"]:
+    play_welcome_audio()
+    st.session_state["welcome_played"] = True
+
 # ========== الواجهة الرئيسية ==========
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
@@ -754,6 +827,8 @@ share_text_payload = """📢 دعوة علمية وتسويقية من منصة 
 • نظام تحليلات متقدم وتقارير PDF احترافية
 • إدارة مزارع الدجاج اللاحم مع حساب KPIs و EPEF (خاص بالمالك)
 • نظام ربط البورصة عبر روابط JSON لتحديث الأسعار تلقائياً.
+• مكتبة أعلاف موسعة تشمل خميرة الخبز، مسحوق الحليب، دهون نباتية، وزيت سمك.
+• دليل صوتي شامل لشرح استخدام المنصة.
 
 🔗 رابط المنصة: [ضع رابط موقعك هنا]"""
 st.text_area("النص الدعائي والإعلامي الجاهز للنشر:", value=share_text_payload, height=140, key="top_share_box")
@@ -769,7 +844,7 @@ st.markdown("---")
 
 # ========== رسالة ترحيبية ==========
 welcome_messages = {
-    "owner": {"bg": "#eff6ff", "border": "#1d4ed8", "text": "👑 أهلاً بك في منصتك، المهندس عبدالقادر إسماعيل تاور. نظام التوازن الدقيق بالبروتين المهضوم ومعادل النشاء قيد التشغيل الآن بكفاءة متناهية. كما تم تفعيل إدارة مزارع الدجاج اللاحم ونظام البورصة."},
+    "owner": {"bg": "#eff6ff", "border": "#1d4ed8", "text": "👑 أهلاً بك في منصتك، المهندس عبدالقادر إسماعيل تاور. نظام التوازن الدقيق بالبروتين المهضوم ومعادل النشاء قيد التشغيل الآن بكفاءة متناهية. كما تم تفعيل إدارة مزارع الدجاج اللاحم ونظام البورصة، وتم توسيع مكتبة المواد العلفية، وأضفنا خاصية الدليل الصوتي."},
     "specialist": {"bg": "#f0fdf4", "border": "#16a34a", "text": "🔬 مرحباً بكم في منصة تركيب وتحليل الأعلاف الذكية. يسعد المهندس عبدالقادر إسماعيل تاور بالترحيب بالزملاء من الأطباء البيطريين ومختصي الإنتاج الحيواني."},
     "breeder": {"bg": "#fffbeb", "border": "#d97706", "text": "🚜 أهلاً وسهلاً بكم في منصة تاور العلمية. نرحب بإخواننا المربين. نوفر لكم خلطات مبنية على القيمة الغذائية الحقيقية الممتصة لضمان التوفير المالي العالي."}
 }
@@ -778,11 +853,11 @@ st.markdown(f"""<div style='background-color: {current_welcome["bg"]}; padding: 
 
 # ========== تحديد التبويبات ==========
 if st.session_state["user_role"] == "owner":
-    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📊 بورصة الأسعار المركزية", "🏭 إدارة المستودعات الذكية", "🧾 التسويق وفواتير البيع", "🖨️ مصمم الديباجة والدعاية", "📈 التحليلات المتقدمة", "🐔 إدارة مزارع الدجاج اللاحم (Broiler) – خاص بالمالك", "💬 تعليقات المختصين", "📖 دليل المستخدم"]
+    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📊 بورصة الأسعار المركزية", "🏭 إدارة المستودعات الذكية", "🧾 التسويق وفواتير البيع", "🖨️ مصمم الديباجة والدعاية", "📈 التحليلات المتقدمة", "🐔 إدارة مزارع الدجاج اللاحم (Broiler) – خاص بالمالك", "💬 تعليقات المختصين", "📖 دليل المستخدم (مع الصوت)"]
 elif st.session_state["user_role"] == "specialist":
-    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📊 بورصة الأسعار المركزية", "🏭 إدارة المستودعات الذكية", "🧾 التسويق وفواتير البيع", "🖨️ مصمم الديباجة والدعاية", "📈 التحليلات المتقدمة", "💬 تعليقات المختصين", "📖 دليل المستخدم"]
+    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📊 بورصة الأسعار المركزية", "🏭 إدارة المستودعات الذكية", "🧾 التسويق وفواتير البيع", "🖨️ مصمم الديباجة والدعاية", "📈 التحليلات المتقدمة", "💬 تعليقات المختصين", "📖 دليل المستخدم (مع الصوت)"]
 else:
-    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📖 دليل المستخدم"]
+    tabs_titles = ["🔬 النمذجة والحسابات العلفية", "📖 دليل المستخدم (مع الصوت)"]
 
 tabs = st.tabs(tabs_titles)
 
@@ -1361,13 +1436,16 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
             else:
                 st.info("لا توجد روابط محفوظة لهذه المنطقة.")
             
-            if st.button("🔄 تحديث الأسعار من الروابط المحفوظة", type="primary"):
-                with st.spinner("جاري جلب البيانات..."):
-                    update_all_prices_from_feeds()
-                st.rerun()
-            
-            if st.session_state.get("last_price_update"):
-                st.caption(f"آخر تحديث: {st.session_state['last_price_update']}")
+            # زر تحديث الأسعار
+            col_update1, col_update2 = st.columns([0.3, 0.7])
+            with col_update1:
+                if st.button("🔄 تحديث الأسعار من الروابط المحفوظة", type="primary", use_container_width=True):
+                    with st.spinner("جاري جلب البيانات..."):
+                        update_all_prices_from_feeds()
+                    st.rerun()
+            with col_update2:
+                if st.session_state.get("last_price_update"):
+                    st.caption(f"آخر تحديث: {st.session_state['last_price_update']}")
 
         # تحرير أسعار المدن للمالك
         if st.session_state["user_role"] == "owner":
@@ -1777,7 +1855,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                     st.rerun()
 
 # ======================================================================================
-# التبويب التاسع: دليل المستخدم
+# التبويب التاسع: دليل المستخدم (مع الصوت)
 # ======================================================================================
 if st.session_state["user_role"] == "owner":
     guide_tab_index = 8
@@ -1788,11 +1866,18 @@ else:
 
 with tabs[guide_tab_index]:
     st.markdown('<div class="section-title">📖 كتيب دليل المستخدم والتقانة الفنية</div>', unsafe_allow_html=True)
+    
+    # زر تشغيل الدليل الصوتي
+    col_audio, _ = st.columns([0.3, 0.7])
+    with col_audio:
+        if st.button("🔊 تشغيل الدليل الصوتي", use_container_width=True):
+            play_guide_audio()
+    
     col_guide, col_actions = st.columns([0.65, 0.35])
     with col_guide:
         st.markdown("""<div class="manual-book"><div style="text-align: center; border-bottom: 2px double #2c3e50; padding-bottom: 15px; margin-bottom: 20px;"><h2 style="color: #2e7d32; margin: 0;">📖 الكتيب الرقمي الذكي لإدارة وتشغيل المنصة</h2><p style="color: #7f8c8d; font-style: italic; margin: 5px 0 0 0;">إصدار هندسي محدث بأحدث تقنيات العرض لعام 2026</p><p style="color: #2c3e50; font-weight: bold; margin: 5px 0 0 0;">المشرف العام: المهندس عبدالقادر إسماعيل تاور</p></div>
         <div class="book-chapter">📌 الرؤية التقنية والهندسية للمنصة</div><div class="book-body">تعتمد <b>منصة تاور العلمية</b> على معايير التغذية الدقيقة المعتمدة عالمياً. يتم صياغة قيود الاستمثال الخطي عبر مكتبة <code>SciPy</code> بالاعتماد على <b>البروتين المهضوم الحقيقي (Digestible Protein)</b> كحاصل ضرب نسبة البروتين الخام في معامل الهضم العضوي لكل خامة، بالتكامل مع قيود <b>معادل النشاء (Starch Equivalent)</b> لتقييم كفاءة طاقة العلف.</div>
-        <div class="book-chapter">📌 خارطة المكونات (Ingredients Matrix)</div><div class="book-body">تم تصنيف المواد العلفية داخل المنصة بمرونة تامة لتشمل:<br>1. <b>الحبوب ومصادر الطاقة:</b> الذرة البيضاء وسورجم الفتريتة.<br>2. <b>الأكساب والبروتينات:</b> كسب زهرة الشمس، كسب فول الصويا.<br>3. <b>الإضافات والأملاح:</b> بريمكسات، أحماض أمينية نقية.</div>
+        <div class="book-chapter">📌 خارطة المكونات (Ingredients Matrix)</div><div class="book-body">تم تصنيف المواد العلفية داخل المنصة بمرونة تامة لتشمل:<br>1. <b>الحبوب ومصادر الطاقة:</b> الذرة البيضاء وسورجم الفتريتة.<br>2. <b>الأكساب والبروتينات:</b> كسب زهرة الشمس، كسب فول الصويا.<br>3. <b>الإضافات والأملاح:</b> بريمكسات، أحماض أمينية نقية، بالإضافة إلى خميرة الخبز، مسحوق الحليب، دهون نباتية، وزيت سمك.</div>
         <div class="book-chapter">📌 القطاعات الإنتاجية المتخصصة</div><div class="book-body">• <b>قطاع الأغنام والماعز:</b> فصل برمجي ذكي بين الذكور والإناث.<br>• <b>قطاع الدواجن:</b> دواجن التسمين، البياض، والسمان.<br>• <b>قطاع المجترات:</b> تسمين لحوم أو غزارة إدرار الألبان.<br>• <b>قطاع الخيول:</b> طاقة الجري أو أمهار نامية.</div>
         <div class="book-chapter">📌 إدارة مزارع الدجاج اللاحم (خاص بالمالك)</div><div class="book-body">• تسجيل بيانات الدورة اليومية (العمر، العدد، الأوزان، الاستهلاك، النافق، المستبعدين، الظروف البيئية).<br>• حساب تلقائي لمؤشرات ADG، FCR، EPEF، ونسب النفوق والاستبعاد.<br>• جدول الحرارة والرطوبة المرجعي حسب العمر.<br>• تقرير يومي شامل يمكن مشاركته عبر واتساب.<br>• حفظ تاريخ الدورات السابقة (حتى 10 دورات).</div>
         <div class="book-chapter">📌 خطوات تشغيل المنصة</div><div class="book-body"><b>الخطوة 1:</b> حدد القطاع والنوع الإنتاجي.<br><b>الخطوة 2:</b> اختر الخامات المتوفرة وأسعار السوق.<br><b>الخطوة 3:</b> اضغط على زر التشغيل للحصول على الخلطة المثلى.<br><b>الخطوة 4:</b> استعرض التقرير وقم بطباعة الديباجة أو تصدير PDF.<br><b>الخطوة 5 (للمالك):</b> استخدم تبويب إدارة الدجاج اللاحم لتسجيل ومتابعة أداء دورات التسمين.</div></div>""", unsafe_allow_html=True)
@@ -1804,7 +1889,7 @@ with tabs[guide_tab_index]:
         whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}?text={encoded_msg}"
         st.link_button("💬 تواصل واستشارة عبر الواتساب", whatsapp_link, use_container_width=True)
         st.markdown("<br><b>📢 انشر البرنامج وشارك المعرفة:</b>", unsafe_allow_html=True)
-        share_text_base = "أستخدم الآن منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف لحساب العلائق بأقل تكلفة ودقة علمية عالية، تحت إشراف المهندس عبدالقادر إسماعيل تاور. كما تتضمن إدارة متقدمة لمزارع الدجاج اللاحم."
+        share_text_base = "أستخدم الآن منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف لحساب العلائق بأقل تكلفة ودقة علمية عالية، تحت إشراف المهندس عبدالقادر إسماعيل تاور. كما تتضمن إدارة متقدمة لمزارع الدجاج اللاحم، ومكتبة موسعة، ودليل صوتي."
         encoded_share_text = urllib.parse.quote(share_text_base)
         col_wa, col_fb = st.columns(2)
         with col_wa: st.link_button("🟢 واتساب", f"https://wa.me/?text={encoded_share_text}", use_container_width=True)
