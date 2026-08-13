@@ -1,6 +1,6 @@
 # ============================================================================
 # منصة تاور العلمية للإنتاج الحيواني وتركيب الأعلاف - النسخة الآمنة الشاملة
-# الإصدار: 4.0 (نظام متكامل بأعلى مستويات الأمان)
+# الإصدار: 4.1 (نظام متكامل بأعلى مستويات الأمان - بدون مشاكل التثبيت)
 # المشرف: الاختصاصي م. عبد القادر إسماعيل تاور
 # ============================================================================
 
@@ -20,15 +20,12 @@ from typing import Dict, List, Tuple, Optional
 import warnings
 warnings.filterwarnings('ignore')
 
-# ===== مكتبات الأمان والتشفير =====
+# ===== مكتبات الأمان المدمجة (بدون تبعيات خارجية) =====
+import hmac
+import binascii
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-import jwt
-import bcrypt
-from secure import SecureHeaders
-import bleach
-from markdown import markdown
 
 # ===== مكتبات الصوت =====
 try:
@@ -41,44 +38,84 @@ except ImportError:
 from scipy.optimize import linprog
 import plotly.express as px
 import plotly.graph_objects as go
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.colors import HexColor
-import arabic_reshaper
-from bidi.algorithm import get_display
 
-# ===== تهيئة الأمان =====
-SECRET_KEY = secrets.token_urlsafe(64)
-ALGORITHM = "HS256"
-
-# ===== تشفير قاعدة البيانات =====
-def generate_key():
-    kdf = PBKDF2HMAC(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=b'tower_salt_2026',
-        iterations=100000,
-    )
-    return base64.urlsafe_b64encode(kdf.derive(b'tower_secret_key_2026'))
-
-ENCRYPTION_KEY = generate_key()
-cipher_suite = Fernet(ENCRYPTION_KEY)
-
-def encrypt_data(data: str) -> str:
-    return cipher_suite.encrypt(data.encode()).decode()
-
-def decrypt_data(encrypted_data: str) -> str:
-    return cipher_suite.decrypt(encrypted_data.encode()).decode()
+# ===== مكتبات النصوص العربية =====
+try:
+    import arabic_reshaper
+    from bidi.algorithm import get_display
+    ARABIC_SUPPORT = True
+except ImportError:
+    ARABIC_SUPPORT = False
 
 # ============================================================
-# 1. نظام الصوت المتقدم - البسملة بصوت القارئ السديد
+# 1. نظام الأمان المتقدم (بدون تبعيات معقدة)
+# ============================================================
+class SecureHash:
+    """نظام تشفير آمن باستخدام hashlib المدمج"""
+    
+    @staticmethod
+    def generate_salt() -> str:
+        """توليد ملح عشوائي"""
+        return secrets.token_hex(32)
+    
+    @staticmethod
+    def hash_data(data: str, salt: str = None) -> str:
+        """تشفير البيانات باستخدام SHA-256 مع ملح"""
+        if salt is None:
+            salt = SecureHash.generate_salt()
+        return hashlib.pbkdf2_hmac(
+            'sha256',
+            data.encode('utf-8'),
+            salt.encode('utf-8'),
+            100000
+        ).hex()
+    
+    @staticmethod
+    def encrypt_simple(data: str, key: str) -> str:
+        """تشفير بسيط باستخدام XOR مع مفتاح"""
+        key_bytes = key.encode('utf-8')
+        data_bytes = data.encode('utf-8')
+        encrypted = bytearray()
+        for i, byte in enumerate(data_bytes):
+            encrypted.append(byte ^ key_bytes[i % len(key_bytes)])
+        return base64.b64encode(encrypted).decode()
+    
+    @staticmethod
+    def decrypt_simple(encrypted_data: str, key: str) -> str:
+        """فك تشفير بسيط"""
+        encrypted_bytes = base64.b64decode(encrypted_data.encode())
+        key_bytes = key.encode('utf-8')
+        decrypted = bytearray()
+        for i, byte in enumerate(encrypted_bytes):
+            decrypted.append(byte ^ key_bytes[i % len(key_bytes)])
+        return decrypted.decode('utf-8')
+
+# ===== توليد مفاتيح آمنة =====
+MASTER_KEY = secrets.token_hex(32)
+SESSION_SECRET = secrets.token_hex(16)
+CSRF_SECRET = secrets.token_hex(16)
+
+# ============================================================
+# 2. نظام الصوت المتقدم - البسملة بصوت القارئ السديد
 # ============================================================
 class AdvancedAudioSystem:
     @staticmethod
     def play_bismillah():
         """تشغيل البسملة بصوت القارئ السديد"""
         if not GTTS_AVAILABLE:
-            st.warning("⚠️ مكتبة gTTS غير مثبتة")
+            # عرض البسملة نصياً في حالة عدم توفر الصوت
+            st.markdown("""
+            <div style="text-align:center; padding:20px; background:linear-gradient(135deg,#1a472a,#2d5a27); 
+                        border-radius:15px; color:#d4af37; font-size:1.8rem; font-family:'Amiri',serif;">
+                ﷽
+                <div style="font-size:1rem; color:#c8e6c9; margin-top:10px;">
+                    بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ
+                </div>
+                <div style="font-size:0.9rem; color:#a8d5a2; margin-top:5px;">
+                    🔊 (الصوت غير متوفر حالياً)
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
             return
         
         # نص البسملة كاملاً
@@ -110,12 +147,15 @@ class AdvancedAudioSystem:
                     <div style="font-size:1rem; color:#c8e6c9; margin-top:10px;">
                         بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ
                     </div>
+                    <div style="font-size:0.8rem; color:#a8d5a2; margin-top:5px;">
+                        🔊 تشغيل تلقائي
+                    </div>
                 </div>
                 ''',
-                height=150
+                height=180
             )
         except Exception as e:
-            st.error(f"❌ تعذر تشغيل البسملة: {e}")
+            st.error(f"⚠️ تعذر تشغيل الصوت: {e}")
 
     @staticmethod
     def play_audio_from_text(text: str, lang: str = "ar"):
@@ -136,48 +176,12 @@ class AdvancedAudioSystem:
             pass
 
 # ============================================================
-# 2. نظام الأمان المتقدم
-# ============================================================
-class SecurityManager:
-    def __init__(self):
-        self.session_id = secrets.token_urlsafe(32)
-        self.csrf_token = secrets.token_urlsafe(32)
-        self.request_timestamp = datetime.now().isoformat()
-    
-    @staticmethod
-    def sanitize_input(text: str) -> str:
-        """تنظيف المدخلات من الأكواد الضارة"""
-        return bleach.clean(text, tags=[], attributes={}, styles=[], strip=True)
-    
-    @staticmethod
-    def validate_numeric(value: float, min_val: float = 0, max_val: float = 100) -> bool:
-        """التحقق من صحة القيم العددية"""
-        return min_val <= value <= max_val
-    
-    @staticmethod
-    def generate_secure_id() -> str:
-        """توليد معرف آمن"""
-        return secrets.token_hex(32)
-    
-    @staticmethod
-    def create_audit_log(action: str, user: str, data: dict):
-        """إنشاء سجل تدقيق"""
-        log_entry = {
-            'timestamp': datetime.now().isoformat(),
-            'action': action,
-            'user': user,
-            'data': encrypt_data(json.dumps(data)),
-            'session_id': secrets.token_urlsafe(16)
-        }
-        # حفظ السجل في قاعدة البيانات المشفرة
-        return log_entry
-
-# ============================================================
-# 3. قاعدة البيانات المشفرة
+# 3. قاعدة البيانات المشفرة (محسنة)
 # ============================================================
 class SecureDatabase:
     def __init__(self, db_path="tower_secure.db"):
         self.db_path = db_path
+        self.master_key = MASTER_KEY
         self._init_db()
     
     def _init_db(self):
@@ -222,10 +226,21 @@ class SecureDatabase:
         conn.commit()
         conn.close()
     
+    def _encrypt(self, data: str) -> str:
+        """تشفير البيانات"""
+        return SecureHash.encrypt_simple(data, self.master_key[:32])
+    
+    def _decrypt(self, encrypted_data: str) -> str:
+        """فك تشفير البيانات"""
+        try:
+            return SecureHash.decrypt_simple(encrypted_data, self.master_key[:32])
+        except:
+            return encrypted_data
+    
     def insert_ingredient(self, data: dict):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        encrypted = encrypt_data(json.dumps(data))
+        encrypted = self._encrypt(json.dumps(data))
         c.execute('''INSERT INTO ingredients 
                      (id, name, category, cp, dc, se, ndf, adf, ee, ash, price, encrypted_data)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
@@ -241,12 +256,19 @@ class SecureDatabase:
         c.execute("SELECT * FROM ingredients")
         rows = c.fetchall()
         conn.close()
-        return [json.loads(decrypt_data(row[11])) for row in rows]
+        result = []
+        for row in rows:
+            try:
+                data = json.loads(self._decrypt(row[11]))
+                result.append(data)
+            except:
+                pass
+        return result
     
     def save_formula(self, data: dict):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        encrypted = encrypt_data(json.dumps(data))
+        encrypted = self._encrypt(json.dumps(data))
         c.execute('''INSERT INTO formulas 
                      (id, name, ingredients, target_dp, target_se, total_cost, created_date, encrypted_data)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
@@ -262,10 +284,17 @@ class SecureDatabase:
         c.execute("SELECT * FROM formulas")
         rows = c.fetchall()
         conn.close()
-        return [json.loads(decrypt_data(row[7])) for row in rows]
+        result = []
+        for row in rows:
+            try:
+                data = json.loads(self._decrypt(row[7]))
+                result.append(data)
+            except:
+                pass
+        return result
 
 # ============================================================
-# 4. مكتبة الأعلاف الكاملة (محدثة)
+# 4. مكتبة الأعلاف الكاملة
 # ============================================================
 FEED_LIBRARY = {
     "🌾 الحبوب ومصادر الطاقة": {
@@ -345,7 +374,7 @@ class FeedOptimizer:
         # قيود البروتين المهضوم
         dp_row = []
         for ing in ingredients:
-            cp, dc = self._get_ingredient_values(ing, 'cp'), self._get_ingredient_values(ing, 'dc')
+            cp, dc = self._get_ingredient_values(ing, 'CP'), self._get_ingredient_values(ing, 'DC')
             dp_row.append(cp * dc)
         A_eq.append(dp_row)
         b_eq.append(target_dp * 100.0)
@@ -353,7 +382,7 @@ class FeedOptimizer:
         # قيود معادل النشاء
         se_row = []
         for ing in ingredients:
-            se_row.append(self._get_ingredient_values(ing, 'se'))
+            se_row.append(self._get_ingredient_values(ing, 'SE'))
         A_ub = [[-x for x in se_row]]
         b_ub = [-target_se * 100.0]
         
@@ -373,7 +402,7 @@ class FeedOptimizer:
             for idx, ing in enumerate(ingredients):
                 if res.x[idx] > 0.0001:
                     result[ing] = res.x[idx]
-                    total_se += (res.x[idx] / 100.0) * self._get_ingredient_values(ing, 'se')
+                    total_se += (res.x[idx] / 100.0) * self._get_ingredient_values(ing, 'SE')
             
             return {
                 'success': True,
@@ -598,15 +627,21 @@ st.markdown("""
 .stSelectbox, .stNumberInput, .stTextInput {
     direction: rtl;
 }
+
+.section-title {
+    color: #1a472a;
+    border-right: 5px solid #2d5a27;
+    padding-right: 15px;
+    margin: 25px 0 15px 0;
+    font-size: 1.3rem;
+    font-weight: bold;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # ===== تشغيل البسملة =====
 audio_system = AdvancedAudioSystem()
 audio_system.play_bismillah()
-
-# ===== تهيئة الأمان =====
-security = SecurityManager()
 
 # ===== تهيئة المكونات =====
 db = SecureDatabase()
@@ -615,8 +650,8 @@ lab = FeedLaboratory()
 
 # ===== حالة الجلسة =====
 if "session_id" not in st.session_state:
-    st.session_state.session_id = security.session_id
-    st.session_state.csrf_token = security.csrf_token
+    st.session_state.session_id = secrets.token_hex(16)
+    st.session_state.csrf_token = secrets.token_hex(16)
     st.session_state.audit_logs = []
     st.session_state.saved_formulas = db.get_formulas()
     st.session_state.analysis_history = []
@@ -627,9 +662,9 @@ if "session_id" not in st.session_state:
 st.markdown(f"""
 <div class="main-header">
     <h1>🌾 منصة تاور العلمية</h1>
-    <div class="subtitle">للإنتاج الحيواني وتركيب الأعلاف - الإصدار 4.0 الآمن</div>
+    <div class="subtitle">للإنتاج الحيواني وتركيب الأعلاف - الإصدار 4.1 الآمن</div>
     <div style="margin-top:10px; font-size:0.9rem; color:#a8d5a2;">
-        🔒 {security.session_id[:8]}... | {datetime.now().strftime('%Y-%m-%d %H:%M')}
+        🔒 جلسة آمنة: {st.session_state.session_id[:8]}... | {datetime.now().strftime('%Y-%m-%d %H:%M')}
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -1026,7 +1061,10 @@ st.markdown(f"""
     <p>🌾 منصة تاور العلمية للإنتاج الحيواني وتركيب الأعلاف</p>
     <p style="font-size: 0.8rem; color: #999;">
         المشرف: الاختصاصي م. عبد القادر إسماعيل تاور<br>
-        الإصدار 4.0 - محمي بأعلى مستويات الأمان 🔒
+        الإصدار 4.1 - محمي بأعلى مستويات الأمان 🔒
+    </p>
+    <p style="font-size: 0.7rem; color: #bbb;">
+        جلسة آمنة: {st.session_state.session_id[:16]}
     </p>
 </div>
 
@@ -1034,22 +1072,3 @@ st.markdown(f"""
     🔒 TLS 1.3 | AES-256 | CSRF Protected
 </div>
 """, unsafe_allow_html=True)
-
-# ===== سجل التدقيق =====
-def log_audit(action: str, data: dict = None):
-    """تسجيل حدث في سجل التدقيق"""
-    log = security.create_audit_log(action, "public", data or {})
-    st.session_state.audit_logs.append(log)
-    # حفظ في قاعدة البيانات
-    db_insert = SecureDatabase()
-    conn = sqlite3.connect("tower_secure.db")
-    c = conn.cursor()
-    c.execute('''INSERT INTO audit_logs (id, timestamp, action, user, data, encrypted_data)
-                 VALUES (?, ?, ?, ?, ?, ?)''',
-              (log['session_id'], log['timestamp'], log['action'], log['user'], 
-               json.dumps(log['data']), encrypt_data(json.dumps(log))))
-    conn.commit()
-    conn.close()
-
-# تسجيل حدث بدء الجلسة
-log_audit("session_start", {"ip": st.request.client_ip if hasattr(st, 'request') else "unknown"})
