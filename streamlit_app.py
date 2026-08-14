@@ -1,12 +1,7 @@
 # ============================================================================
 # منصة تاور العلمية للإنتاج الحيواني وتركيب الأعلاف
-# الإصدار: 3.8 (النظام المتكامل الكامل + الحماية المتقدمة)
+# الإصدار: 4.1 (النظام الكامل المتكامل - 4000+ سطر)
 # المشرف: الاختصاصي م. عبد القادر إسماعيل تاور
-# ============================================================================
-
-# Digital Signature: 110dfcb10bc6902ee96175517109d7c7
-# Protected Version: 3.8
-# Total Lines: 3500+
 # ============================================================================
 
 import streamlit as st
@@ -28,9 +23,6 @@ import sqlite3
 import io
 import qrcode
 import matplotlib.pyplot as plt
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from datetime import datetime, timedelta
 from functools import lru_cache, wraps
 from typing import Dict, List, Tuple, Optional, Any
@@ -48,6 +40,56 @@ import altair as alt
 import warnings
 warnings.filterwarnings('ignore')
 
+# ===== نظام تشفير مبسط (بدون اعتماد على مكتبات خارجية) =====
+class SimpleEncryption:
+    """
+    نظام تشفير مبسط باستخدام hashlib و base64 فقط
+    لا يعتمد على أي مكتبات خارجية
+    """
+    
+    @staticmethod
+    def _get_key(password: str = None) -> bytes:
+        """اشتقاق مفتاح من كلمة المرور"""
+        if password is None:
+            password = "Tower_Platform_2026_Secure_Key_Ultimate"
+        return hashlib.sha256(password.encode()).digest()
+    
+    @staticmethod
+    def encrypt(text: str, password: str = None) -> str:
+        """تشفير النص"""
+        key = SimpleEncryption._get_key(password)
+        text_bytes = text.encode('utf-8')
+        encrypted = bytearray()
+        for i, byte in enumerate(text_bytes):
+            encrypted.append(byte ^ key[i % len(key)])
+        return base64.b64encode(encrypted).decode('utf-8')
+    
+    @staticmethod
+    def decrypt(encrypted_text: str, password: str = None) -> str:
+        """فك تشفير النص"""
+        try:
+            key = SimpleEncryption._get_key(password)
+            encrypted = base64.b64decode(encrypted_text)
+            decrypted = bytearray()
+            for i, byte in enumerate(encrypted):
+                decrypted.append(byte ^ key[i % len(key)])
+            return decrypted.decode('utf-8')
+        except Exception as e:
+            raise ValueError(f"فشل فك التشفير: {str(e)}")
+    
+    @staticmethod
+    def generate_signature(data: str) -> str:
+        """إنشاء بصمة رقمية"""
+        return hashlib.sha3_256(data.encode()).hexdigest()
+    
+    @staticmethod
+    def verify_signature(data: str, signature: str) -> bool:
+        """التحقق من البصمة"""
+        return hmac.compare_digest(
+            SimpleEncryption.generate_signature(data),
+            signature
+        )
+
 # ===== نظام حماية الملكية الفكرية المتقدم =====
 class IPProtectionSystem:
     """
@@ -55,50 +97,38 @@ class IPProtectionSystem:
     يشمل: تشفير، بصمة رقمية، تحقق من التلاعب، وتقييد الاستخدام
     """
     
-    _SECRET_KEY = b'tower_platform_secure_key_2026_abdulqader_ismail_tawer_v3'
-    _SALT = b'tower_salt_protection_2026_v3'
-    
-    @classmethod
-    def _derive_key(cls, password: str = None) -> bytes:
-        if password is None:
-            password = "AbdulQader_Tawer_2026_Protected"
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=cls._SALT,
-            iterations=150000,
-        )
-        return base64.urlsafe_b64encode(kdf.derive(password.encode()))
+    _SECRET_KEY = b'tower_platform_secure_key_2026_abdulqader_ismail_tawer_v4'
+    _SALT = b'tower_salt_protection_2026_v4'
     
     @classmethod
     def encrypt_code(cls, code: str, password: str = None) -> str:
-        key = cls._derive_key(password)
-        f = Fernet(key)
-        encrypted = f.encrypt(code.encode('utf-8'))
-        return base64.b64encode(encrypted).decode('utf-8')
+        """تشفير الكود لحمايته"""
+        return SimpleEncryption.encrypt(code, password)
     
     @classmethod
     def decrypt_code(cls, encrypted_code: str, password: str = None) -> str:
-        try:
-            key = cls._derive_key(password)
-            f = Fernet(key)
-            decrypted = f.decrypt(base64.b64decode(encrypted_code))
-            return decrypted.decode('utf-8')
-        except Exception as e:
-            raise ValueError(f"❌ فشل فك التشفير: {e}")
+        """فك تشفير الكود"""
+        return SimpleEncryption.decrypt(encrypted_code, password)
     
     @classmethod
     def generate_signature(cls, code: str) -> str:
-        return hashlib.sha3_256(code.encode('utf-8')).hexdigest()
+        """إنشاء بصمة رقمية للكود"""
+        return SimpleEncryption.generate_signature(code)
+    
+    @classmethod
+    def verify_signature(cls, code: str, signature: str) -> bool:
+        """التحقق من صحة البصمة الرقمية"""
+        return SimpleEncryption.verify_signature(code, signature)
     
     @classmethod
     def generate_signature_with_metadata(cls, code: str, metadata: dict = None) -> dict:
+        """إنشاء بصمة رقمية مع بيانات وصفية"""
         if metadata is None:
             metadata = {}
         
         metadata.update({
             'timestamp': datetime.now().isoformat(),
-            'version': '3.8',
+            'version': '4.1',
             'author': 'AbdulQader Ismail Tawer',
             'platform': 'Tower Scientific Platform'
         })
@@ -115,18 +145,9 @@ class IPProtectionSystem:
         }
     
     @classmethod
-    def verify_signature(cls, code: str, signature: str, metadata: dict = None) -> bool:
-        if metadata is None:
-            metadata = {}
-        
-        metadata_str = json.dumps(metadata, sort_keys=True)
-        combined = code + metadata_str
-        expected = hashlib.sha3_256(combined.encode('utf-8')).hexdigest()
-        return hmac.compare_digest(signature, expected)
-    
-    @classmethod
     def generate_license_key(cls, user_id: str, expiry_days: int = 365, 
                             features: List[str] = None) -> dict:
+        """إنشاء مفتاح ترخيص فريد مع ميزات"""
         if features is None:
             features = ['full_access', 'premium', 'support', 'updates']
         
@@ -165,6 +186,7 @@ class IPProtectionSystem:
     
     @classmethod
     def verify_license(cls, license_key: str) -> Tuple[bool, dict]:
+        """التحقق من صحة مفتاح الترخيص"""
         try:
             decrypted = cls.decrypt_code(license_key)
             license_data = json.loads(decrypted)
@@ -206,6 +228,7 @@ class IPProtectionSystem:
     
     @classmethod
     def embed_watermark(cls, code: str, watermark: dict = None) -> str:
+        """إدراج علامة مائية متقدمة في الكود"""
         if watermark is None:
             watermark = {
                 "owner": "AbdulQader Ismail Tawer",
@@ -239,6 +262,7 @@ class IPProtectionSystem:
     @classmethod
     def create_protected_version(cls, code: str, password: str = None, 
                                  metadata: dict = None) -> dict:
+        """إنشاء نسخة محمية كاملة من الكود"""
         watermarked = cls.embed_watermark(code)
         signature_data = cls.generate_signature_with_metadata(watermarked, metadata)
         encrypted = cls.encrypt_code(watermarked, password)
@@ -248,10 +272,10 @@ class IPProtectionSystem:
             'signature': signature_data['signature'],
             'metadata': signature_data['metadata'],
             'created_at': signature_data['created_at'],
-            'version': '3.8',
+            'version': '4.1',
             'protection_level': 'advanced',
             'watermark': True,
-            'encryption': 'Fernet (AES-128)',
+            'encryption': 'XOR with SHA-256',
             'hash_algorithm': 'SHA3-256'
         }
         
@@ -259,6 +283,7 @@ class IPProtectionSystem:
     
     @classmethod
     def extract_protected_version(cls, protected_package: dict, password: str = None) -> dict:
+        """استخراج الكود من النسخة المحمية"""
         try:
             decrypted = cls.decrypt_code(protected_package['protected_code'], password)
             signature_valid = cls.verify_signature(
@@ -280,6 +305,143 @@ class IPProtectionSystem:
                 'error': str(e)
             }
 
+# ===== نظام إدارة التراخيص المتقدم =====
+class LicenseManager:
+    """إدارة التراخيص والتحقق من الصلاحية مع واجهة متكاملة"""
+    
+    LICENSE_DIR = "licenses"
+    LICENSE_FILE = "tower_license.lic"
+    
+    @classmethod
+    def _ensure_license_dir(cls):
+        """التأكد من وجود مجلد التراخيص"""
+        if not os.path.exists(cls.LICENSE_DIR):
+            os.makedirs(cls.LICENSE_DIR)
+    
+    @classmethod
+    def generate_license(cls, user_id: str, days: int = 365, 
+                        features: List[str] = None) -> dict:
+        """إنشاء ترخيص جديد وحفظه"""
+        cls._ensure_license_dir()
+        
+        license_data = IPProtectionSystem.generate_license_key(user_id, days, features)
+        
+        license_file = os.path.join(cls.LICENSE_DIR, f"{user_id}_{datetime.now().strftime('%Y%m%d')}.lic")
+        with open(license_file, 'w', encoding='utf-8') as f:
+            json.dump(license_data['license_data'], f, ensure_ascii=False, indent=2)
+        
+        with open(cls.LICENSE_FILE, 'w', encoding='utf-8') as f:
+            json.dump({
+                'user_id': user_id,
+                'license_key': license_data['license_key'],
+                'created': datetime.now().isoformat()
+            }, f, ensure_ascii=False, indent=2)
+        
+        return license_data
+    
+    @classmethod
+    def verify_license(cls) -> Tuple[bool, dict]:
+        """التحقق من صحة الترخيص النشط"""
+        try:
+            if not os.path.exists(cls.LICENSE_FILE):
+                return False, {"error": "❌ ملف الترخيص غير موجود"}
+            
+            with open(cls.LICENSE_FILE, 'r', encoding='utf-8') as f:
+                license_ref = json.load(f)
+            
+            license_key = license_ref.get('license_key')
+            if not license_key:
+                return False, {"error": "❌ مفتاح الترخيص غير موجود في الملف"}
+            
+            return IPProtectionSystem.verify_license(license_key)
+            
+        except Exception as e:
+            return False, {"error": f"❌ خطأ في التحقق: {str(e)}"}
+    
+    @classmethod
+    def get_license_status(cls) -> dict:
+        """الحصول على حالة الترخيص الحالية"""
+        valid, info = cls.verify_license()
+        
+        status = {
+            'valid': valid,
+            'message': '✅ الترخيص ساري' if valid else '❌ الترخيص غير صالح',
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        if valid:
+            status.update({
+                'user_id': info.get('user_id'),
+                'license_id': info.get('license_id'),
+                'expiry': info.get('expiry'),
+                'days_remaining': info.get('days_remaining', 0),
+                'features': info.get('features', []),
+                'type': info.get('type', 'commercial'),
+                'status': info.get('status', '✅ ساري')
+            })
+        else:
+            status.update({
+                'error': info.get('error', 'خطأ غير معروف'),
+                'details': info
+            })
+        
+        return status
+    
+    @classmethod
+    def list_licenses(cls) -> List[dict]:
+        """عرض قائمة بجميع التراخيص"""
+        cls._ensure_license_dir()
+        licenses = []
+        
+        for filename in os.listdir(cls.LICENSE_DIR):
+            if filename.endswith('.lic'):
+                filepath = os.path.join(cls.LICENSE_DIR, filename)
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        licenses.append({
+                            'filename': filename,
+                            'user_id': data.get('data', {}).get('user_id', 'غير معروف'),
+                            'created': data.get('data', {}).get('created', 'غير معروف'),
+                            'expiry': data.get('data', {}).get('expiry', 'غير معروف'),
+                            'features': data.get('data', {}).get('features', [])
+                        })
+                except:
+                    continue
+        
+        return licenses
+    
+    @classmethod
+    def delete_license(cls, filename: str) -> bool:
+        """حذف ترخيص"""
+        filepath = os.path.join(cls.LICENSE_DIR, filename)
+        try:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+                return True
+        except:
+            pass
+        return False
+    
+    @classmethod
+    def activate_license(cls, license_key: str) -> bool:
+        """تفعيل ترخيص جديد"""
+        try:
+            valid, info = IPProtectionSystem.verify_license(license_key)
+            if not valid:
+                return False
+            
+            with open(cls.LICENSE_FILE, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'user_id': info.get('user_id', 'unknown'),
+                    'license_key': license_key,
+                    'activated': datetime.now().isoformat()
+                }, f, ensure_ascii=False, indent=2)
+            
+            return True
+        except:
+            return False
+
 # ===== مكتبة الصوت (gTTS) =====
 try:
     from gtts import gTTS
@@ -288,17 +450,26 @@ except ImportError:
     GTTS_AVAILABLE = False
 
 # ===== مكتبات PDF واللغة العربية =====
-from reportlab.pdfgen import canvas
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.units import inch, mm
-from reportlab.lib.colors import HexColor, black, white, grey
-from reportlab.platypus import Table, TableStyle, Paragraph, Spacer, Image, SimpleDocTemplate
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
-import arabic_reshaper
-from bidi.algorithm import get_display
+try:
+    from reportlab.pdfgen import canvas
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import inch, mm
+    from reportlab.lib.colors import HexColor, black, white, grey
+    from reportlab.platypus import Table, TableStyle, Paragraph, Spacer, Image, SimpleDocTemplate
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+
+try:
+    import arabic_reshaper
+    from bidi.algorithm import get_display
+    ARABIC_AVAILABLE = True
+except ImportError:
+    ARABIC_AVAILABLE = False
 
 # ===== مكتبات OCR والتعرف على الصور =====
 try:
@@ -315,7 +486,7 @@ except ImportError:
     EASYOCR_AVAILABLE = False
 
 # ============================================================
-# دوال الصوت والنصوص
+# دوال الصوت والنصوص المتقدمة
 # ============================================================
 
 class EnhancedAudioSystem:
@@ -323,8 +494,11 @@ class EnhancedAudioSystem:
     
     @staticmethod
     def play_audio_from_url(url: str, autoplay: bool = True, controls: bool = True):
+        """تشغيل صوت من رابط مباشر"""
+        autoplay_attr = "autoplay" if autoplay else ""
+        controls_attr = "controls" if controls else ""
         html = f'''
-        <audio {"autoplay" if autoplay else ""} {"controls" if controls else ""} style="width: 100%; max-width: 400px; margin: 10px auto; display: block;">
+        <audio {autoplay_attr} {controls_attr} style="width: 100%; max-width: 400px; margin: 10px auto; display: block;">
             <source src="{url}" type="audio/mpeg">
             متصفحك لا يدعم تشغيل الصوت
         </audio>
@@ -333,6 +507,7 @@ class EnhancedAudioSystem:
     
     @staticmethod
     def play_surah_fatiha():
+        """تشغيل سورة الفاتحة بصوت الشيخ السديس مع خيارات متعددة"""
         audio_sources = [
             "https://server8.mp3quran.net/sds/001.mp3",
             "https://server11.mp3quran.net/sds/001.mp3",
@@ -359,14 +534,24 @@ class EnhancedAudioSystem:
             try:
                 EnhancedAudioSystem.play_audio_from_url(source, autoplay=True)
                 return True
-            except Exception as e:
+            except:
                 continue
         
         st.warning("⚠️ تعذر تشغيل الصوت. يرجى النقر على زر التشغيل يدوياً.")
+        
+        if st.button("🔄 محاولة تشغيل الصوت يدوياً"):
+            for source in audio_sources:
+                try:
+                    EnhancedAudioSystem.play_audio_from_url(source, autoplay=False)
+                    return True
+                except:
+                    continue
+        
         return False
     
     @staticmethod
     def play_audio_from_text(text: str, lang: str = "ar"):
+        """توليد وتشغيل صوت من نص باستخدام gTTS"""
         if not GTTS_AVAILABLE:
             st.warning("⚠️ مكتبة gTTS غير مثبتة")
             return False
@@ -376,6 +561,7 @@ class EnhancedAudioSystem:
             tts.write_to_fp(audio_file)
             audio_file.seek(0)
             audio_b64 = base64.b64encode(audio_file.read()).decode()
+            
             st.markdown(f'''
             <audio autoplay controls style="width: 100%; max-width: 400px; margin: 10px 0;">
                 <source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3">
@@ -388,12 +574,14 @@ class EnhancedAudioSystem:
             return False
 
 def play_welcome_audio():
+    """تشغيل الصوت الترحيبي"""
     if GTTS_AVAILABLE:
         EnhancedAudioSystem.play_audio_from_text(
             "مرحباً بك في منصة تاور العلمية للإنتاج الحيواني وتركيب الأعلاف، تحت إشراف الاختصاصي عبد القادر إسماعيل تاور."
         )
 
 def guide_section(tab_name, guide_text):
+    """عرض دليل استخدام للتبويب مع خيار صوتي ونصي"""
     with st.expander(f"📘 دليل استخدام {tab_name}", expanded=False):
         st.markdown(f"<div style='background:#f0f8ff; padding:15px; border-radius:10px; direction:rtl;'>{guide_text}</div>", unsafe_allow_html=True)
         col_g1, col_g2 = st.columns(2)
@@ -416,6 +604,7 @@ class DatabaseManager:
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         
+        # جدول المستخدمين
         c.execute('''CREATE TABLE IF NOT EXISTS users
                      (user_id TEXT PRIMARY KEY,
                       username TEXT UNIQUE,
@@ -426,6 +615,7 @@ class DatabaseManager:
                       phone TEXT,
                       created_date TEXT)''')
         
+        # جدول المزارع (موسع)
         c.execute('''CREATE TABLE IF NOT EXISTS farms
                      (farm_id TEXT PRIMARY KEY,
                       farm_name TEXT UNIQUE,
@@ -436,6 +626,7 @@ class DatabaseManager:
                       created_date TEXT,
                       last_updated TEXT)''')
         
+        # جدول دورات الإنتاج (للاحم والبياض)
         c.execute('''CREATE TABLE IF NOT EXISTS production_cycles
                      (cycle_id TEXT PRIMARY KEY,
                       farm_id TEXT,
@@ -450,6 +641,7 @@ class DatabaseManager:
                       notes TEXT,
                       FOREIGN KEY (farm_id) REFERENCES farms(farm_id))''')
         
+        # جدول السجلات اليومية (موسع)
         c.execute('''CREATE TABLE IF NOT EXISTS daily_records
                      (record_id TEXT PRIMARY KEY,
                       cycle_id TEXT,
@@ -472,6 +664,7 @@ class DatabaseManager:
                       notes TEXT,
                       FOREIGN KEY (cycle_id) REFERENCES production_cycles(cycle_id))''')
         
+        # جدول السجل الصحي (اللقاحات والأدوية)
         c.execute('''CREATE TABLE IF NOT EXISTS health_records
                      (health_id TEXT PRIMARY KEY,
                       cycle_id TEXT,
@@ -486,6 +679,7 @@ class DatabaseManager:
                       notes TEXT,
                       FOREIGN KEY (cycle_id) REFERENCES production_cycles(cycle_id))''')
         
+        # جدول مقارنات الأداء
         c.execute('''CREATE TABLE IF NOT EXISTS performance_comparisons
                      (comparison_id TEXT PRIMARY KEY,
                       cycle_id TEXT,
@@ -497,6 +691,7 @@ class DatabaseManager:
                       status TEXT,
                       FOREIGN KEY (cycle_id) REFERENCES production_cycles(cycle_id))''')
         
+        # جدول تنبيهات اللقاحات
         c.execute('''CREATE TABLE IF NOT EXISTS vaccine_alerts
                      (alert_id TEXT PRIMARY KEY,
                       cycle_id TEXT,
@@ -510,6 +705,7 @@ class DatabaseManager:
                       sent BOOLEAN DEFAULT 0,
                       FOREIGN KEY (cycle_id) REFERENCES production_cycles(cycle_id))''')
         
+        # جدول الأعلاف والخلطات
         c.execute('''CREATE TABLE IF NOT EXISTS feed_formulas
                      (formula_id TEXT PRIMARY KEY,
                       formula_name TEXT,
@@ -521,6 +717,7 @@ class DatabaseManager:
                       created_by TEXT,
                       created_date TEXT)''')
         
+        # جدول الفواتير
         c.execute('''CREATE TABLE IF NOT EXISTS invoices
                      (invoice_id TEXT PRIMARY KEY,
                       customer_name TEXT,
@@ -532,6 +729,7 @@ class DatabaseManager:
                       created_by TEXT,
                       created_date TEXT)''')
         
+        # جدول أسعار المواد
         c.execute('''CREATE TABLE IF NOT EXISTS price_history
                      (record_id TEXT PRIMARY KEY,
                       ingredient_name TEXT,
@@ -542,6 +740,7 @@ class DatabaseManager:
                       record_date TEXT,
                       recorded_by TEXT)''')
         
+        # جدول نتائج المختبر
         c.execute('''CREATE TABLE IF NOT EXISTS lab_results
                      (result_id TEXT PRIMARY KEY,
                       sample_name TEXT,
@@ -559,6 +758,7 @@ class DatabaseManager:
                       notes TEXT,
                       image_path TEXT)''')
         
+        # جدول الترخيص والملكية الفكرية
         c.execute('''CREATE TABLE IF NOT EXISTS license_info
                      (id INTEGER PRIMARY KEY,
                       license_key TEXT,
@@ -1357,7 +1557,7 @@ class SmartLabSystem:
                     if prob > 0.3:
                         results.append(text)
             elif OCR_AVAILABLE:
-                img = PILImage.open(image)
+                img = Image.open(image)
                 text = pytesseract.image_to_string(img, lang='ara+eng')
                 results = text.split('\n')
             
@@ -1550,9 +1750,11 @@ class ArabicTextProcessor:
     @staticmethod
     @lru_cache(maxsize=1000)
     def fix_arabic_text(text):
-        reshaped_text = arabic_reshaper.reshape(text)
-        bidi_text = get_display(reshaped_text)
-        return bidi_text
+        if ARABIC_AVAILABLE:
+            reshaped_text = arabic_reshaper.reshape(text)
+            bidi_text = get_display(reshaped_text)
+            return bidi_text
+        return text
 
 arabic_processor = ArabicTextProcessor()
 
@@ -1563,7 +1765,7 @@ arabic_processor = ArabicTextProcessor()
 class ProfessionalPDFGenerator:
     def __init__(self):
         self.font_name = 'Helvetica'
-        if os.path.exists("Amiri-Regular.ttf"):
+        if os.path.exists("Amiri-Regular.ttf") and REPORTLAB_AVAILABLE:
             try:
                 pdfmetrics.registerFont(TTFont('Amiri', 'Amiri-Regular.ttf'))
                 self.font_name = 'Amiri'
@@ -1571,6 +1773,9 @@ class ProfessionalPDFGenerator:
                 pass
     
     def generate_comprehensive_report(self, formula, target_dp, breed, cost, city, local_cost, local_sym, computed_se, include_charts=True):
+        if not REPORTLAB_AVAILABLE:
+            return b"ReportLab غير مثبتة"
+        
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
         story = []
@@ -2045,7 +2250,7 @@ def check_and_alert_medications(cycle_id, farm_phone, current_age):
     for alert in alerts:
         key = f"{cycle_id}_{alert['scheduled_date']}_{alert['vaccine_name']}"
         if key not in st.session_state["whatsapp_alerts_sent"]:
-            alert_msg = f"🔔 تنبيه لدورة الإنتاج (العمر {current_age} يوم):\n{alert['treatment_type']} {alert['treatment_name']} - الجرعة: {alert['dose']} - طريقة الإعطاء: {alert['route']}"
+            alert_msg = f"🔔 تنبيه لدورة الإنتاج (العمر {current_age} يوم):\n{alert['vaccine_type']} {alert['vaccine_name']} - الجرعة: {alert['dose']} - طريقة الإعطاء: {alert['route']}"
             send_whatsapp_broiler_alert(farm_phone, alert_msg)
             st.session_state["whatsapp_alerts_sent"][key] = datetime.now().isoformat()
     return alerts
@@ -2451,135 +2656,6 @@ if not st.session_state["login_welcome_shown"]:
 # 16. التحقق من الترخيص بعد المصادقة
 # ============================================================
 
-class LicenseManager:
-    """إدارة التراخيص والتحقق من الصلاحية"""
-    
-    LICENSE_DIR = "licenses"
-    LICENSE_FILE = "tower_license.lic"
-    
-    @classmethod
-    def _ensure_license_dir(cls):
-        if not os.path.exists(cls.LICENSE_DIR):
-            os.makedirs(cls.LICENSE_DIR)
-    
-    @classmethod
-    def generate_license(cls, user_id: str, days: int = 365, 
-                        features: List[str] = None) -> dict:
-        cls._ensure_license_dir()
-        
-        license_data = IPProtectionSystem.generate_license_key(user_id, days, features)
-        
-        license_file = os.path.join(cls.LICENSE_DIR, f"{user_id}_{datetime.now().strftime('%Y%m%d')}.lic")
-        with open(license_file, 'w', encoding='utf-8') as f:
-            json.dump(license_data['license_data'], f, ensure_ascii=False, indent=2)
-        
-        with open(cls.LICENSE_FILE, 'w', encoding='utf-8') as f:
-            json.dump({
-                'user_id': user_id,
-                'license_key': license_data['license_key'],
-                'created': datetime.now().isoformat()
-            }, f, ensure_ascii=False, indent=2)
-        
-        return license_data
-    
-    @classmethod
-    def verify_license(cls) -> Tuple[bool, dict]:
-        try:
-            if not os.path.exists(cls.LICENSE_FILE):
-                return False, {"error": "❌ ملف الترخيص غير موجود"}
-            
-            with open(cls.LICENSE_FILE, 'r', encoding='utf-8') as f:
-                license_ref = json.load(f)
-            
-            license_key = license_ref.get('license_key')
-            if not license_key:
-                return False, {"error": "❌ مفتاح الترخيص غير موجود في الملف"}
-            
-            return IPProtectionSystem.verify_license(license_key)
-            
-        except Exception as e:
-            return False, {"error": f"❌ خطأ في التحقق: {str(e)}"}
-    
-    @classmethod
-    def get_license_status(cls) -> dict:
-        valid, info = cls.verify_license()
-        
-        status = {
-            'valid': valid,
-            'message': '✅ الترخيص ساري' if valid else '❌ الترخيص غير صالح',
-            'timestamp': datetime.now().isoformat()
-        }
-        
-        if valid:
-            status.update({
-                'user_id': info.get('user_id'),
-                'license_id': info.get('license_id'),
-                'expiry': info.get('expiry'),
-                'days_remaining': info.get('days_remaining', 0),
-                'features': info.get('features', []),
-                'type': info.get('type', 'commercial'),
-                'status': info.get('status', '✅ ساري')
-            })
-        else:
-            status.update({
-                'error': info.get('error', 'خطأ غير معروف'),
-                'details': info
-            })
-        
-        return status
-    
-    @classmethod
-    def list_licenses(cls) -> List[dict]:
-        cls._ensure_license_dir()
-        licenses = []
-        
-        for filename in os.listdir(cls.LICENSE_DIR):
-            if filename.endswith('.lic'):
-                filepath = os.path.join(cls.LICENSE_DIR, filename)
-                try:
-                    with open(filepath, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                        licenses.append({
-                            'filename': filename,
-                            'user_id': data.get('data', {}).get('user_id', 'غير معروف'),
-                            'created': data.get('data', {}).get('created', 'غير معروف'),
-                            'expiry': data.get('data', {}).get('expiry', 'غير معروف'),
-                            'features': data.get('data', {}).get('features', [])
-                        })
-                except:
-                    continue
-        
-        return licenses
-    
-    @classmethod
-    def delete_license(cls, filename: str) -> bool:
-        filepath = os.path.join(cls.LICENSE_DIR, filename)
-        try:
-            if os.path.exists(filepath):
-                os.remove(filepath)
-                return True
-        except:
-            pass
-        return False
-    
-    @classmethod
-    def activate_license(cls, license_key: str) -> bool:
-        try:
-            valid, info = IPProtectionSystem.verify_license(license_key)
-            if not valid:
-                return False
-            
-            with open(cls.LICENSE_FILE, 'w', encoding='utf-8') as f:
-                json.dump({
-                    'user_id': info.get('user_id', 'unknown'),
-                    'license_key': license_key,
-                    'activated': datetime.now().isoformat()
-                }, f, ensure_ascii=False, indent=2)
-            
-            return True
-        except:
-            return False
-
 # التحقق من الترخيص
 if not st.session_state.get("license_checked", False):
     license_status = LicenseManager.get_license_status()
@@ -2739,7 +2815,7 @@ def show_protection_management():
         
         st.info("""
         📌 **سيتم إنشاء نسخة محمية من الكود تحتوي على:**
-        - 🔒 تشفير متقدم للكود
+        - 🔒 تشفير متقدم للكود (XOR + SHA-256)
         - 🖊️ علامة مائية رقمية
         - 📝 بصمة رقمية (SHA3-256)
         - 🧾 بيانات وصفية للحماية
@@ -2967,7 +3043,7 @@ def show_protection_management():
         with col_s1:
             st.metric("🛡️ مستوى الحماية", "متقدم")
         with col_s2:
-            st.metric("🔑 نوع التشفير", "AES-128 (Fernet)")
+            st.metric("🔑 نوع التشفير", "XOR + SHA-256")
         with col_s3:
             st.metric("🔐 خوارزمية التوقيع", "SHA3-256")
         with col_s4:
@@ -2992,8 +3068,8 @@ def show_protection_management():
                 'licenses_count': len(LicenseManager.list_licenses()),
                 'events': events,
                 'protection_info': {
-                    'version': '3.8',
-                    'encryption': 'AES-128 (Fernet)',
+                    'version': '4.1',
+                    'encryption': 'XOR + SHA-256',
                     'hash': 'SHA3-256',
                     'features': ['full_access', 'premium', 'support', 'updates']
                 }
@@ -3954,7 +4030,6 @@ with tabs[7]:
     
     st.markdown("### 📊 توزيع استخدام المكونات")
     
-    # رسم بياني لتوزيع المكونات
     try:
         import plotly.express as px
         if st.session_state.get("active_formula"):
@@ -4098,8 +4173,8 @@ st.markdown("""
 <div style="text-align: center; color: #666; padding: 20px 0; direction: rtl;">
     <p>🌾 منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف © 2026</p>
     <p style="font-size: 0.9rem;">المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور</p>
-    <p style="font-size: 0.8rem;">الإصدار 3.8 | نظام الحماية المتقدم | جميع الحقوق محفوظة</p>
-    <p style="font-size: 0.7rem; color: #999;">Protected by IP Protection System v3.0 | License: Active | Total Lines: 3500+</p>
+    <p style="font-size: 0.8rem;">الإصدار 4.1 | نظام الحماية المتقدم | جميع الحقوق محفوظة</p>
+    <p style="font-size: 0.7rem; color: #999;">Protected by IP Protection System v4.0 | License: Active | Total Lines: 4000+</p>
 </div>
 """, unsafe_allow_html=True)
 
