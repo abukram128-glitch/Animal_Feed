@@ -1,9 +1,3 @@
-# Digital Signature: 110dfcb10bc6902ee96175517109d7c7
-# Generated: 2026-07-02T22:16:27.283609
-
-# Digital Signature: 8f7e3d9c2b1a5e7f9d4c3b2a1e7f9d4c
-# Generated: 2026-07-02T12:00:00.000000
-
 import streamlit as st
 import numpy as np
 import pandas as pd  
@@ -1086,6 +1080,61 @@ def check_and_alert_medications(farm_name: str, farm_data: dict, current_age: in
     else:
         st.success("✅ لا توجد تحصينات أو أدوية مستحقة اليوم.")
 
+
+# ==========================================
+# 9.5 نظام التوجيه الصوتي (Voice Guidance System)
+# ==========================================
+def voice_guide(message: str, lang: str = "ar", priority: str = "normal"):
+    """
+    إضافة توجيه صوتي بعد كل خطوة باستخدام Web Speech API
+    يتم تشغيل الرسالة الصوتية في المتصفح مباشرةً
+    """
+    # الهروب من الأحرف الخاصة في JavaScript
+    safe_message = message.replace("'", "\\'").replace('"', '\\"')
+    
+    # اختيار اللغة المناسبة
+    lang_code = "ar-SA" if lang == "ar" else "en-US"
+    
+    # إنشاء كود JavaScript لتشغيل الصوت
+    js_code = f"""
+    <script>
+    (function() {{
+        try {{
+            var msg = new SpeechSynthesisUtterance('{safe_message}');
+            msg.lang = '{lang_code}';
+            msg.rate = 0.9;
+            msg.pitch = 1.0;
+            msg.volume = 1.0;
+            
+            // تعطيل التوجيه الصوتي للرسائل القصيرة جداً (أقل من 5 حروف)
+            if ('{safe_message}'.length < 3) return;
+            
+            // محاولة اختيار صوت عربي إن وجد
+            var voices = window.speechSynthesis.getVoices();
+            var arabicVoice = voices.find(v => v.lang.startsWith('ar'));
+            if (arabicVoice) {{
+                msg.voice = arabicVoice;
+            }}
+            
+            // إلغاء أي صوت قيد التشغيل لتجنب التداخل
+            window.speechSynthesis.cancel();
+            
+            // تشغيل الصوت
+            window.speechSynthesis.speak(msg);
+            
+            // تسجيل في console للتتبع
+            console.log('🔊 توجيه صوتي: ' + '{safe_message}');
+        }} catch(e) {{
+            console.log('⚠️ تعذر تشغيل الصوت: ' + e.message);
+        }}
+    }})();
+    </script>
+    """
+    
+    # عرض المكون مع كود JavaScript
+    st.components.v1.html(js_code, height=0, width=0)
+
+
 # ==========================================
 # 10. CSS
 # ==========================================
@@ -1380,15 +1429,20 @@ if not st.session_state["approved"]:
                     st.session_state["login_attempts"] = 0
                     st.session_state["last_login_time"] = datetime.now()
                     st.session_state["session_token"] = secrets.token_urlsafe(32)
+                    # توجيه صوتي: ترحيب بعد تسجيل الدخول
+                    role_name = CODES_DB[input_code_stripped]["name"]
+                    voice_guide(f"مرحباً بك في منصة تاور العلمية، {role_name}. تم تسجيل الدخول بنجاح.")
                     st.rerun()
                 else:
                     st.session_state["login_attempts"] += 1
                     st.session_state["last_login_time"] = datetime.now()
                     remaining = MAX_LOGIN_ATTEMPTS - st.session_state["login_attempts"]
                     st.error(f"❌ الكود غير صحيح! متبقي {remaining} محاولات")
+                    voice_guide(f"الكود غير صحيح. متبقي {remaining} محاولات.")
         with col_reset:
             if st.button("🔄 نسيت الكود", use_container_width=True):
                 st.info("يرجى التواصل مع مدير النظام: abukram128@gmail.com")
+                voice_guide("يرجى التواصل مع مدير النظام عبر البريد الإلكتروني.")
     else:
         username = st.text_input("👤 اسم المستخدم")
         password = st.text_input("🔑 كلمة المرور", type="password")
@@ -1403,12 +1457,14 @@ if not st.session_state["approved"]:
                 st.session_state["last_login_time"] = datetime.now()
                 st.session_state["session_token"] = secrets.token_urlsafe(32)
                 st.session_state["user"] = user
+                voice_guide(f"مرحباً {user['full_name']}، تم تسجيل الدخول بنجاح إلى منصة تاور العلمية.")
                 st.rerun()
             else:
                 st.session_state["login_attempts"] += 1
                 st.session_state["last_login_time"] = datetime.now()
                 remaining = MAX_LOGIN_ATTEMPTS - st.session_state["login_attempts"]
                 st.error(f"❌ اسم المستخدم أو كلمة المرور غير صحيحة! متبقي {remaining} محاولات")
+                voice_guide("اسم المستخدم أو كلمة المرور غير صحيحة. يرجى المحاولة مرة أخرى.")
         
         st.caption("💡 المستخدم الافتراضي: admin / admin123")
     
@@ -1422,7 +1478,15 @@ if not st.session_state["login_welcome_shown"]:
         "breeder": "🚜 أهلاً وسهلاً بإخواننا المربين، شركاء النجاح."
     }
     role_icons = {"owner": "👑", "specialist": "👨‍🔬", "breeder": "🌾"}
-    st.toast(role_messages.get(st.session_state["user_role"], "مرحباً"), icon=role_icons.get(st.session_state["user_role"], "🌾"))
+    welcome_text = role_messages.get(st.session_state["user_role"], "مرحباً")
+    st.toast(welcome_text, icon=role_icons.get(st.session_state["user_role"], "🌾"))
+    # توجيه صوتي ترحيبي عند ظهور الواجهة الرئيسية (مرة واحدة فقط)
+    if st.session_state["user_role"] == "owner":
+        voice_guide("مرحباً بك في منصة تاور العلمية. أنت الآن في لوحة التحكم الرئيسية، يمكنك البدء بتركيب الأعلاف أو إدارة المزارع.")
+    elif st.session_state["user_role"] == "specialist":
+        voice_guide("مرحباً أيها المختص. يمكنك استخدام أدوات التحليل وتركيب الأعلاف وعرض الأسعار.")
+    else:
+        voice_guide("مرحباً أيها المربي. يمكنك استخدام أدوات تركيب الأعلاف والاستفادة من المراجع العلمية.")
     st.session_state["login_welcome_shown"] = True
 
 # ==========================================
@@ -1440,6 +1504,7 @@ with col_user_status:
                 del st.session_state[key]
         st.session_state["approved"] = False
         st.session_state["user_role"] = None
+        voice_guide("تم تسجيل الخروج بنجاح. نأمل زيارتك مرة أخرى.")
         st.rerun()
 
 col_logo, col_title = st.columns([0.3, 0.7])
@@ -1475,6 +1540,7 @@ col_copy, col_share = st.columns(2)
 with col_copy:
     if st.button("📋 نسخ الرابط والنص للدعاية والتسويق", type="secondary", use_container_width=True):
         st.success("تم التجهيز بنجاح! يمكنك الآن نسخ النص ومشاركته عبر المجموعات والمنصات.")
+        voice_guide("تم نسخ النص الدعائي بنجاح. يمكنك مشاركته الآن.")
 with col_share:
     encoded_share = urllib.parse.quote(share_text_payload[:200])
     st.link_button("📲 مشاركة مباشرة عبر واتساب", f"https://wa.me/?text={encoded_share}", use_container_width=True)
@@ -1856,6 +1922,9 @@ with tabs[0]:
                 st.session_state["active_animal_img"] = ANIMAL_IMAGES_RESOURCES.get(dynamic_img_key, ANIMAL_IMAGES_RESOURCES["عام"])
                 st.session_state["active_stage_title"] = f"{main_sector} ({gender_option}) - {prod_stage}"
                 st.success(f"🎯 تم تشغيل محرك الاستمثال الخطي بنجاح في سوق: {user_city}")
+                
+                # توجيه صوتي: نجاح تشغيل المحرك
+                voice_guide(f"تم تشغيل محرك الاستمثال الخطي بنجاح. تم توليد خلطة علفية لـ {sub_type} بتكلفة {st.session_state['computed_ton_cost']:.2f} دولار للطن.")
 
                 if not use_cp_basis and final_target_dp > 0:
                     nutritive_ratio = computed_se_total / final_target_dp
@@ -1888,6 +1957,8 @@ with tabs[0]:
                             share_text = f"تقرير خلطة منصة تاور العلمية:\nالفصيل: {sub_type}\nالتكلفة: ${ton_cost:.2f}/طن\nالبروتين: {st.session_state['active_cp_tag']:.1f}%\nالمشرف: م. عبد القادر إسماعيل تاور"
                             encoded_share = urllib.parse.quote(share_text)
                             st.markdown(f'<a href="https://wa.me/?text={encoded_share}" target="_blank"><button style="background-color:#25D366; color:white; padding:10px; border-radius:5px;">📲 مشاركة التقرير عبر واتساب</button></a>', unsafe_allow_html=True)
+                            # توجيه صوتي: تم تحميل التقرير
+                            voice_guide("تم تحميل التقرير الفني بصيغة PDF بنجاح.")
                         except Exception as pdf_err:
                             st.error(f"⚠️ لم يتم بناء ملف الـ PDF: {pdf_err}")
 
@@ -1899,6 +1970,7 @@ with tabs[0]:
                     st.bar_chart(chart_data.set_index('المكون')['الوزن (كجم/طن)'])
             else:
                 st.error("❌ تعذر إيجاد حل رياضي متزن. يرجى إتاحة خامات إضافية ككسب فول صويا أو أمباز الفول لتوسيع مساحة الحل.")
+                voice_guide("تعذر إيجاد حل رياضي متزن. يرجى إضافة المزيد من المواد العلفية.")
             time.sleep(40)
             nz_placeholder.empty()
 
@@ -1908,6 +1980,7 @@ with tabs[0]:
     with sub_tab_analyzer:
         st.markdown('<div class="section-title">🔬 مختبر فحص وتحليل الخلطات الجاهزة</div>', unsafe_allow_html=True)
         st.write("اكتب مقادير خلطتك الحالية بالكيلوجرام، وسيقوم المختبر بتحليلها برمجياً لتقدير نسبة البروتين المهضوم ومعادل النشاء الإجمالي.")
+        voice_guide("مرحباً بك في مختبر تحليل الخلطات. أدخل مقادير الخلطة واختر الحيوان المستهدف.")
 
         st.subheader("🎯 حدد الحيوان والغرض المستهدف للمقارنة:")
         col_lab_animal, col_lab_stage = st.columns(2)
@@ -1967,6 +2040,7 @@ with tabs[0]:
             lab_total_weight = sum(lab_user_inputs.values())
             if lab_total_weight <= 0:
                 st.warning("⚠️ الرجاء إدخال أوزان أكبر من الصفر.")
+                voice_guide("الرجاء إدخال أوزان أكبر من الصفر.")
             else:
                 calculated_total_cp = 0.0
                 calculated_total_dp = 0.0
@@ -1989,6 +2063,8 @@ with tabs[0]:
                         entered_components_summary.append({"المادة العلفية": ing_name, "الوزن المدخل": f"{weight:.1f} كجم", "النسبة المئوية": f"{pct * 100:.2f}%"})
 
                 st.success("🔬 تم فحص العينة وتحليل المحتوى الغذائي بنجاح!")
+                voice_guide("تم فحص العينة وتحليل المحتوى الغذائي بنجاح.")
+                
                 st.markdown(f"### ⚖️ إجمالي وزن الخلطة: **{lab_total_weight:.1f} كجم**")
                 st.write("#### 📊 نسب توزيع المكونات:")
                 st.table(pd.DataFrame(entered_components_summary))
@@ -2022,6 +2098,7 @@ with tabs[0]:
                 lab_share_text = f"نتيجة مختبر منصة تاور:\nالحيوان: {target_animal} - {production_type}\nالبروتين المحسوب: {comparison_value:.2f}%\nالمعيار: {target_value:.1f}%"
                 encoded_lab = urllib.parse.quote(lab_share_text)
                 st.markdown(f'<a href="https://wa.me/?text={encoded_lab}" target="_blank"><button style="background-color:#25D366; color:white; padding:10px; border-radius:5px;">📲 مشاركة النتيجة عبر واتساب</button></a>', unsafe_allow_html=True)
+                voice_guide(f"تم الانتهاء من التحليل المخبري. نسبة البروتين المحسوبة هي {comparison_value:.2f} بالمئة.")
 
 # ==========================================
 # 15. تبويب بورصة الأسعار
@@ -2039,7 +2116,10 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                 st.subheader("أسعار الماشية والداجن")
                 for animal, price in st.session_state["global_livestock_prices"].items():
                     if st.session_state["user_role"] == "owner":
-                        st.session_state["global_livestock_prices"][animal] = st.number_input(f"تحديث: {animal}", min_value=0.0, value=float(price), step=0.1, key=f"livestock_{animal}")
+                        new_price = st.number_input(f"تحديث: {animal}", min_value=0.0, value=float(price), step=0.1, key=f"livestock_{animal}")
+                        if new_price != price:
+                            st.session_state["global_livestock_prices"][animal] = new_price
+                            voice_guide(f"تم تحديث سعر {animal} إلى {new_price:.2f} دولار.")
                     else:
                         st.markdown(f"▪️ {animal}: **${price:.2f}**")
             with col_edit2:
@@ -2050,6 +2130,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                     if st.button("إضافة إلى البورصة") and new_animal:
                         st.session_state["global_livestock_prices"][f"{new_animal} ($)"] = new_price
                         st.success("تمت الإضافة بنجاح!")
+                        voice_guide(f"تم إضافة {new_animal} إلى البورصة بسعر {new_price:.2f} دولار.")
                         st.rerun()
         with tab_products:
             col_prod1, col_prod2 = st.columns(2)
@@ -2057,7 +2138,10 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                 st.subheader("أسعار المنتجات الحيوانية")
                 for product, price in st.session_state["global_products_prices"].items():
                     if st.session_state["user_role"] == "owner":
-                        st.session_state["global_products_prices"][product] = st.number_input(f"تحديث: {product}", min_value=0.0, value=float(price), step=0.05, key=f"prod_edit_{product}")
+                        new_price = st.number_input(f"تحديث: {product}", min_value=0.0, value=float(price), step=0.05, key=f"prod_edit_{product}")
+                        if new_price != price:
+                            st.session_state["global_products_prices"][product] = new_price
+                            voice_guide(f"تم تحديث سعر {product} إلى {new_price:.2f} دولار.")
                     else:
                         st.markdown(f"▪️ {product}: **${price:.2f}**")
 
@@ -2096,11 +2180,15 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                 st.markdown(f"**{ing_name}** | {status_badge}", unsafe_allow_html=True)
                 if st.session_state["user_role"] == "owner":
                     new_qty = st.number_input(f"تحديث ({ing_name}) طن:", min_value=0.0, value=float(qty), key=f"inv_input_{ing_name}")
-                    if isinstance(st.session_state["inventory"][ing_name], dict):
-                        st.session_state["inventory"][ing_name]["quantity"] = new_qty
-                        st.session_state["inventory"][ing_name]["last_updated"] = datetime.now().isoformat()
-                    else:
-                        st.session_state["inventory"][ing_name] = new_qty
+                    if new_qty != qty:
+                        if isinstance(st.session_state["inventory"][ing_name], dict):
+                            st.session_state["inventory"][ing_name]["quantity"] = new_qty
+                            st.session_state["inventory"][ing_name]["last_updated"] = datetime.now().isoformat()
+                        else:
+                            st.session_state["inventory"][ing_name] = new_qty
+                        # توجيه صوتي فقط إذا تغيرت الكمية بشكل ملحوظ
+                        if abs(new_qty - qty) > 1.0:
+                            voice_guide(f"تم تحديث رصيد {ing_name} إلى {new_qty:.2f} طن.")
 
 # ==========================================
 # 17. تبويب الفواتير
@@ -2135,6 +2223,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                     if current_stock < required_amount:
                         can_deduct = False
                         st.error(f"❌ رصيد غير كافي: {name}!")
+                        voice_guide(f"رصيد غير كافي للمادة {name}.")
                         break
                 if can_deduct:
                     for name, pct in st.session_state["active_formula"].items():
@@ -2145,6 +2234,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
                         else:
                             st.session_state["inventory"][name] -= required_amount
                     st.success("🔥 تم الخصم التلقائي وتحديث المخازن بنجاح!")
+                    voice_guide(f"تم إتمام عملية البيع بنجاح. إجمالي الفاتورة {total_bill:.2f} دولار. تم خصم الكميات من المخزون.")
                     st.balloons()
                     time.sleep(2)
                     st.rerun()
@@ -2168,6 +2258,7 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
             font_size = st.slider("حجم الخط", 12, 24, 16)
             if st.button("📥 تصدير الديباجة كـ PDF", use_container_width=True):
                 st.success("تم تجهيز الديباجة للطباعة!")
+                voice_guide("تم تجهيز الديباجة للطباعة بصيغة PDF.")
 
 # ==========================================
 # 19. تبويب التحليلات المتقدمة
@@ -2243,12 +2334,14 @@ if st.session_state["user_role"] == "owner":
             selected = st.selectbox("اختر مزرعة:", [""] + farm_names, format_func=lambda x: x if x else "-- أضف مزرعة جديدة --")
             if st.button("➕ إضافة مزرعة جديدة", use_container_width=True):
                 st.session_state["show_add_farm"] = True
+                voice_guide("فتح نموذج إضافة مزرعة جديدة.")
             if st.button("🗑️ حذف المزرعة المختارة", use_container_width=True):
                 if selected and selected in st.session_state["broiler_farms"]:
                     del st.session_state["broiler_farms"][selected]
                     if st.session_state["selected_farm"] == selected:
                         st.session_state["selected_farm"] = None
                     st.success(f"تم حذف مزرعة {selected}")
+                    voice_guide(f"تم حذف مزرعة {selected}.")
                     st.rerun()
 
         if st.session_state.get("show_add_farm", False):
@@ -2283,6 +2376,7 @@ if st.session_state["user_role"] == "owner":
                 st.session_state["selected_farm"] = new_name
                 st.session_state["show_add_farm"] = False
                 st.success("تمت إضافة المزرعة بنجاح!")
+                voice_guide(f"تم إضافة مزرعة {new_name} بنجاح.")
                 st.rerun()
 
         # عرض بيانات المزرعة المختارة
@@ -2348,6 +2442,7 @@ if st.session_state["user_role"] == "owner":
                         }
                         farm["health_log"].append(health_record)
                     st.success("تم حفظ بيانات اليوم والسجل الصحي بنجاح!")
+                    voice_guide(f"تم حفظ بيانات مزرعة {selected} ليوم {new_age} بنجاح.")
                     check_and_alert_medications(selected, farm, new_age)
                     st.rerun()
 
@@ -2377,6 +2472,7 @@ if st.session_state["user_role"] == "owner":
                 rec_hum = closest['الرطوبة النسبية (%)']
                 if abs(temp - rec_temp) > 2 or abs(hum - rec_hum) > 10:
                     st.warning(f"⚠️ درجة الحرارة الحالية ({temp}°C) أو الرطوبة ({hum}%) خارج النطاق الموصى به لعمر {current['flock_age_days']} يوم (موصى: {rec_temp}°C, {rec_hum}% رطوبة).")
+                    voice_guide("تنبيه: درجة الحرارة أو الرطوبة خارج النطاق الموصى به.")
 
                 standard_today = st.session_state["standard_vacc_schedule"].get(current["flock_age_days"])
                 if standard_today:
@@ -2413,6 +2509,7 @@ if st.session_state["user_role"] == "owner":
                         "route": new_route
                     }
                     st.success(f"تم حفظ الموعد لعمر {new_age_sch} يوم")
+                    voice_guide(f"تم إضافة موعد تحصين لعمر {new_age_sch} يوم.")
                     st.rerun()
                 st.markdown("**الجدول الحالي:**")
                 st.json(st.session_state["standard_vacc_schedule"])
@@ -2438,6 +2535,7 @@ if st.session_state["user_role"] == "owner":
                 encoded = urllib.parse.quote(report_text[:1500])
                 st.markdown(f'<a href="https://wa.me/{farm.get("owner_phone", WHATSAPP_NUMBER)}?text={encoded}" target="_blank"><button style="background:#25D366; color:white; padding:10px; border-radius:5px;">📲 إرسال التقرير عبر واتساب باسم المزرعة</button></a>', unsafe_allow_html=True)
                 st.text_area("معاينة التقرير:", report_text, height=250)
+                voice_guide(f"تم إرسال تقرير مزرعة {selected} عبر واتساب.")
 
         else:
             if not st.session_state.get("show_add_farm", False):
@@ -2452,182 +2550,189 @@ if st.session_state["user_role"] in ["owner", "specialist"]:
         st.markdown('<div class="section-title">💬 قناة التواصل والتعليقات الفنية</div>', unsafe_allow_html=True)
         st.markdown("### 📝 دفتر الملاحظات الفنية المشتركة:")
         st.text_area("التعليقات الحالية:", value=st.session_state["shared_comments"], height=200, disabled=True)
-        col_comment1, col_comment2 = st.columns([0.7, 0.3])
-        with col_comment1: new_comment = st.text_input("✍️ أكتب تعليقك الفني هنا:")
+        col_comment1, col_comment2 = st.columns(2)
+        with col_comment1:
+            new_comment = st.text_area("📝 أضف تعليقك هنا:", height=100, placeholder="اكتب ملاحظتك الفنية هنا...")
+            if st.button("➕ نشر التعليق", use_container_width=True) and new_comment.strip():
+                st.session_state["shared_comments"] += f"\n• [{datetime.now().strftime('%H:%M')}] {new_comment.strip()}"
+                st.success("تم نشر تعليقك!")
+                voice_guide("تم نشر التعليق بنجاح.")
+                st.rerun()
         with col_comment2:
-            if st.button("📌 حفظ ونشر التعليق", use_container_width=True):
-                if new_comment.strip():
-                    prefix = "• [توجيه الاختصاصي م. عبد القادر إسماعيل تاور]" if st.session_state["user_role"] == "owner" else "• [ملاحظة مختص]"
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    st.session_state["shared_comments"] += f"{prefix} ({timestamp}): {new_comment.strip()}\n"
-                    st.success("تمت إضافة الملاحظة بنجاح!")
-                    time.sleep(0.5)
-                    st.rerun()
+            st.markdown("#### 📋 آخر 3 تعليقات:")
+            all_comments = st.session_state["shared_comments"].split("\n")
+            recent = [c for c in all_comments if c.strip()][-3:]
+            for c in recent:
+                st.markdown(f'<div style="background:#f5f5f5; padding:8px; border-radius:6px; margin-bottom:5px;">{c}</div>', unsafe_allow_html=True)
 
 # ==========================================
 # 22. تبويب المراجع العلمية
 # ==========================================
-if "📚 المراجع العلمية" in tabs_titles:
-    ref_tab_index = tabs_titles.index("📚 المراجع العلمية")
-    with tabs[ref_tab_index]:
-        st.markdown('<div class="section-title">📚 المراجع العلمية المعتمدة</div>', unsafe_allow_html=True)
-        
-        topics = {
-            "general_nutrition": "المبادئ الأساسية لتغذية الحيوان",
-            "protein_amino_acids": "البروتين والأحماض الأمينية",
-            "energy_carbohydrates": "الطاقة والكربوهيدرات",
-            "minerals_vitamins": "المعادن والفيتامينات",
-            "poultry": "تغذية الدواجن",
-            "ruminants": "تغذية المجترات",
-            "sheep_goats": "تغذية الأغنام والماعز",
-            "horses": "تغذية الخيول",
-            "aquaculture": "تغذية الأسماك",
-            "animal_production": "الإنتاج الحيواني",
-            "feed_formulation": "تركيب الأعلاف",
-            "broiler": "إنتاج الدجاج اللاحم",
-            "digestible_protein": "البروتين المهضوم"
-        }
-        
-        selected_topic = st.selectbox("اختر الموضوع:", list(topics.values()))
-        topic_key = None
-        for key, value in topics.items():
-            if value == selected_topic:
-                topic_key = key
-                break
-        
-        if topic_key and topic_key in ScientificReferenceSystem.REFERENCES:
-            ref_data = ScientificReferenceSystem.REFERENCES[topic_key]
-            st.markdown(f"### {ref_data['title']}")
-            for ref in ref_data.get("references", []):
-                with st.expander(f"📖 {ref.get('title', 'مرجع')} ({ref.get('year', '')})"):
-                    cols = st.columns([0.7, 0.3])
-                    with cols[0]:
-                        st.markdown(f"""
-                        **المؤلفون:** {ref.get('authors', 'غير محدد')}
-                        **الناشر:** {ref.get('publisher', 'غير محدد')}
-                        **الطبعة:** {ref.get('edition', 'غير محدد')}
-                        **الرقم المرجعي:** `{ref.get('id', '')}`
-                        """)
-                    with cols[1]:
-                        st.info(f"**الملخص:**\n{ref.get('summary', 'لا يوجد ملخص')}")
+reference_tab_index = {
+    "owner": 8,
+    "specialist": 7,
+    "breeder": 1
+}.get(st.session_state["user_role"], 2)
+
+with tabs[reference_tab_index]:
+    st.markdown('<div class="section-title">📚 المكتبة العلمية والمراجع المعتمدة - منصة تاور العلمية</div>', unsafe_allow_html=True)
+    
+    # عرض مراجع مختارة
+    st.markdown("### 📖 المراجع الأساسية في تغذية الحيوان")
+    
+    ref_categories = list(ScientificReferenceSystem.REFERENCES.keys())
+    selected_cat = st.selectbox("اختر مجال التخصص:", [ScientificReferenceSystem.REFERENCES[cat]["title"] for cat in ref_categories])
+    
+    for cat, data in ScientificReferenceSystem.REFERENCES.items():
+        if data["title"] == selected_cat:
+            for ref in data["references"]:
+                with st.expander(f"📄 {ref.get('title', 'مرجع علمي')} - {ref.get('authors', '')} ({ref.get('year', '')})"):
+                    st.markdown(f"""
+                    <div style='background:#f8f9fa; padding:15px; border-radius:8px; direction:rtl; text-align:right;'>
+                    <p><b>المؤلفون:</b> {ref.get('authors', 'غير محدد')}</p>
+                    <p><b>الناشر:</b> {ref.get('publisher', 'غير محدد')}</p>
+                    <p><b>الطبعة:</b> {ref.get('edition', 'غير محدد')}</p>
+                    <p><b>الرقم المعياري:</b> {ref.get('isbn', 'غير محدد')}</p>
+                    <p><b>الملخص:</b> {ref.get('summary', 'لا يوجد ملخص')}</p>
+                    <p><b>المرجع ID:</b> <code>{ref.get('id', '')}</code></p>
+                    </div>
+                    """, unsafe_allow_html=True)
+            break
+    
+    st.markdown("---")
+    st.markdown("### 🧠 المعرفة العلمية السريعة (بنك المعلومات)")
+    st.markdown("اطرح سؤالاً علمياً حول التغذية والإنتاج الحيواني:")
+    user_question = st.text_input("اكتب سؤالك هنا:", placeholder="مثال: ما هو البروتين المهضوم؟")
+    if st.button("🔍 ابحث في بنك المعرفة", use_container_width=True):
+        if user_question:
+            answer = ScientificReferenceSystem.get_knowledge_answer(user_question)
+            if answer:
+                st.markdown(f"""
+                <div style='background:#e8f5e9; padding:20px; border-radius:12px; border-right:5px solid #2e7d32; direction:rtl; text-align:right;'>
+                <h4 style='color:#1b5e20;'>📖 الإجابة:</h4>
+                <p>{answer['answer']}</p>
+                <p><b>📌 التبسيط:</b> {answer['simplified']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                if answer.get('reference'):
+                    ref = answer['reference']
+                    st.info(f"📚 المرجع: {ref.get('title', '')} - {ref.get('authors', '')} ({ref.get('year', '')})")
+                voice_guide("تم العثور على إجابة لسؤالك في بنك المعرفة.")
+            else:
+                st.warning("⚠️ لم يتم العثور على إجابة محددة لهذا السؤال. يرجى محاولة صياغة السؤال بشكل مختلف.")
+                voice_guide("لم يتم العثور على إجابة. حاول صياغة السؤال بشكل مختلف.")
 
 # ==========================================
 # 23. تبويب المساعدة الذكية
 # ==========================================
-if "💡 المساعدة الذكية" in tabs_titles:
-    help_tab_index = tabs_titles.index("💡 المساعدة الذكية")
-    with tabs[help_tab_index]:
-        st.markdown('<div class="section-title">💡 المساعدة الذكية - اسأل المنصة</div>', unsafe_allow_html=True)
-        
+help_tab_index = {
+    "owner": 9,
+    "specialist": 8,
+    "breeder": 2
+}.get(st.session_state["user_role"], 3)
+
+with tabs[help_tab_index]:
+    st.markdown('<div class="section-title">💡 المساعدة الذكية والدعم الفني</div>', unsafe_allow_html=True)
+    
+    col_help, col_support = st.columns(2)
+    with col_help:
         st.markdown("""
-        <div style='background: #e3f2fd; padding: 15px; border-radius: 12px; border-right: 5px solid #1565C0; margin-bottom: 20px;'>
-        <b>🤖 المساعد العلمي لمنصة تاور:</b> اكتب سؤالك حول أي موضوع متعلق بالتغذية والإنتاج الحيواني، 
-        وسيقوم النظام بالرد عليك بأسلوب علمي مبسط مع المراجع المعتمدة.
+        <div style='background:#f0fdf4; padding:20px; border-radius:12px; border-right:5px solid #16a34a;'>
+        <h4>📋 دليل سريع:</h4>
+        <ul style='text-align:right; direction:rtl; list-style-type: none; padding-right:0;'>
+        <li>✅ <b>تركيب العلف:</b> اختر القطاع، حدد المواصفات، شغّل المحرك.</li>
+        <li>✅ <b>تحليل الخلطات:</b> أدخل الأوزان واطلب التحليل المخبري.</li>
+        <li>✅ <b>إدارة المخازن:</b> راقب الأرصدة وحدّث الكميات.</li>
+        <li>✅ <b>الفواتير:</b> أنشئ فواتير البيع مع الخصم التلقائي.</li>
+        <li>✅ <b>المزارع:</b> سجل بيانات الدجاج اللاحم وتابع الأداء.</li>
+        </ul>
         </div>
         """, unsafe_allow_html=True)
-        
-        quick_questions = ["ما هو البروتين المهضوم", "ما هو معادل النشاء", "ما هو مؤشر EPEF", "كيف يتم تركيب العلف الأمثل", "ما هي أهمية إضافة الإنزيمات للأعلاف"]
-        cols = st.columns(len(quick_questions))
-        for idx, q in enumerate(quick_questions):
-            with cols[idx]:
-                if st.button(q, use_container_width=True, key=f"quick_q_{idx}"):
-                    st.session_state["smart_question"] = q
-                    st.rerun()
-        
-        st.markdown("---")
-        
-        question = st.text_area("✍️ اكتب سؤالك هنا:", 
-                               value=st.session_state.get("smart_question", ""),
-                               placeholder="مثال: كيف يمكن تحسين كفاءة مزرعة الدجاج؟",
-                               height=80)
-        
-        if st.button("🔍 اسأل المنصة", type="primary", use_container_width=True):
-            if question.strip():
-                with st.spinner("🔬 جاري البحث في قاعدة المعرفة العلمية..."):
-                    knowledge = ScientificReferenceSystem.get_knowledge_answer(question)
-                    
-                    if knowledge:
-                        st.markdown("### 🤖 الرد العلمي:")
-                        st.markdown(f"""
-                        <div style='background: #f5f5f5; padding: 20px; border-radius: 12px; border-right: 5px solid #2e7d32;'>
-                            <p style='font-size: 1.1rem; line-height: 1.8;'>{knowledge['simplified']}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        with st.expander("🔬 التفاصيل العلمية والمراجع"):
-                            st.markdown(f"**الشرح العلمي:**\n\n{knowledge['answer']}")
-                            if knowledge.get('reference'):
-                                ref = knowledge['reference']
-                                st.markdown(f"**📚 المرجع:** {ref.get('authors', '')} ({ref.get('year', '')}) - {ref.get('title', '')}")
-                                st.markdown(f"**الناشر:** {ref.get('publisher', '')}")
-                                if ref.get('isbn'):
-                                    st.markdown(f"**ISBN:** {ref.get('isbn')}")
-                    else:
-                        st.info("لم أجد إجابة محددة لهذا السؤال. يمكنك طرح سؤال آخر أو التواصل مع فريق الدعم الفني.")
-                    
-                    st.session_state["query_history"].append({
-                        "question": question,
-                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M")
-                    })
-                    
-                    st.balloons()
-            else:
-                st.warning("⚠️ يرجى كتابة سؤالك أولاً")
-        
-        if st.session_state.get("query_history"):
-            with st.expander("📋 سجل الاستفسارات السابقة"):
-                for idx, q in enumerate(st.session_state["query_history"][-5:]):
-                    st.markdown(f"**{idx+1}. {q['timestamp']}:** {q['question']}")
+    
+    with col_support:
+        st.markdown("""
+        <div style='background:#eff6ff; padding:20px; border-radius:12px; border-right:5px solid #1d4ed8;'>
+        <h4>📞 قنوات الدعم:</h4>
+        <p><b>✉️ البريد الإلكتروني:</b> abukram128@gmail.com</p>
+        <p><b>📱 واتساب:</b> +249123533489</p>
+        <p><b>🌐 المنصة:</b> <a href="https://tower-scientific-platform.streamlit.app" target="_blank">https://tower-scientific-platform.streamlit.app</a></p>
+        <p style='margin-top:15px;'><b>👨‍💻 المشرف العام:</b> الاختصاصي م. عبد القادر إسماعيل تاور</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.markdown("### 🎧 إعدادات الصوت")
+    st.info("🔊 نظام التوجيه الصوتي يعمل تلقائياً بعد كل خطوة مهمة. يمكنك ضبط مستوى الصوت من جهازك.")
+    if st.button("🔇 اختبار الصوت", use_container_width=True):
+        voice_guide("مرحباً، هذا اختبار للنظام الصوتي. الصوت يعمل بشكل جيد.")
 
 # ==========================================
 # 24. تبويب دليل المستخدم
 # ==========================================
-guide_tab_index = -1
-if "📖 دليل المستخدم" in tabs_titles:
-    guide_tab_index = tabs_titles.index("📖 دليل المستخدم")
+user_guide_tab_index = {
+    "owner": 10,
+    "specialist": 9,
+    "breeder": 3
+}.get(st.session_state["user_role"], 4)
 
-with tabs[guide_tab_index]:
-    st.markdown('<div class="section-title">📖 كتيب دليل المستخدم والتقانة الفنية</div>', unsafe_allow_html=True)
-    col_guide, col_actions = st.columns([0.65, 0.35])
-    with col_guide:
-        st.markdown("""<div class="manual-book"><div style="text-align: center; border-bottom: 2px double #2c3e50; padding-bottom: 15px; margin-bottom: 20px;"><h2 style="color: #2e7d32; margin: 0;">📖 الكتيب الرقمي الذكي لإدارة وتشغيل المنصة</h2><p style="color: #7f8c8d; font-style: italic; margin: 5px 0 0 0;">إصدار هندسي محدث بأحدث تقنيات العرض لعام 2026</p><p style="color: #2c3e50; font-weight: bold; margin: 5px 0 0 0;">المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور</p></div>
-        <div class="book-chapter">📌 الرؤية التقنية والهندسية للمنصة</div><div class="book-body">تعتمد <b>منصة تاور العلمية</b> على معايير التغذية الدقيقة المعتمدة عالمياً. يتم صياغة قيود الاستمثال الخطي عبر مكتبة <code>SciPy</code> بالاعتماد على <b>البروتين المهضوم الحقيقي (Digestible Protein)</b> كحاصل ضرب نسبة البروتين الخام في معامل الهضم العضوي لكل خامة، بالتكامل مع قيود <b>معادل النشاء (Starch Equivalent)</b> لتقييم كفاءة طاقة العلف.</div>
-        <div class="book-chapter">📌 خارطة المكونات (Ingredients Matrix)</div><div class="book-body">تم تصنيف المواد العلفية داخل المنصة بمرونة تامة لتشمل:<br>1. <b>الحبوب ومصادر الطاقة:</b> الذرة البيضاء وسورجم الفتريتة.<br>2. <b>الأكساب والبروتينات:</b> كسب زهرة الشمس، كسب فول الصويا.<br>3. <b>الإضافات والأملاح:</b> بريمكسات، أحماض أمينية نقية.</div>
-        <div class="book-chapter">📌 القطاعات الإنتاجية المتخصصة</div><div class="book-body">• <b>قطاع الأغنام والماعز:</b> فصل برمجي ذكي بين الذكور والإناث.<br>• <b>قطاع الدواجن:</b> دواجن التسمين، البياض، والسمان.<br>• <b>قطاع المجترات:</b> تسمين لحوم أو غزارة إدرار الألبان.<br>• <b>قطاع الخيول:</b> طاقة الجري أو أمهار نامية.</div>
-        <div class="book-chapter">📌 إدارة مزارع الدجاج اللاحم (خاص بالمالك)</div><div class="book-body">• تسجيل بيانات الدورة اليومية (العمر، العدد، الأوزان، الاستهلاك، النافق، المستبعدين، الظروف البيئية).<br>• حساب تلقائي لمؤشرات ADG، FCR، EPEF، ونسب النفوق والاستبعاد.<br>• جدول الحرارة والرطوبة المرجعي حسب العمر.<br>• تقرير يومي شامل يمكن مشاركته عبر واتساب.<br>• حفظ تاريخ الدورات السابقة (حتى 10 دورات).</div>
-        <div class="book-chapter">📌 المراجع العلمية المعتمدة</div><div class="book-body">تعتمد المنصة على مراجع علمية موثوقة مثل NRC، INRA، وكبرى الجامعات العالمية، مع تحديث مستمر لقواعد البيانات لتضمين أحدث الأبحاث العلمية.</div>
-        <div class="book-chapter">📌 خطوات تشغيل المنصة</div><div class="book-body"><b>الخطوة 1:</b> حدد القطاع والنوع الإنتاجي.<br><b>الخطوة 2:</b> اختر الخامات المتوفرة وأسعار السوق.<br><b>الخطوة 3:</b> اضغط على زر التشغيل للحصول على الخلطة المثلى.<br><b>الخطوة 4:</b> استعرض التقرير وقم بطباعة الديباجة أو تصدير PDF.<br><b>الخطوة 5 (للمالك):</b> استخدم تبويب إدارة الدجاج اللاحم لتسجيل ومتابعة أداء دورات التسمين.</div></div>""", unsafe_allow_html=True)
-    with col_actions:
-        st.markdown("### 💬 قنوات التفاعل والاستشارات:")
-        st.link_button("📝 إرسال تعليق أو استشارة (نموذج جوجل)", GOOGLE_FORM_URL, use_container_width=True)
-        welcome_msg = "السلام عليكم م. عبد القادر، أود الحصول على استشارة فنية بخصوص تركيب الأعلاف وحساب العلائق..."
-        encoded_msg = urllib.parse.quote(welcome_msg)
-        whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}?text={encoded_msg}"
-        st.link_button("💬 تواصل واستشارة عبر الواتساب", whatsapp_link, use_container_width=True)
-        st.markdown("<br><b>📢 انشر البرنامج وشارك المعرفة:</b>", unsafe_allow_html=True)
-        share_text_base = "أستخدم الآن منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف لحساب العلائق بأقل تكلفة ودقة علمية عالية، تحت إشراف م. عبد القادر إسماعيل تاور. كما تتضمن إدارة متقدمة لمزارع الدجاج اللاحم."
-        encoded_share_text = urllib.parse.quote(share_text_base)
-        col_wa, col_fb = st.columns(2)
-        with col_wa: st.link_button("🟢 واتساب", f"https://wa.me/?text={encoded_share_text}", use_container_width=True)
-        with col_fb: st.link_button("🔵 فيسبوك", f"https://www.facebook.com/sharer/sharer.php?u=https://yourplatform.com&quote={encoded_share_text}", use_container_width=True)
+with tabs[user_guide_tab_index]:
+    st.markdown('<div class="section-title">📖 دليل المستخدم الشامل</div>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="manual-book">
+    <div class="book-chapter">📘 الفصل الأول: التعريف بالمنصة</div>
+    <div class="book-body">
+    <p><b>منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف</b> هي نظام متكامل يعتمد على <b>محرك الاستمثال الخطي</b> (Linear Programming) لتوليد خلطات علفية بأقل تكلفة ممكنة، مع تحقيق المواصفات الغذائية المطلوبة بناءً على <b>البروتين المهضوم (DP)</b> و<b>معادل النشاء (SE)</b>.</p>
+    <p>تم تطوير المنصة بإشراف <b>الاختصاصي م. عبد القادر إسماعيل تاور</b>، وتستهدف جميع قطاعات الإنتاج الحيواني: الأبقار، الأغنام، الماعز، الخيول، الدواجن، السمان، والأسماك.</p>
+    </div>
+    
+    <div class="book-chapter">📘 الفصل الثاني: كيفية استخدام المنصة</div>
+    <div class="book-body">
+    <p><b>1. تركيب العلف:</b> اختر القطاع الإنتاجي، حدد السلالة والمرحلة الإنتاجية، ثم اختر المكونات العلفية. بعد ذلك، شغّل محرك الاستمثال الخطي للحصول على الخلطة المثالية.</p>
+    <p><b>2. مختبر التحليل:</b> أدخل مقادير خلطتك الحالية بالكيلوجرام، وسيقوم النظام بتحليلها وتقديم تقرير مفصل عن محتواها الغذائي.</p>
+    <p><b>3. إدارة المخازن:</b> تابع أرصدة المواد العلفية، ونبهك النظام عند اقتراب نفاد أي مادة.</p>
+    <p><b>4. الفواتير:</b> أنشئ فواتير بيع للعملاء، ويقوم النظام تلقائياً بخصم الكميات المباعة من المخزون.</p>
+    <p><b>5. إدارة مزارع الدجاج:</b> (خاص بالمالك) سجل بيانات مزارع الدجاج اللاحم، وتابع مؤشرات الأداء (ADG, FCR, EPEF) واحصل على تنبيهات للتحصينات والأدوية.</p>
+    </div>
+    
+    <div class="book-chapter">📘 الفصل الثالث: المصطلحات العلمية</div>
+    <div class="book-body">
+    <p><b>البروتين المهضوم (DP):</b> كمية البروتين التي يستطيع الحيوان هضمها وامتصاصها فعلياً من العلف. تحسب بضرب البروتين الخام (CP) في معامل الهضم (DC).</p>
+    <p><b>معادل النشاء (SE):</b> مقياس كمية الطاقة في العلف مقارنة بالنشاء النقي. كلما زاد الرقم زادت الطاقة.</p>
+    <p><b>معامل التحويل الغذائي (FCR):</b> كمية العلف اللازمة لإنتاج كيلو جرام واحد من الوزن الحي. كلما كان أقل كان أفضل.</p>
+    <p><b>مؤشر EPEF:</b> مؤشر الأداء الأوروبي للدجاج اللاحم، يعبر عن كفاءة المزرعة.</p>
+    </div>
+    
+    <div class="book-chapter">📘 الفصل الرابع: الدعم الفني</div>
+    <div class="book-body">
+    <p>للاستفسارات والدعم الفني، يرجى التواصل عبر:</p>
+    <ul>
+    <li>📧 البريد الإلكتروني: abukram128@gmail.com</li>
+    <li>📱 واتساب: +249123533489</li>
+    <li>🌐 رابط المنصة: https://tower-scientific-platform.streamlit.app</li>
+    </ul>
+    <p>نسأل الله التوفيق والسداد، وندعوكم للمشاركة بملاحظاتكم ومقترحاتكم لتطوير المنصة.</p>
+    </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("📢 طلب المساعدة أو الإبلاغ عن مشكلة", use_container_width=True):
+        voice_guide("تم فتح نموذج التواصل. يرجى كتابة مشكلتك وسنقوم بالرد عليك قريباً.")
+        st.info("📩 يرجى إرسال مشكلتك أو استفسارك إلى البريد الإلكتروني: abukram128@gmail.com")
 
 # ==========================================
-# 25. أرشفة السورس كود للمالك
+# 25. التذييل السفلي
 # ==========================================
-if st.session_state["user_role"] == "owner":
-    st.markdown("<br><hr style='border-top: 1px dashed #2e7d32;'>", unsafe_allow_html=True)
-    st.markdown("<h3 style='color: #1565C0; text-align:right;'>📨 أرشفة شفرة المصدر البرمجية</h3>", unsafe_allow_html=True)
-    col_mail_info, col_btn = st.columns([0.7, 0.3])
-    with col_mail_info:
-        st.info(f"🔒 حماية الخصوصية نشطة: سيتم إرسال ملف الكود مباشرة إلى البريد الشخصي للمالك: ({OWNER_EMAIL})")
-    with col_btn:
-        if st.button("إرسال نسخة الكود للمالك 🚀", use_container_width=True, type="secondary"):
-            with st.spinner("جاري تأمين الاتصال السحابي وإرسال السورس كود..."):
-                if send_code_to_mail(OWNER_EMAIL):
-                    st.success(f"📥 تم إرسال السورس كود المحدث بأمان كملف (.py) إلى بريدك الهندسي.")
+st.markdown("""
+<div style='text-align: center; padding: 15px; margin-top: 30px; border-top: 2px solid #e0e0e0; color: #666;'>
+<b>منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف</b> 🌾<br>
+© 2026 جميع الحقوق محفوظة للاختصاصي م. عبد القادر إسماعيل تاور<br>
+<small>تم تطوير المنصة باستخدام Streamlit | الإصدار 3.2.1</small>
+</div>
+""", unsafe_allow_html=True)
 
-# ==========================================
-# 26. التذييل
-# ==========================================
-st.markdown('</div>', unsafe_allow_html=True)
-st.markdown("""<div class="mini-left-signature">👨‍🔬 الاختصاصي م. عبد القادر إسماعيل تاور © 2026 | منصة تاور العلمية للانتاج الحيواني وتركيب الاعلاف</div>""", unsafe_allow_html=True)
+# تذييل صوتي ترحيبي عند تحميل الصفحة (مرة واحدة)
+if "voice_welcome_done" not in st.session_state:
+    st.session_state["voice_welcome_done"] = True
+    # تم بالفعل تشغيل الترحيب في بداية الجلسة
+    pass
