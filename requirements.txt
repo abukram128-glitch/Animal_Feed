@@ -7,10 +7,14 @@ numpy>=1.24.0
 scipy>=1.10.0
 scikit-learn>=1.3.0
 
-# --- Data Visualization & Charts ---
+# --- Data Visualization & Interactive Charts ---
 plotly>=5.18.0
 matplotlib>=3.7.0
 seaborn>=0.12.0
+
+# --- QR Code & Image Utilities ---
+qrcode>=7.4.2
+pillow>=10.0.0
 
 # --- PDF Generation & Arabic Support ---
 reportlab>=4.0.0
@@ -22,4 +26,3 @@ SQLAlchemy>=2.0.0
 passlib>=1.7.4
 bcrypt>=4.0.0
 requests>=2.31.0
-pillow>=10.0.0
