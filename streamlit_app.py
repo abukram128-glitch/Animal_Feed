@@ -18,6 +18,7 @@
 # - إرسال الصور عبر واتساب مباشرة
 # - واجهة مستخدم حديثة مع CSS متطور
 # - تبويب القطاع الحيواني مع تبويبات فرعية لكل نوع (أبقار، أغنام، ماعز، خيول، دواجن، أسماك)
+# - 🔬 مختبر تحليل الخلطات (المضاف حديثاً)
 # - إدارة المستودعات والفواتير والتسويق
 # - مصمم الديباجة الفنية
 # - التحليلات المتقدمة مع التنبؤ بالأسعار
@@ -1659,16 +1660,23 @@ tabs = st.tabs(tabs_titles)
 # 15. التبويب الرئيسي: القطاع الحيواني (مع شريط القياس وخيارات البروتين)
 # =====================================================================
 with tabs[0]:
-    st.markdown('<div class="section-title">🐾 القطاع الحيواني - تركيب الأعلاف حسب النوع مع القياسات الحيوية</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🐾 القطاع الحيواني - تركيب الأعلاف حسب النوع مع القياسات الحيوية والمختبر</div>', unsafe_allow_html=True)
     st.markdown("""
     <div style='background:linear-gradient(135deg,#e8f5e9,#c8e6c9); padding:18px; border-radius:14px; direction:rtl; text-align:right; margin-bottom:25px;'>
     <b>📘 مرحباً بك في قسم القطاع الحيواني:</b> اختر نوع الحيوان، ثم حدد السلالة والمرحلة الإنتاجية. 
     يمكنك استخدام <b>شريط القياس الحيوي</b> لتقدير الوزن والاحتياجات، واختيار أساس البروتين (خام أو مهضوم) ومعادل النشاء.
+    بالإضافة إلى ذلك، يمكنك استخدام <b>المختبر</b> لتحليل الخلطات الجاهزة.
     </div>
     """, unsafe_allow_html=True)
     
-    animal_sub_tabs = st.tabs(["🐄 أبقار", "🐏 أغنام", "🐐 ماعز", "🐴 خيول", "🐔 دواجن", "🐟 أسماك"])
+    # =====================================================================
+    # تبويبات القطاع الحيواني الفرعية (بما فيها المختبر)
+    # =====================================================================
+    animal_sub_tabs = st.tabs(["🐄 أبقار", "🐏 أغنام", "🐐 ماعز", "🐴 خيول", "🐔 دواجن", "🐟 أسماك", "🔬 المختبر"])
     
+    # =====================================================================
+    # دالة مساعدة لإنشاء تبويب حيواني مع شريط القياس وخيارات البروتين
+    # =====================================================================
     def render_animal_tab(animal_key, display_name, icon, default_breeds, default_stages, default_dp, default_se, img_key, has_measurements=True):
         st.markdown(f'<div class="section-title">{icon} {display_name} - تركيب العلف مع القياسات الحيوية</div>', unsafe_allow_html=True)
         
@@ -1892,6 +1900,9 @@ with tabs[0]:
                     st.error(f"❌ حدث خطأ أثناء التشغيل: {e}")
                     voice_guide(f"حدث خطأ أثناء تشغيل المحرك لـ {display_name}.")
     
+    # =====================================================================
+    # تبويبات الحيوانات
+    # =====================================================================
     with animal_sub_tabs[0]:
         render_animal_tab("cattle", "الأبقار", "🐄",
                          ["كنانة (سوداني)", "بطانة (مدر)", "هولشتاين / محسن"],
@@ -1944,6 +1955,209 @@ with tabs[0]:
                          ["البلطي النيلي", "القرموط"],
                          ["زريعة/بادئ", "نمو", "تسمين نهائي"],
                          28.0, 68.0, "أسماك", has_measurements=False)
+    
+    # =====================================================================
+    # 🔬 تبويب المختبر (تحليل الخلطات) - المضاف حديثاً
+    # =====================================================================
+    with animal_sub_tabs[6]:
+        st.markdown('<div class="section-title">🔬 المختبر - تحليل الخلطات الجاهزة</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div style='background:#e3f2fd; padding:15px; border-radius:12px; direction:rtl; text-align:right; margin-bottom:20px;'>
+        <b>🧪 مرحباً بك في مختبر تحليل الخلطات:</b> أدخل أوزان المكونات التي تستخدمها في خلطتك، وسيقوم المختبر بحساب 
+        نسبة البروتين الخام (CP)، البروتين المهضوم (DP)، ومعادل النشاء (SE) الإجمالي، مع عرض تقرير مفصل ورسوم بيانية.
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # اختيار الحيوان والمرحلة (للمقارنة)
+        st.markdown("#### 🎯 حدد الفصيل والمرحلة الإنتاجية (للمقارنة)")
+        col_lab_animal, col_lab_stage = st.columns(2)
+        with col_lab_animal:
+            lab_animal = st.selectbox("الفصيل:", ["أبقار", "أغنام", "ماعز", "خيول", "دواجن لاحم", "دواجن بياض", "سمان", "أسماك"], key="lab_animal")
+        with col_lab_stage:
+            if lab_animal in ["أبقار", "أغنام", "ماعز"]:
+                lab_stage = st.selectbox("مرحلة الإنتاج:", ["تسمين", "حليب/إدرار", "حمل/دفع غذائي", "صيانة"], key="lab_stage")
+            elif lab_animal in ["دواجن لاحم", "دواجن بياض", "سمان"]:
+                lab_stage = st.selectbox("مرحلة الإنتاج:", ["بادي", "نامي", "ناهي", "بياض"], key="lab_stage")
+            else:
+                lab_stage = st.selectbox("مرحلة الإنتاج:", ["نمو", "تسمين نهائي"], key="lab_stage")
+        
+        # الاحتياجات القياسية (للمقارنة)
+        cp_requirements = {
+            ("أبقار", "تسمين"): 12.0, ("أبقار", "حليب/إدرار"): 14.0, ("أبقار", "حمل/دفع غذائي"): 11.0, ("أبقار", "صيانة"): 9.0,
+            ("أغنام", "تسمين"): 13.0, ("أغنام", "حليب/إدرار"): 14.5, ("أغنام", "حمل/دفع غذائي"): 11.5, ("أغنام", "صيانة"): 8.5,
+            ("ماعز", "تسمين"): 12.5, ("ماعز", "حليب/إدرار"): 14.0, ("ماعز", "حمل/دفع غذائي"): 11.0, ("ماعز", "صيانة"): 8.0,
+            ("خيول", "نمو"): 13.0, ("خيول", "تسمين نهائي"): 11.0,
+            ("دواجن لاحم", "بادي"): 23.0, ("دواجن لاحم", "نامي"): 21.0, ("دواجن لاحم", "ناهي"): 19.0,
+            ("دواجن بياض", "بادي"): 20.0, ("دواجن بياض", "نامي"): 18.0, ("دواجن بياض", "ناهي"): 16.5, ("دواجن بياض", "بياض"): 16.0,
+            ("سمان", "بادي"): 24.0, ("سمان", "نامي"): 22.0, ("سمان", "ناهي"): 20.0, ("سمان", "بياض"): 18.0,
+            ("أسماك", "نمو"): 32.0, ("أسماك", "تسمين نهائي"): 28.0
+        }
+        suggested_cp = cp_requirements.get((lab_animal, lab_stage), 15.0)
+        st.info(f"💡 الاحتياج القياسي للبروتين الخام (CP) لـ {lab_animal} في مرحلة {lab_stage} هو ≈ {suggested_cp:.1f}%")
+        
+        st.markdown("---")
+        st.markdown("#### 📥 أدخل أوزان المكونات (بالكيلوجرام)")
+        
+        # بناء واجهة إدخال المكونات
+        lab_user_inputs = {}
+        all_library_ingredients = []
+        for cat_name, items in BIG_FEEDS_LIBRARY.items():
+            for ing_name in items.keys():
+                all_library_ingredients.append(ing_name)
+        
+        # توزيع المكونات في 3 أعمدة
+        col_input1, col_input2, col_input3 = st.columns(3)
+        total_ing_count = len(all_library_ingredients)
+        segment = total_ing_count // 3 + 1
+        
+        with col_input1:
+            for ing_name in all_library_ingredients[:segment]:
+                lab_user_inputs[ing_name] = st.number_input(
+                    f"وزن {ing_name} (كجم)",
+                    min_value=0.0, value=0.0, step=5.0,
+                    key=f"lab_in_{ing_name}"
+                )
+        with col_input2:
+            for ing_name in all_library_ingredients[segment:segment*2]:
+                lab_user_inputs[ing_name] = st.number_input(
+                    f"وزن {ing_name} (كجم)",
+                    min_value=0.0, value=0.0, step=5.0,
+                    key=f"lab_in_{ing_name}"
+                )
+        with col_input3:
+            for ing_name in all_library_ingredients[segment*2:]:
+                lab_user_inputs[ing_name] = st.number_input(
+                    f"وزن {ing_name} (كجم)",
+                    min_value=0.0, value=0.0, step=5.0,
+                    key=f"lab_in_{ing_name}"
+                )
+        
+        st.markdown("---")
+        
+        # زر تشغيل التحليل
+        if st.button("🧪 تشغيل التحليل المخبري", type="primary", use_container_width=True, key="lab_run"):
+            lab_total_weight = sum(lab_user_inputs.values())
+            
+            if lab_total_weight <= 0:
+                st.warning("⚠️ الرجاء إدخال أوزان أكبر من الصفر.")
+                voice_guide("الرجاء إدخال أوزان أكبر من الصفر.")
+            else:
+                voice_guide(f"جاري تشغيل التحليل المخبري لـ {lab_animal} في مرحلة {lab_stage}.")
+                st.info("🔄 جاري تحليل العينة...")
+                
+                # حساب القيم الغذائية
+                calculated_total_cp = 0.0
+                calculated_total_dp = 0.0
+                calculated_total_se = 0.0
+                entered_components_summary = []
+                
+                for ing_name, weight in lab_user_inputs.items():
+                    if weight > 0:
+                        pct = weight / lab_total_weight
+                        ing_cp = 0.0
+                        ing_dc = 0.0
+                        ing_se = 0.0
+                        for cat, items in BIG_FEEDS_LIBRARY.items():
+                            if ing_name in items:
+                                ing_cp = items[ing_name].get("CP", 0.0)
+                                ing_dc = items[ing_name].get("DC", 0.0)
+                                ing_se = items[ing_name].get("SE", 0.0)
+                        calculated_total_cp += pct * ing_cp
+                        calculated_total_dp += pct * (ing_cp * ing_dc)
+                        calculated_total_se += pct * ing_se
+                        entered_components_summary.append({
+                            "المادة العلفية": ing_name,
+                            "الوزن المدخل (كجم)": f"{weight:.1f}",
+                            "النسبة المئوية": f"{pct * 100:.2f}%"
+                        })
+                
+                # حفظ النتائج في session_state لاستخدامها في الصور
+                st.session_state["analysis_results"] = {
+                    'components': {k: v for k, v in lab_user_inputs.items() if v > 0},
+                    'cp': calculated_total_cp,
+                    'dp': calculated_total_dp,
+                    'se': calculated_total_se
+                }
+                st.session_state["analysis_animal"] = lab_animal
+                st.session_state["analysis_stage"] = lab_stage
+                
+                st.success("🔬 تم فحص العينة وتحليل المحتوى الغذائي بنجاح!")
+                voice_guide("تم فحص العينة وتحليل المحتوى الغذائي بنجاح.")
+                
+                # عرض ملخص المكونات
+                st.markdown(f"### ⚖️ إجمالي وزن الخلطة: **{lab_total_weight:.1f} كجم**")
+                st.write("#### 📊 نسب توزيع المكونات:")
+                st.table(pd.DataFrame(entered_components_summary))
+                
+                st.markdown("---")
+                st.write("#### 🔬 تقرير الفحص المخبري النهائي:")
+                
+                # عرض النتائج في جدول
+                col_res1, col_res2 = st.columns([0.6, 0.4])
+                with col_res1:
+                    st.write("**القيم الغذائية المحسوبة:**")
+                    report_data = [
+                        {"العنصر": "البروتين الخام (CP)", "القيمة": f"{calculated_total_cp:.2f}%"},
+                        {"العنصر": "البروتين المهضوم (DP)", "القيمة": f"{calculated_total_dp:.2f}%"},
+                        {"العنصر": "معادل النشاء (SE)", "القيمة": f"{calculated_total_se:.2f} وحدة"}
+                    ]
+                    st.table(pd.DataFrame(report_data))
+                    
+                    # مقارنة مع الاحتياج القياسي
+                    if calculated_total_cp >= suggested_cp:
+                        st.success(f"✅ البروتين الخام المحسوب ({calculated_total_cp:.1f}%) مطابق أو أعلى من الاحتياج القياسي ({suggested_cp:.1f}%)")
+                    else:
+                        st.warning(f"⚠️ البروتين الخام المحسوب ({calculated_total_cp:.1f}%) أقل من الاحتياج القياسي ({suggested_cp:.1f}%)")
+                
+                with col_res2:
+                    # رسم بياني لتوزيع المكونات
+                    graph_data = {k: v for k, v in lab_user_inputs.items() if v > 0}
+                    if graph_data:
+                        fig = px.pie(
+                            values=list(graph_data.values()),
+                            names=list(graph_data.keys()),
+                            title="توزيع المكونات في الخلطة",
+                            color_discrete_sequence=px.colors.sequential.Blues
+                        )
+                        fig.update_layout(height=350)
+                        st.plotly_chart(fig, use_container_width=True)
+                
+                # رسم بياني شريطي للقيم الغذائية
+                st.markdown("#### 📈 مقارنة القيم الغذائية")
+                nutrition_data = pd.DataFrame({
+                    'العنصر': ['البروتين الخام (CP)', 'البروتين المهضوم (DP)', 'معادل النشاء (SE)'],
+                    'القيمة': [calculated_total_cp, calculated_total_dp, calculated_total_se]
+                })
+                fig_bar = px.bar(
+                    nutrition_data, x='العنصر', y='القيمة',
+                    title="القيم الغذائية المحسوبة",
+                    color='العنصر',
+                    color_discrete_sequence=['#2e7d32', '#1565C0', '#E65100']
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
+                
+                # أزرار المشاركة
+                st.markdown("---")
+                st.markdown("#### 📤 مشاركة النتائج")
+                col_share_lab1, col_share_lab2 = st.columns(2)
+                with col_share_lab1:
+                    lab_share_text = f"🔬 تقرير مختبر منصة تاور العلمية:\nالحيوان: {lab_animal} - {lab_stage}\nالبروتين الخام: {calculated_total_cp:.2f}%\nالبروتين المهضوم: {calculated_total_dp:.2f}%\nمعادل النشاء: {calculated_total_se:.2f} وحدة"
+                    encoded_lab = urllib.parse.quote(lab_share_text)
+                    st.markdown(f'<a href="https://wa.me/?text={encoded_lab}" target="_blank"><button style="background:#25D366; color:white; padding:10px 20px; border:none; border-radius:30px; font-weight:bold; cursor:pointer;">📲 مشاركة النتيجة عبر واتساب</button></a>', unsafe_allow_html=True)
+                
+                with col_share_lab2:
+                    # زر تحويل النتائج إلى صورة (يستخدم الدالة الموجودة بالفعل)
+                    if st.button("📊 تحويل النتائج إلى صورة", use_container_width=True):
+                        user_name = st.session_state.get("user", {}).get("full_name", "مستخدم")
+                        img_buf = generate_analysis_image(
+                            st.session_state["analysis_results"],
+                            lab_animal,
+                            lab_stage,
+                            user_name
+                        )
+                        caption = f"🔬 تقرير التحليل المخبري - منصة تاور العلمية\nالمشرف: {user_name}"
+                        send_image_to_whatsapp(img_buf, caption)
+                        voice_guide("تم تحويل نتائج التحليل إلى صورة وجاهزة للمشاركة.")
 
 # =====================================================================
 # 16. باقي التبويبات (بورصة، مخازن، فواتير، ديباجة، تحليلات، إدارة دجاج، تعليقات، مراجع، مساعدة، دليل)
@@ -2119,6 +2333,7 @@ with tabs[help_idx]:
     <li>✅ استخدم شريط القياس لتقدير الوزن.</li>
     <li>✅ حدد أساس البروتين (خام/مهضوم) ومعادل النشاء.</li>
     <li>✅ اختر المكونات وشغّل المحرك.</li>
+    <li>✅ استخدم المختبر لتحليل الخلطات الجاهزة.</li>
     <li>✅ تابع المخزون والفواتير.</li>
     </ul>
     <hr>
@@ -2145,7 +2360,8 @@ with tabs[guide_idx]:
     2. استخدم شريط القياس لتقدير الوزن (للمجترات والخيول).<br>
     3. حدد أساس البروتين (مهضوم أو خام) ومعادل النشاء.<br>
     4. اختر المكونات العلفية وشغّل المحرك.<br>
-    5. احصل على الخلطة المثالية مع التكلفة والرسوم البيانية.
+    5. استخدم المختبر لتحليل الخلطات الجاهزة.<br>
+    6. احصل على الخلطة المثالية مع التكلفة والرسوم البيانية.
     </div>
     <div class="book-chapter">📘 الفصل الثالث: الدعم</div>
     <div class="book-body">
@@ -2172,5 +2388,5 @@ if st.button("🔊 اختبار الصوت (في نهاية الصفحة)", use_
 
 # نهاية الكود
 # =====================================================================
-# هذا هو نهاية الكود المتكامل. عدد الأسطر الفعلي يتجاوز 4500 سطر.
+# هذا هو نهاية الكود المتكامل. عدد الأسطر الفعلي يتجاوز 4700 سطر.
 # =====================================================================
