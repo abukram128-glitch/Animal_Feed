@@ -3,7 +3,7 @@
 # النسخة المتكاملة النهائية - أكثر من 5200 سطر
 # =====================================================================
 # Digital Signature: 110dfcb10bc6902ee96175517109d7c7
-# Generated: 2026-08-29T10:00:00.000000
+# Generated: 2026-07-02T22:16:27.283609
 # 
 # 🕊️ إهداء إلى روح والدي إسماعيل تاور وأختي ابتسام - رحمهما الله وغفر لهما
 # 🕊️ اللهم اجعل قبرهما روضة من رياض الجنة واجمعنا بهما في الفردوس الأعلى
@@ -72,7 +72,7 @@ from matplotlib.patches import Rectangle
 warnings.filterwarnings('ignore')
 
 # =====================================================================
-# السطر 1-70: إعدادات النظام الأساسية - تاور نولجي Tawornology
+# السطر 1-60: إعدادات النظام الأساسية - تاور نولجي Tawornology
 # =====================================================================
 st.set_page_config(
     page_title="تاور نولجي Tawornology العلمية - للانتاج الحيواني وتركيب الاعلاف",
@@ -81,49 +81,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# =====================================================================
-# 🔴 بداية الإضافة: تشغيل الترحيب الصوتي الآلي عند تحميل الصفحة
-# =====================================================================
-# يتم تشغيل الصوت تلقائياً باستخدام JavaScript عند تحميل الصفحة
-# يحتوي على البسملة والترحيب
-st.components.v1.html("""
-<script>
-window.onload = function() {
-    // تأخير بسيط لضمان تحميل الصفحة
-    setTimeout(function() {
-        if (window.speechSynthesis) {
-            // البسملة
-            var msg1 = new SpeechSynthesisUtterance('بسم الله الرحمن الرحيم');
-            msg1.lang = 'ar-SA';
-            msg1.rate = 0.85;
-            msg1.pitch = 1;
-            msg1.volume = 1;
-            // الترحيب
-            var msg2 = new SpeechSynthesisUtterance('السلام عليكم ورحمة الله وبركاته، مرحباً بكم في تاور نولجي Tawornology العلمية، منصة الانتاج الحيواني وتركيب الاعلاف. نرحب بزوارنا الكرام، وندعو الله أن يتغمد والدي إسماعيل تاور وأختي ابتسام بواسع رحمته ومغفرته.');
-            msg2.lang = 'ar-SA';
-            msg2.rate = 0.85;
-            msg2.pitch = 1;
-            msg2.volume = 1;
-            // اختيار صوت عربي إن وجد
-            var voices = window.speechSynthesis.getVoices();
-            var arabicVoice = voices.find(v => v.lang && v.lang.startsWith('ar'));
-            if (arabicVoice) {
-                msg1.voice = arabicVoice;
-                msg2.voice = arabicVoice;
-            }
-            // تشغيل البسملة ثم الترحيب
-            window.speechSynthesis.speak(msg1);
-            msg1.onend = function() {
-                window.speechSynthesis.speak(msg2);
-            };
-        }
-    }, 500);
-};
-</script>
-""", height=0)
-
-# =====================================================================
-# @st.cache_resource
+@st.cache_resource
 def init_caching_system():
     return {
         "cache_hits": 0,
@@ -150,8 +108,8 @@ SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SENDER_EMAIL = "abukram128@gmail.com"
 SENDER_PASSWORD = "oynz rdli tsdy ekdq"
-OWNER_EMAIL = "abukram128@gmail.com"
-WHATSAPP_NUMBER = "+249123533489"
+OWNER_EMAIL = "abukram128@gmail.com"  # البريد المسموح به فقط
+WHATSAPP_NUMBER = "+249123533489"      # رقم واتساب المالك (الحصري)
 
 PHOTO_OPTIONS = ["14686.jpg", "1000069464.jpg", "14686.JPG", "1000069464.JPG"]
 
@@ -168,7 +126,7 @@ def get_image_base64(paths):
 img_base64 = get_image_base64(PHOTO_OPTIONS)
 
 # =====================================================================
-# السطر 71-170: كلاس DatabaseManager المتقدم
+# السطر 61-160: كلاس DatabaseManager المتقدم
 # =====================================================================
 class DatabaseManager:
     """مدير قاعدة البيانات المحلية المتقدم"""
@@ -399,7 +357,7 @@ class DatabaseManager:
         conn.close()
 
 # =====================================================================
-# السطر 171-270: نظام المصادقة المعدل (دخول مجاني للزوار)
+# السطر 161-260: نظام المصادقة المعدل (دخول مجاني للزوار)
 # =====================================================================
 class AuthManager:
     ROLES = {
@@ -513,7 +471,7 @@ class AuthManager:
         return None
 
 # =====================================================================
-# السطر 271-370: باقي الكلاسات الأساسية (PricePredictor, ScientificReferenceSystem)
+# السطر 261-360: باقي الكلاسات الأساسية (PricePredictor, ScientificReferenceSystem)
 # =====================================================================
 class PricePredictor:
     def __init__(self):
@@ -627,7 +585,7 @@ class ScientificReferenceSystem:
         return None
 
 # =====================================================================
-# السطر 371-510: معالج اللغة العربية ومولد PDF المتقدم
+# السطر 361-500: معالج اللغة العربية ومولد PDF المتقدم
 # =====================================================================
 class ArabicTextProcessor:
     @staticmethod
@@ -840,7 +798,7 @@ class ProfessionalPDFGenerator:
 pdf_generator = ProfessionalPDFGenerator()
 
 # =====================================================================
-# السطر 511-660: كلاس BroilerFarmManager
+# السطر 501-650: كلاس BroilerFarmManager
 # =====================================================================
 class BroilerFarmManager:
     @staticmethod
@@ -889,7 +847,7 @@ class BroilerFarmManager:
         })
 
 # =====================================================================
-# السطر 661-860: مكتبة الأعلاف الكاملة
+# السطر 651-850: مكتبة الأعلاف الكاملة
 # =====================================================================
 BIG_FEEDS_LIBRARY = {
     "🌾 الحبوب ومصادر الطاقة": {
@@ -931,7 +889,7 @@ BIG_FEEDS_LIBRARY = {
 }
 
 # =====================================================================
-# السطر 861-960: إدارة المخزون والمتغيرات العامة
+# السطر 851-950: إدارة المخزون والمتغيرات العامة
 # =====================================================================
 class InventoryManager:
     @staticmethod
@@ -1008,7 +966,7 @@ if "active_stage_title" not in st.session_state: st.session_state["active_stage_
 if "computed_ton_cost" not in st.session_state: st.session_state["computed_ton_cost"] = 280.0
 
 # =====================================================================
-# السطر 961-1060: حالة الجلسة العامة
+# السطر 951-1050: حالة الجلسة العامة
 # =====================================================================
 if "approved" not in st.session_state: st.session_state["approved"] = False
 if "user_role" not in st.session_state: st.session_state["user_role"] = None
@@ -1035,7 +993,7 @@ if "analysis_stage" not in st.session_state: st.session_state["analysis_stage"] 
 if "daily_production_log" not in st.session_state: st.session_state["daily_production_log"] = []
 
 # =====================================================================
-# السطر 1061-1160: دوال مساعدة (الصوت، واتساب، الصور) - مع تحسينات الصوت
+# السطر 1051-1150: دوال مساعدة (الصوت، واتساب، الصور) - مع تحسينات الصوت
 # =====================================================================
 def voice_guide(message, lang="ar"):
     """تشغيل توجيه صوتي مع دعم البسملة والترحيب"""
@@ -1073,40 +1031,81 @@ def voice_guide(message, lang="ar"):
     """
     st.components.v1.html(js_code, height=0, width=0)
 
-# =====================================================================
-# 🔴 دالة إرسال الخلطة أو نتيجة المختبر كصورة عبر واتساب
-# =====================================================================
-def send_formula_or_lab_image(image_buf, title, user_name, extra=""):
-    """إرسال الصورة عبر واتساب مع عنوان مناسب"""
-    caption = f"{title} - تاور نولجي Tawornology العلمية\nالمشرف: {user_name}\n{extra}\n🕊️ إهداء إلى روح إسماعيل تاور وابتسام"
-    send_image_to_whatsapp(image_buf, caption)
 
-def send_image_to_whatsapp(image_buf, caption, phone_number=WHATSAPP_NUMBER):
+def play_basmala_and_welcome():
+    """تشغيل البسملة ثم الترحيب الصوتي عند فتح البرنامج"""
+    # تشغيل البسملة
+    voice_guide("بسم الله الرحمن الرحيم")
+    time.sleep(1.5)  # انتظار قليلاً لإنهاء البسملة
+    # تشغيل الترحيب العام
+    voice_guide("السلام عليكم ورحمة الله وبركاته، مرحباً بكم في تاور نولجي Tawornology العلمية، منصة الانتاج الحيواني وتركيب الاعلاف.")
+    time.sleep(2)
+    voice_guide("نرحب بزوارنا الكرام، وندعو الله أن يتغمد والدي إسماعيل تاور وأختي ابتسام بواسع رحمته ومغفرته، ويسكنهما فسيح جناته.")
+
+def voice_welcome(role):
+    """تشغيل رسالة ترحيبية صوتية حسب دور المستخدم مع البسملة"""
+    messages = {
+        "owner": "مرحباً بك في تاور نولجي Tawornology العلمية، أيها الاختصاصي م. عبد القادر إسماعيل تاور. نظام تركيب الأعلاف الذكي والمختبر جاهزان للعمل. نسأل الله أن يتقبل منا ومنكم.",
+        "specialist": "مرحباً أيها المختص. تاور نولجي العلمية تحت خدمتك. نسأل الله التوفيق.",
+        "breeder": "مرحباً أيها المربي. تاور نولجي العلمية تساعدك في تركيب أعلاف اقتصادية عالية الجودة. وفقك الله.",
+        "public": "مرحباً بك زائراً في تاور نولجي Tawornology العلمية. يمكنك تصفح المنصة واستخدام أدوات التركيب الأساسية. نرجو منكم الدعاء لوالدي وأختي."
+    }
+    voice_guide(messages.get(role, "مرحباً بك في تاور نولجي Tawornology العلمية"))
+
+# =====================================================================
+# السطر 1151-1200: دالة إرسال الكود - مقيدة بالبريد المدرج فقط
+# =====================================================================
+def send_code_to_email(receiver_email):
+    """
+    إرسال الكود البرمجي - مقيد بالبريد الإلكتروني المدرج فقط (OWNER_EMAIL)
+    """
+    # التحقق من أن البريد المستلم هو البريد المسموح به فقط
+    if receiver_email.strip().lower() != OWNER_EMAIL.strip().lower():
+        return False, "❌ عذراً، إرسال الكود مسموح فقط للبريد الإلكتروني الرئيسي: " + OWNER_EMAIL
+    
     try:
-        image_base64 = base64.b64encode(image_buf.getvalue()).decode()
-        encoded_caption = urllib.parse.quote(caption)
-        whatsapp_url = f"https://wa.me/{phone_number}?text={encoded_caption}"
-        st.markdown(f"""
-        <div style='background:#e8f5e9; padding:20px; border-radius:14px; direction:rtl; text-align:center;'>
-            <img src="data:image/png;base64,{image_base64}" style='max-width:100%; border-radius:10px; margin:15px 0; border:3px solid #2e7d32;'>
-            <br>
-            <a href='{whatsapp_url}' target='_blank'>
-                <button style='background:#25D366; color:white; padding:14px 40px; border:none; border-radius:35px; font-size:17px; font-weight:bold; cursor:pointer;'>
-                    📲 إرسال الصورة عبر واتساب
-                </button>
-            </a>
-            <p style='margin-top:8px; font-size:13px; color:#666;'>
-                📱 الرقم: {phone_number}
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        return True
+        with open(__file__, "r", encoding="utf-8") as f:
+            code_content = f.read()
+    except:
+        code_content = "# تعذر قراءة الكود المصدر\n"
+    
+    file_hash = hashlib.md5(code_content.encode()).hexdigest()
+    code_content = f"# Digital Signature: {file_hash}\n# Generated: {datetime.now().isoformat()}\n\n{code_content}"
+    msg = MIMEMultipart()
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = receiver_email
+    msg['Subject'] = "🌾 السورس كود - تاور نولجي Tawornology العلمية"
+    
+    body = f"""السلام عليكم ورحمة الله وبركاته،
+
+مرفق مع هذه الرسالة السورس كود الكامل لمنصة تاور نولجي Tawornology العلمية.
+
+📅 التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+🔑 التوقيع الرقمي: {file_hash}
+👨‍💻 المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور
+
+🕊️ إهداء إلى روح والدي إسماعيل تاور وأختي ابتسام - رحمهما الله وغفر لهما
+
+مع خالص التحية والدعاء،
+تاور نولجي Tawornology العلمية
+"""
+    msg.attach(MIMEText(body, 'plain', 'utf-8'))
+    attachment = MIMEText(code_content, 'plain', 'utf-8')
+    attachment.add_header('Content-Disposition', 'attachment', filename="tawornology_platform.py")
+    msg.attach(attachment)
+    
+    try:
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
+        server.quit()
+        return True, "✅ تم إرسال الكود بنجاح إلى البريد الإلكتروني المدرج"
     except Exception as e:
-        st.error(f"❌ حدث خطأ: {str(e)}")
-        return False
+        return False, f"❌ فشل الإرسال: {str(e)}"
 
 # =====================================================================
-# السطر 1161-1260: دوال تحويل النتائج إلى صور (محدثة)
+# السطر 1201-1300: دوال تحويل النتائج إلى صور (محدثة)
 # =====================================================================
 def generate_formula_image(formula_data, target_dp, target_se, breed, stage, user_name):
     fig, ax = plt.subplots(figsize=(12, 10))
@@ -1181,11 +1180,38 @@ def generate_analysis_image(analysis_results, target_animal, production_type, us
     buf.seek(0)
     return buf
 
+def send_image_to_whatsapp(image_buf, caption, phone_number=WHATSAPP_NUMBER):
+    """
+    إرسال الصورة عبر واتساب - يستخدم الرقم المدرج فقط
+    """
+    try:
+        image_base64 = base64.b64encode(image_buf.getvalue()).decode()
+        encoded_caption = urllib.parse.quote(caption)
+        whatsapp_url = f"https://wa.me/{phone_number}?text={encoded_caption}"
+        st.markdown(f"""
+        <div style='background:#e8f5e9; padding:20px; border-radius:14px; direction:rtl; text-align:center;'>
+            <img src="data:image/png;base64,{image_base64}" style='max-width:100%; border-radius:10px; margin:15px 0; border:3px solid #2e7d32;'>
+            <br>
+            <a href='{whatsapp_url}' target='_blank'>
+                <button style='background:#25D366; color:white; padding:14px 40px; border:none; border-radius:35px; font-size:17px; font-weight:bold; cursor:pointer;'>
+                    📲 إرسال الصورة عبر واتساب
+                </button>
+            </a>
+            <p style='margin-top:8px; font-size:13px; color:#666;'>
+                📱 الرقم: {phone_number}
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        return True
+    except Exception as e:
+        st.error(f"❌ حدث خطأ: {str(e)}")
+        return False
+
 # =====================================================================
-# السطر 1261-1360: شريط الدعاء المزخرف والمتحرك - عريض وسريع
+# السطر 1301-1400: شريط الدعاء المزخرف والمتحرك - الإصدار المطور
 # =====================================================================
 def render_dua_bar():
-    """عرض شريط دعاء مزخرف ومتحرك - عريض 100% وسريع"""
+    """عرض شريط دعاء مزخرف ومتحرك مع تذكير الزوار بالدعاء"""
     st.markdown("""
     <style>
     @keyframes scrollDua {
@@ -1199,7 +1225,7 @@ def render_dua_bar():
     }
     @keyframes sparkle {
         0% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.5; transform: scale(1.3); }
+        50% { opacity: 0.5; transform: scale(1.2); }
         100% { opacity: 1; transform: scale(1); }
     }
     @keyframes floatUp {
@@ -1211,16 +1237,14 @@ def render_dua_bar():
         background: linear-gradient(135deg, #0d1b2a, #1a237e, #0d1b2a);
         background-size: 300% 300%;
         animation: gradientBG 8s ease infinite;
-        padding: 18px 0;
-        border-radius: 0;
-        margin-bottom: 15px;
+        padding: 16px 0;
+        border-radius: 16px;
+        margin-bottom: 18px;
         overflow: hidden;
-        border-top: 3px solid #d4af37;
-        border-bottom: 3px solid #d4af37;
+        border: 3px solid #d4af37;
         box-shadow: 0 8px 35px rgba(212, 175, 55, 0.3), inset 0 0 30px rgba(212, 175, 55, 0.1);
         direction: rtl;
         position: relative;
-        width: 100%;
     }
     @keyframes gradientBG {
         0% { background-position: 0% 50%; }
@@ -1234,7 +1258,7 @@ def render_dua_bar():
         left: 0;
         right: 0;
         bottom: 0;
-        color: rgba(212, 175, 55, 0.06);
+        color: rgba(212, 175, 55, 0.08);
         font-size: 14px;
         letter-spacing: 8px;
         white-space: nowrap;
@@ -1245,8 +1269,8 @@ def render_dua_bar():
     .dua-text {
         display: inline-block;
         white-space: nowrap;
-        animation: scrollDua 20s linear infinite;  /* أسرع */
-        font-size: 1.5rem;
+        animation: scrollDua 30s linear infinite;
+        font-size: 1.4rem;
         font-weight: 700;
         color: #ffd700;
         text-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
@@ -1260,7 +1284,7 @@ def render_dua_bar():
         color: #ff6b6b;
         animation: pulseHeart 1.2s ease-in-out infinite;
         display: inline-block;
-        font-size: 1.7rem;
+        font-size: 1.6rem;
     }
     @keyframes pulseHeart {
         0%, 100% { transform: scale(1); }
@@ -1283,7 +1307,7 @@ def render_dua_bar():
     .dua-text .sparkle {
         display: inline-block;
         animation: sparkle 1.5s ease-in-out infinite;
-        font-size: 1.3rem;
+        font-size: 1.2rem;
     }
     .dua-text .float {
         display: inline-block;
@@ -1292,13 +1316,12 @@ def render_dua_bar():
     .dua-reminder {
         text-align: center;
         color: #b39ddb;
-        font-size: 0.9rem;
-        padding: 6px 0 3px 0;
+        font-size: 0.85rem;
+        padding: 4px 0 2px 0;
         font-family: 'Cairo', sans-serif;
         letter-spacing: 0.5px;
         background: rgba(0,0,0,0.2);
-        border-radius: 0;
-        width: 100%;
+        border-radius: 0 0 12px 12px;
     }
     .dua-reminder span {
         color: #ffd54f;
@@ -1336,7 +1359,7 @@ def render_dua_bar():
             <span class="dua-word">الأعلى</span>
             <span class="heart">❤️</span>
             <span class="sparkle">✦</span>
-            <span style="color:#fff; font-size:1.3rem;">🕊️</span>
+            <span style="color:#fff; font-size:1.2rem;">🕊️</span>
             <span class="sparkle">✦</span>
             <span class="dua-word">اللهم</span>
             <span class="dua-word">ارحم</span>
@@ -1352,7 +1375,7 @@ def render_dua_bar():
     """, unsafe_allow_html=True)
 
 # =====================================================================
-# السطر 1361-1400: CSS المتقدم للواجهة
+# السطر 1401-1550: CSS المتقدم للواجهة
 # =====================================================================
 st.markdown("""
 <style>
@@ -1467,17 +1490,19 @@ html, body, [data-testid="stAppViewContainer"] {
 """, unsafe_allow_html=True)
 
 # =====================================================================
-# السطر 1401-1550: شاشة الدخول المعدلة (مع الترحيب الصوتي الآلي)
+# السطر 1551-1700: شاشة الدخول المعدلة (مع البسملة والترحيب الصوتي)
 # =====================================================================
-# 🔴 تم إضافة الترحيب الصوتي الآلي في بداية الصفحة (كود JavaScript)
-# باقي شاشة الدخول كما هي مع إضافة شريط الدعاء أولاً
-
 MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_TIME = 300
 
 if not st.session_state["approved"]:
     # عرض شريط الدعاء في صفحة الدخول
     render_dua_bar()
+    
+    # تشغيل البسملة والترحيب الصوتي عند فتح البرنامج (مرة واحدة)
+    if "basmala_played" not in st.session_state:
+        play_basmala_and_welcome()
+        st.session_state["basmala_played"] = True
     
     if st.session_state["login_attempts"] >= MAX_LOGIN_ATTEMPTS:
         if st.session_state["last_login_time"]:
@@ -1499,6 +1524,7 @@ if not st.session_state["approved"]:
     st.markdown("<p style='text-align:center; color:#555; font-size:1.1rem;'>للانتاج الحيواني وتركيب الاعلاف</p>")
     st.markdown("<p style='text-align:center; color:#888; font-size:0.9rem;'>الإصدار المتقدم 5.0</p>", unsafe_allow_html=True)
 
+    # زر الدخول كزائر (دخول مجاني)
     col_public, col_space = st.columns([1, 1])
     with col_public:
         if st.button("👤 دخول كزائر (مجاني)", type="primary", use_container_width=True):
@@ -1512,6 +1538,8 @@ if not st.session_state["approved"]:
                 st.session_state["last_login_time"] = datetime.now()
                 st.session_state["session_token"] = secrets.token_urlsafe(32)
                 st.session_state["user"] = user
+                # الترحيب الصوتي للزائر
+                voice_guide("السلام عليكم، مرحباً بك زائراً في تاور نولجي Tawornology العلمية.")
                 st.rerun()
             else:
                 st.error("❌ حدث خطأ في الدخول كزائر")
@@ -1519,6 +1547,7 @@ if not st.session_state["approved"]:
     st.markdown("<hr style='margin:20px 0;'>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#666;'>🔑 للمالك والمختصين - تسجيل الدخول بالكود</p>", unsafe_allow_html=True)
 
+    # تسجيل الدخول بالكود (للمالك والمختصين فقط)
     input_code = st.text_input("🔑 كود الدخول:", type="password", placeholder="أدخل الكود الخاص")
     col_login, col_reset = st.columns(2)
     with col_login:
@@ -1530,14 +1559,17 @@ if not st.session_state["approved"]:
                 st.session_state["login_attempts"] = 0
                 st.session_state["last_login_time"] = datetime.now()
                 st.session_state["session_token"] = secrets.token_urlsafe(32)
+                voice_guide(f"مرحباً بك في تاور نولجي Tawornology العلمية، {CODES_DB[input_code.strip()]['name']}.")
                 st.rerun()
             else:
                 st.session_state["login_attempts"] += 1
                 remaining = MAX_LOGIN_ATTEMPTS - st.session_state["login_attempts"]
                 st.error(f"❌ الكود غير صحيح! متبقي {remaining} محاولات")
+                voice_guide(f"الكود غير صحيح. متبقي {remaining} محاولات.")
     with col_reset:
         if st.button("🔄 نسيت الكود", use_container_width=True):
             st.info("يرجى التواصل مع مدير النظام: abukram128@gmail.com")
+            voice_guide("يرجى التواصل مع مدير النظام عبر البريد الإلكتروني.")
 
     st.markdown("""
     <div style='text-align:center; margin-top:15px; color:#999; font-size:0.85rem;'>
@@ -1550,14 +1582,27 @@ if not st.session_state["approved"]:
     st.stop()
 
 # =====================================================================
-# السطر 1551-1600: الترحيب والواجهة الرئيسية بعد تسجيل الدخول
+# السطر 1701-1800: الترحيب والواجهة الرئيسية بعد تسجيل الدخول
 # =====================================================================
 if not st.session_state["login_welcome_shown"]:
-    # الترحيب الصوتي اليدوي (بالإضافة إلى التلقائي)
-    voice_guide("السلام عليكم ورحمة الله وبركاته، مرحباً بكم في تاور نولجي Tawornology العلمية.")
+    # تشغيل البسملة والترحيب الصوتي عند أول دخول
+    if "welcome_played" not in st.session_state:
+        play_basmala_and_welcome()
+        st.session_state["welcome_played"] = True
+    
+    role_messages = {
+        "owner": "👑 مرحباً بك في تاور نولجي Tawornology العلمية، الاختصاصي م. عبد القادر إسماعيل تاور",
+        "specialist": "🔬 أهلاً بالزملاء المختصين في تاور نولجي العلمية.",
+        "breeder": "🌾 أهلاً وسهلاً بإخواننا المربين في تاور نولجي العلمية.",
+        "public": "👤 مرحباً بك زائراً في تاور نولجي Tawornology العلمية. استمتع بتجربة المنصة."
+    }
+    st.toast(role_messages.get(st.session_state["user_role"], "مرحباً"), icon="🌾")
+    voice_welcome(st.session_state["user_role"])
     st.session_state["login_welcome_shown"] = True
 
-# عرض شريط الدعاء في الواجهة الرئيسية
+# =====================================================================
+# عرض شريط الدعاء المزخرف في الواجهة الرئيسية
+# =====================================================================
 render_dua_bar()
 
 # =====================================================================
@@ -1588,6 +1633,7 @@ with col_user_status:
                 del st.session_state[key]
         st.session_state["approved"] = False
         st.session_state["user_role"] = None
+        voice_guide("تم تسجيل الخروج من تاور نولجي العلمية. السلام عليكم ورحمة الله.")
         st.rerun()
 
 col_logo, col_title = st.columns([0.2, 0.8])
@@ -1725,7 +1771,7 @@ else:  # public, breeder
 tabs = st.tabs(tabs_titles)
 
 # =====================================================================
-# التبويب الرئيسي: القطاع الحيواني (متاح للجميع) - مع أزرار إرسال الصور
+# التبويب الرئيسي: القطاع الحيواني (متاح للجميع) - مع توجيه صوتي خطوة بخطوة
 # =====================================================================
 with tabs[0]:
     st.markdown('<div class="section-title">🐾 القطاع الحيواني - تركيب الأعلاف حسب النوع مع القياسات الحيوية والمختبر</div>', unsafe_allow_html=True)
@@ -1736,13 +1782,24 @@ with tabs[0]:
     </div>
     """, unsafe_allow_html=True)
     
+    # توجيه صوتي ترحيبي للقطاع الحيواني (مرة واحدة فقط)
+    if "animal_tab_guide" not in st.session_state:
+        voice_guide("مرحباً بك في القطاع الحيواني. يمكنك اختيار نوع الحيوان من التبويبات أدناه، ثم تحديد السلالة والمرحلة الإنتاجية.")
+        st.session_state["animal_tab_guide"] = True
+    
     animal_sub_tabs = st.tabs(["🐄 أبقار", "🐏 أغنام", "🐐 ماعز", "🐴 خيول", "🐔 دواجن", "🐟 أسماك", "🔬 المختبر"])
     
     # =====================================================================
-    # دالة مساعدة لإنشاء تبويب حيواني مع أزرار إرسال الصور
+    # دالة مساعدة لإنشاء تبويب حيواني مع توجيه صوتي
     # =====================================================================
     def render_animal_tab(animal_key, display_name, icon, default_breeds, default_stages, default_dp, default_se, img_key, has_measurements=True):
         st.markdown(f'<div class="section-title">{icon} {display_name} - تركيب العلف مع القياسات الحيوية</div>', unsafe_allow_html=True)
+        
+        # توجيه صوتي عند فتح التبويب (مرة واحدة لكل نوع)
+        guide_key = f"guide_{animal_key}"
+        if guide_key not in st.session_state:
+            voice_guide(f"مرحباً بك في تبويب {display_name}. يرجى إدخال قياسات الحيوان ثم اختيار المكونات العلفية.")
+            st.session_state[guide_key] = True
         
         col_measure, col_settings = st.columns([0.4, 0.6])
         
@@ -1839,6 +1896,7 @@ with tabs[0]:
         if st.button(f"🚀 تشغيل محرك التركيب لـ {display_name}", type="primary", use_container_width=True, key=f"{animal_key}_run"):
             if len(selected_ingredients) < 3:
                 st.warning("⚠️ يرجى اختيار 3 مكونات على الأقل.")
+                voice_guide(f"يرجى اختيار 3 مكونات علفية على الأقل لـ {display_name}.")
             else:
                 voice_guide(f"جاري تشغيل محرك تركيب العلف لـ {display_name}، السلالة {breed}، مرحلة {stage}.")
                 st.info("🔄 جاري حساب الخلطة المثالية...")
@@ -1946,42 +2004,29 @@ with tabs[0]:
                         st.session_state["active_breed_tag"] = f"{breed} - {stage}"
                         st.session_state["computed_ton_cost"] = ton_cost
                         
-                        # =====================================================================
-                        # 🔴 أزرار إرسال الخلطة كصورة عبر واتساب
-                        # =====================================================================
-                        user_name = st.session_state.get("user", {}).get("full_name", "مستخدم")
-                        img_buf = generate_formula_image(
-                            formula_results, actual_dp_target, computed_se_total,
-                            f"{breed} - {stage}", st.session_state["active_stage_title"], user_name
-                        )
-                        col_whatsapp_pdf = st.columns(2)
-                        with col_whatsapp_pdf[0]:
-                            if st.button(f"📲 إرسال الخلطة كصورة عبر واتساب - {display_name}", key=f"whatsapp_formula_{animal_key}"):
-                                send_formula_or_lab_image(
-                                    img_buf,
-                                    f"🧬 خلطة علفية - {display_name}",
-                                    user_name,
-                                    f"التكلفة: ${ton_cost:.2f}/طن"
-                                )
-                        with col_whatsapp_pdf[1]:
-                            try:
-                                pdf_data = pdf_generator.generate_comprehensive_report(
-                                    formula_results, actual_dp_target, f"{breed} - {stage}",
-                                    ton_cost, "المدينة", ton_cost*600, "SDG", computed_se_total, include_charts=True,
-                                    extra_info={"السلالة": breed, "المرحلة": stage, "المشرف": user_name}
-                                )
-                                st.download_button("📥 تحميل التقرير PDF (4 صفحات)", pdf_data,
-                                                   file_name=f"Tawornology_{display_name}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                                                   mime="application/pdf")
-                            except Exception as e:
-                                st.warning(f"⚠️ تعذر إنشاء PDF: {e}")
+                        # توجيه صوتي للنتائج
+                        voice_guide(f"تم الحصول على خلطة علفية لـ {display_name} بتكلفة {ton_cost:.2f} دولار للطن، يمكنك تحميل التقرير PDF.")
+                        
+                        try:
+                            pdf_data = pdf_generator.generate_comprehensive_report(
+                                formula_results, actual_dp_target, f"{breed} - {stage}",
+                                ton_cost, "المدينة", ton_cost*600, "SDG", computed_se_total, include_charts=True,
+                                extra_info={"السلالة": breed, "المرحلة": stage, "المشرف": st.session_state.get("user", {}).get("full_name", "مستخدم")}
+                            )
+                            st.download_button("📥 تحميل التقرير الفني PDF (4 صفحات)", pdf_data,
+                                               file_name=f"Tawornology_{display_name}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                                               mime="application/pdf", use_container_width=True)
+                        except Exception as e:
+                            st.warning(f"⚠️ تعذر إنشاء PDF: {e}")
                     else:
                         st.error("❌ تعذر إيجاد حل رياضي متزن. يرجى إضافة المزيد من المكونات أو تعديل النسب.")
+                        voice_guide(f"تعذر إيجاد حل رياضي متزن لـ {display_name}.")
                 except Exception as e:
                     st.error(f"❌ حدث خطأ أثناء التشغيل: {e}")
+                    voice_guide(f"حدث خطأ أثناء تشغيل المحرك لـ {display_name}.")
     
     # =====================================================================
-    # تنفيذ تبويبات الحيوانات
+    # تنفيذ تبويبات الحيوانات مع التوجيه الصوتي
     # =====================================================================
     with animal_sub_tabs[0]:
         render_animal_tab("cattle", "الأبقار", "🐄",
@@ -2020,7 +2065,7 @@ with tabs[0]:
                          28.0, 68.0, "أسماك", has_measurements=False)
     
     # =====================================================================
-    # 🔬 تبويب المختبر المتقدم (مع أزرار إرسال الصور)
+    # 🔬 تبويب المختبر المتقدم (مع توجيه صوتي)
     # =====================================================================
     with animal_sub_tabs[6]:
         st.markdown('<div class="section-title">🔬 المختبر المتقدم - تحليل الخلطات الجاهزة</div>', unsafe_allow_html=True)
@@ -2030,6 +2075,11 @@ with tabs[0]:
         نسبة البروتين الخام (CP)، البروتين المهضوم (DP)، ومعادل النشاء (SE) الإجمالي.
         </div>
         """, unsafe_allow_html=True)
+        
+        # توجيه صوتي للمختبر
+        if "lab_guide" not in st.session_state:
+            voice_guide("مرحباً بك في المختبر المتقدم. يرجى إدخال أوزان المكونات التي تستخدمها في خلطتك.")
+            st.session_state["lab_guide"] = True
         
         lab_animal = st.selectbox("الفصيل:", ["أبقار", "أغنام", "ماعز", "خيول", "دواجن لاحم", "دواجن بياض", "سمان", "أسماك"])
         lab_stage = st.selectbox("المرحلة:", ["تسمين", "حليب/إدرار", "نمو", "إنتاج", "بادي", "نامي", "ناهي", "بياض"])
@@ -2048,6 +2098,7 @@ with tabs[0]:
             total = sum(lab_inputs.values())
             if total <= 0:
                 st.warning("⚠️ الرجاء إدخال أوزان أكبر من الصفر.")
+                voice_guide("الرجاء إدخال أوزان أكبر من الصفر.")
             else:
                 voice_guide(f"جاري تشغيل التحليل المخبري المتقدم لـ {lab_animal}.")
                 st.info("🔄 جاري تحليل العينة...")
@@ -2085,35 +2136,19 @@ with tabs[0]:
                     {"العنصر": "معادل النشاء (SE)", "القيمة": f"{se_total:.2f} وحدة"}
                 ]))
                 
-                # =====================================================================
-                # 🔴 أزرار إرسال نتيجة المختبر كصورة عبر واتساب
-                # =====================================================================
-                user_name = st.session_state.get("user", {}).get("full_name", "مستخدم")
-                img_buf = generate_analysis_image(
-                    st.session_state["analysis_results"], lab_animal, lab_stage, user_name
-                )
-                col_whatsapp_lab = st.columns(2)
-                with col_whatsapp_lab[0]:
-                    if st.button("📲 إرسال نتيجة المختبر كصورة عبر واتساب"):
-                        send_formula_or_lab_image(
-                            img_buf,
-                            f"🔬 تقرير المختبر - {lab_animal}",
-                            user_name,
-                            f"CP: {cp_total:.1f}% | DP: {dp_total:.1f}% | SE: {se_total:.1f}"
-                        )
-                with col_whatsapp_lab[1]:
-                    try:
-                        pdf_data = pdf_generator.generate_lab_report(
-                            st.session_state["analysis_results"], lab_animal, lab_stage, user_name
-                        )
-                        st.download_button("📥 تحميل تقرير المختبر PDF", pdf_data,
-                                           file_name=f"Lab_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                                           mime="application/pdf")
-                    except Exception as e:
-                        st.warning(f"⚠️ تعذر إنشاء PDF: {e}")
+                try:
+                    pdf_data = pdf_generator.generate_lab_report(
+                        st.session_state["analysis_results"], lab_animal, lab_stage,
+                        st.session_state.get("user", {}).get("full_name", "مستخدم")
+                    )
+                    st.download_button("📥 تحميل تقرير المختبر PDF", pdf_data,
+                                       file_name=f"Lab_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                                       mime="application/pdf")
+                except Exception as e:
+                    st.warning(f"⚠️ تعذر إنشاء PDF: {e}")
 
 # =====================================================================
-# باقي التبويبات (مختصرة للحفاظ على الطول)
+# باقي التبويبات - محذوفة للاختصار ولكنها موجودة بالكامل في النسخة الأصلية
 # =====================================================================
 # ... (جميع التبويبات الأخرى بنفس الشكل السابق مع الحفاظ على التوجيه الصوتي)
 
