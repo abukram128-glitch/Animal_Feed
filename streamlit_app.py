@@ -114,17 +114,31 @@ if "email_password" not in st.session_state:
     except:
         st.session_state["email_password"] = None
 
-# إذا لم توجد كلمة مرور، نعرض تحذيراً ونطلب إدخالها يدوياً (مع ترميزها بشكل آمن)
+# إذا لم توجد كلمة مرور، نعرض تحذيراً ونطلب إدخالها يدوياً
 if not st.session_state["email_password"]:
     st.warning("⚠️ لم يتم العثور على كلمة مرور البريد في ملف secrets.toml.")
     st.info("📧 أدخل كلمة المرور يدوياً في الخانة أدناه (ستُستخدم مؤقتاً في هذه الجلسة).")
     user_pass = st.text_input("🔑 كلمة مرور البريد الإلكتروني:", type="password", key="manual_email_pass")
     if user_pass:
-        # تخزين كلمة المرور في session_state بشكل آمن (مشفر)
         st.session_state["email_password"] = user_pass
         st.success("✅ تم حفظ كلمة المرور مؤقتاً.")
         st.rerun()
-        # =====================================================================
+
+PHOTO_OPTIONS = ["14686.jpg", "1000069464.jpg", "14686.JPG", "1000069464.JPG"]
+
+@st.cache_data(ttl=3600)
+def get_image_base64(paths):
+    for path in paths:
+        if os.path.exists(path):
+            try:
+                with open(path, "rb") as image_file:
+                    return base64.b64encode(image_file.read()).decode()
+            except Exception:
+                pass
+    return None
+img_base64 = get_image_base64(PHOTO_OPTIONS)
+
+# =====================================================================
 # DatabaseManager (كامل)
 # =====================================================================
 class DatabaseManager:
@@ -732,7 +746,8 @@ class BroilerFarmManager:
             "الجرعة": ["1 مل/لتر ماء", "قطرة عين", "قطرة فم", "1 جم/لتر", "0.5 جم/لتر", "قطرة فم"],
             "طريقة الإعطاء": ["مياه الشرب", "قطرة عين/أنف", "مياه الشرب", "مياه الشرب (3 أيام)", "مياه الشرب", "مياه الشرب"]
         })
-        # =====================================================================
+
+# =====================================================================
 # BIG_FEEDS_LIBRARY و FLAT_FEED_DB
 # =====================================================================
 BIG_FEEDS_LIBRARY = {
@@ -885,7 +900,7 @@ if "daily_production_log" not in st.session_state: st.session_state["daily_produ
 if "basmala_played" not in st.session_state: st.session_state["basmala_played"] = False
 if "welcome_played" not in st.session_state: st.session_state["welcome_played"] = False
 if "guide_played" not in st.session_state: st.session_state["guide_played"] = {}
-    # =====================================================================
+# =====================================================================
 # دوال الصوت (محسّنة بدون time.sleep)
 # =====================================================================
 def voice_guide(message, lang="ar", delay_ms=0):
@@ -1202,6 +1217,7 @@ html, body, [data-testid="stAppViewContainer"] {
 .book-body { padding: 20px 25px; font-size: 1.05rem; line-height: 1.8; color: #2c3e50; border-left: 4px solid #3498db; background: #f8f9fa; border-radius: 0 10px 10px 0; }
 </style>
 """, unsafe_allow_html=True)
+
 # =====================================================================
 # شاشة الدخول
 # =====================================================================
@@ -1359,6 +1375,7 @@ with col_stat3:
 with col_stat4:
     st.markdown(f"<div class='metric-card'><div class='icon'>🧬</div><div class='number'>{len(st.session_state.get('broiler_farms', {}))}</div><div class='label'>مزارع نشطة</div></div>", unsafe_allow_html=True)
 st.markdown("---")
+
 # =====================================================================
 # أدوات المشاركة
 # =====================================================================
@@ -1436,7 +1453,8 @@ def play_tab_guide(tab_key, guide_text):
     if tab_key not in st.session_state.get("guide_played", {}):
         voice_guide(guide_text, delay_ms=500)
         st.session_state["guide_played"][tab_key] = True
-        # =====================================================================
+
+# =====================================================================
 # التبويب 0: القطاع الحيواني
 # =====================================================================
 with tabs[0]:
@@ -1711,7 +1729,8 @@ with tabs[0]:
                     st.download_button("📥 تحميل تقرير المختبر PDF", pdf_data, file_name=f"Lab_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", mime="application/pdf")
                 except Exception as e:
                     st.warning(f"⚠️ تعذر إنشاء PDF: {e}")
-                    # =====================================================================
+
+# =====================================================================
 # التبويب 1: بورصة الأسعار
 # =====================================================================
 if len(tabs) > 1:
@@ -1909,7 +1928,8 @@ if len(tabs) > 6:
             last_record = st.session_state["daily_production_log"][-1]
             if last_record["mortality"] > 0:
                 st.warning(f"⚠️ تم تسجيل نفوق عدد {last_record['mortality']} في آخر تسجيل ({last_record['date']})")
-                # =====================================================================
+
+# =====================================================================
 # التبويب 7: مصمم الديباجة (للمالك فقط)
 # =====================================================================
 if len(tabs) > 7 and st.session_state["user_role"] == "owner":
@@ -2106,7 +2126,8 @@ if len(tabs) > 12:
         7. **🐔 إدارة مزارع الدجاج**: تتبع دورات الدجاج اللاحم وحساب ADG, FCR, EPEF.
         8. **📚 المراجع العلمية**: اطلع على المصادر المعتمدة واسأل عن مصطلحات التغذية.
         """)
-        # =====================================================================
+
+# =====================================================================
 # التبويب 13: دليل المستخدم (متاح للجميع)
 # =====================================================================
 if len(tabs) > 13:
