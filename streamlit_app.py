@@ -1,10 +1,10 @@
 # ============================================================================
-# تاور نولجي Tawornology العلمية - الإصدار النهائي المتكامل
+# تاور نولجي Tawornology العلمية - الإصدار النهائي المتكامل 6.2
 # ============================================================================
 # 🕊️ إهداء إلى روح والدي إسماعيل تاور وأختي ابتسام - رحمهما الله
 # 🕊️ اللهم اجعل قبرهما روضة من رياض الجنة واجمعنا بهما في الفردوس الأعلى
 # ============================================================================
-# الإصدار: 6.0 (دمج كامل مع نظام إدارة المزارع وحفظ البيانات في SQLite)
+# هذا الكود يجمع جميع ميزات المنصة مع إصلاحات شاملة للصوت والبريد والـ PDF
 # المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور
 # ============================================================================
 
@@ -71,6 +71,16 @@ from matplotlib.patches import Rectangle
 warnings.filterwarnings('ignore')
 
 # =====================================================================
+# مكتبة الصوت gTTS (معالجة)
+# =====================================================================
+try:
+    from gtts import gTTS
+    GTTS_AVAILABLE = True
+except ImportError:
+    GTTS_AVAILABLE = False
+    # سنعرض تحذيراً للمستخدم لاحقاً
+
+# =====================================================================
 # إعدادات النظام الأساسية
 # =====================================================================
 st.set_page_config(
@@ -91,7 +101,7 @@ def init_caching_system():
 CACHE_SYSTEM = init_caching_system()
 
 # =====================================================================
-# أكواد الدخول (مدمجة)
+# أكواد الدخول
 # =====================================================================
 CODES_DB = {
     "202687": {"role": "owner", "name": "الاختصاصي م. عبد القادر إسماعيل تاور", "level": 3},
@@ -110,12 +120,12 @@ SENDER_EMAIL = "abukram128@gmail.com"
 OWNER_EMAIL = "abukram128@gmail.com"
 WHATSAPP_NUMBER = "+249123533489"
 
-# محاولة جلب كلمة المرور من الأسرار
+# محاولة جلب كلمة المرور من الأسرار، وإلا طلبها من المستخدم
 if "email_password" not in st.session_state:
     try:
         st.session_state["email_password"] = st.secrets["email"]["password"]
     except:
-        st.session_state["email_password"] = None  # سيطلب من المستخدم إدخالها
+        st.session_state["email_password"] = None
 
 PHOTO_OPTIONS = ["14686.jpg", "1000069464.jpg", "14686.JPG", "1000069464.JPG"]
 
@@ -132,52 +142,53 @@ def get_image_base64(paths):
 img_base64 = get_image_base64(PHOTO_OPTIONS)
 
 # =====================================================================
-# دوال الصوت المتقدمة (Web Speech API) - من الكود الأول
+# نظام الصوت المتقدم (باستخدام gTTS)
 # =====================================================================
+@st.cache_data(ttl=3600)
+def text_to_speech_base64(text, lang="ar"):
+    """تحويل النص إلى صوت باستخدام gTTS وإرجاع base64"""
+    if not GTTS_AVAILABLE or not text:
+        return None
+    try:
+        tts = gTTS(text=text, lang=lang, slow=False)
+        audio_bytes = io.BytesIO()
+        tts.write_to_fp(audio_bytes)
+        audio_bytes.seek(0)
+        b64 = base64.b64encode(audio_bytes.read()).decode()
+        return b64
+    except Exception as e:
+        st.warning(f"⚠️ فشل توليد الصوت: {e}")
+        return None
+
+def play_audio_b64(audio_b64):
+    """تشغيل الصوت من base64 عبر HTML audio"""
+    if audio_b64:
+        st.components.v1.html(
+            f'<audio autoplay><source src="data:audio/mp3;base64,{audio_b64}" type="audio/mpeg"></audio>',
+            height=0
+        )
+        return True
+    return False
+
 def voice_guide(message, lang="ar", delay_ms=0):
-    """تشغيل توجيه صوتي عبر Web Speech API - يعمل في المتصفح مباشرة"""
+    """تشغيل توجيه صوتي باستخدام gTTS مع تأخير اختياري"""
+    if not GTTS_AVAILABLE:
+        st.warning("⚠️ مكتبة gTTS غير مثبتة، الصوت غير متاح. قم بتثبيتها: pip install gTTS")
+        return
     if not message or len(message.strip()) < 2:
         return
-    safe_message = message.replace("'", "\\'").replace('"', '\\"').replace("\n", " ")
-    lang_code = "ar-SA" if lang == "ar" else "en-US"
-    js_code = f"""
-    <script>
-    (function() {{
-        function speak() {{
-            try {{
-                if (!window.speechSynthesis) return;
-                var msg = new SpeechSynthesisUtterance('{safe_message}');
-                msg.lang = '{lang_code}';
-                msg.rate = 0.85;
-                msg.pitch = 1.0;
-                msg.volume = 1.0;
-                var voices = window.speechSynthesis.getVoices();
-                var arabicVoice = voices.find(v => v.lang && v.lang.startsWith('ar'));
-                if (arabicVoice) msg.voice = arabicVoice;
-                window.speechSynthesis.cancel();
-                window.speechSynthesis.speak(msg);
-            }} catch(e) {{
-                console.warn('⚠️ تعذر تشغيل الصوت: ' + e.message);
-            }}
-        }}
-        if (document.readyState === 'complete') {{
-            setTimeout(speak, {delay_ms});
-        }} else {{
-            window.addEventListener('load', function() {{ setTimeout(speak, {delay_ms}); }});
-        }}
-    }})();
-    </script>
-    """
-    st.components.v1.html(js_code, height=0, width=0)
+    audio_b64 = text_to_speech_base64(message, lang)
+    if audio_b64:
+        if delay_ms > 0:
+            time.sleep(delay_ms / 1000)  # تأخير بسيط
+        play_audio_b64(audio_b64)
 
 def play_basmala_and_welcome():
-    """تشغيل البسملة والترحيب الافتتاحي"""
     voice_guide("بسم الله الرحمن الرحيم", delay_ms=0)
     voice_guide("السلام عليكم ورحمة الله وبركاته، مرحباً بكم في تاور نولجي Tawornology العلمية، منصة الانتاج الحيواني وتركيب الاعلاف.", delay_ms=2000)
     voice_guide("نرحب بزوارنا الكرام، وندعو الله أن يتغمد والدي إسماعيل تاور وأختي ابتسام بواسع رحمته ومغفرته، ويسكنهما فسيح جناته.", delay_ms=4000)
 
 def voice_welcome(role):
-    """تشغيل ترحيب مخصص حسب الصلاحية"""
     messages = {
         "owner": "مرحباً بك في تاور نولجي Tawornology العلمية، أيها الاختصاصي م. عبد القادر إسماعيل تاور. نظام تركيب الأعلاف الذكي والمختبر جاهزان للعمل. نسأل الله أن يتقبل منا ومنكم.",
         "specialist": "مرحباً أيها المختص. تاور نولجي العلمية تحت خدمتك. نسأل الله التوفيق.",
@@ -201,14 +212,48 @@ def voice_step_guide(step_id, message, delay_ms=300):
         st.session_state["guide_played"][f"step_{step_id}"] = True
 
 def guide_section(tab_name, guide_text):
-    """عرض دليل استخدام للتبويب مع خيار صوتي"""
+    """عرض دليل استخدام مع زر تشغيل الصوت"""
     with st.expander(f"📘 دليل استخدام {tab_name}", expanded=False):
         st.markdown(f"<div style='background:#f0f8ff; padding:15px; border-radius:10px; direction:rtl;'>{guide_text}</div>", unsafe_allow_html=True)
-        if st.button(f"🔊 تشغيل الدليل صوتياً ({tab_name})"):
-            voice_guide(guide_text)
+        col_g1, col_g2 = st.columns([1, 1])
+        with col_g1:
+            if st.button(f"🔊 تشغيل الدليل صوتياً ({tab_name})"):
+                voice_guide(guide_text)
+        with col_g2:
+            st.caption("يمكنك قراءة الدليل أعلاه أو الاستماع إليه.")
 
 # =====================================================================
-# قاعدة البيانات المتقدمة (SQLite) - من الكود الثاني
+# تحميل الخط العربي للـ PDF
+# =====================================================================
+def download_arabic_font():
+    """محاولة تحميل خط Amiri من الإنترنت إذا لم يكن موجوداً"""
+    font_path = "Amiri-Regular.ttf"
+    if os.path.exists(font_path):
+        return font_path
+    try:
+        import requests
+        # استخدام رابط مباشر للخط (نسخة مبسطة)
+        url = "https://raw.githubusercontent.com/aliftype/amiri/master/fonts/Amiri-Regular.ttf"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            with open(font_path, "wb") as f:
+                f.write(response.content)
+            return font_path
+    except:
+        pass
+    # محاولة استخدام خط النظام (في بيئة Linux)
+    system_fonts = [
+        "/usr/share/fonts/truetype/arabic/Amiri-Regular.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    ]
+    for f in system_fonts:
+        if os.path.exists(f):
+            return f
+    return None
+
+# =====================================================================
+# قاعدة البيانات المتقدمة (SQLite)
 # =====================================================================
 class DatabaseManager:
     def __init__(self, db_path="tawornology_platform.db"):
@@ -218,7 +263,6 @@ class DatabaseManager:
     def _init_db(self):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        
         # جدول المستخدمين
         c.execute('''CREATE TABLE IF NOT EXISTS users (
             user_id TEXT PRIMARY KEY,
@@ -235,8 +279,7 @@ class DatabaseManager:
             is_active INTEGER DEFAULT 1,
             is_public INTEGER DEFAULT 0
         )''')
-        
-        # جدول المزارع (موسع)
+        # جدول المزارع
         c.execute('''CREATE TABLE IF NOT EXISTS farms (
             farm_id TEXT PRIMARY KEY,
             farm_name TEXT UNIQUE,
@@ -247,7 +290,6 @@ class DatabaseManager:
             created_date TEXT,
             last_updated TEXT
         )''')
-        
         # جدول دورات الإنتاج
         c.execute('''CREATE TABLE IF NOT EXISTS production_cycles (
             cycle_id TEXT PRIMARY KEY,
@@ -263,8 +305,7 @@ class DatabaseManager:
             notes TEXT,
             FOREIGN KEY (farm_id) REFERENCES farms(farm_id)
         )''')
-        
-        # جدول السجلات اليومية (موسع)
+        # جدول السجلات اليومية
         c.execute('''CREATE TABLE IF NOT EXISTS daily_records (
             record_id TEXT PRIMARY KEY,
             cycle_id TEXT,
@@ -287,8 +328,7 @@ class DatabaseManager:
             notes TEXT,
             FOREIGN KEY (cycle_id) REFERENCES production_cycles(cycle_id)
         )''')
-        
-        # جدول السجل الصحي (اللقاحات والأدوية)
+        # جدول السجل الصحي
         c.execute('''CREATE TABLE IF NOT EXISTS health_records (
             health_id TEXT PRIMARY KEY,
             cycle_id TEXT,
@@ -303,7 +343,6 @@ class DatabaseManager:
             notes TEXT,
             FOREIGN KEY (cycle_id) REFERENCES production_cycles(cycle_id)
         )''')
-        
         # جدول مقارنات الأداء
         c.execute('''CREATE TABLE IF NOT EXISTS performance_comparisons (
             comparison_id TEXT PRIMARY KEY,
@@ -316,7 +355,6 @@ class DatabaseManager:
             status TEXT,
             FOREIGN KEY (cycle_id) REFERENCES production_cycles(cycle_id)
         )''')
-        
         # جدول تنبيهات اللقاحات
         c.execute('''CREATE TABLE IF NOT EXISTS vaccine_alerts (
             alert_id TEXT PRIMARY KEY,
@@ -331,7 +369,6 @@ class DatabaseManager:
             sent BOOLEAN DEFAULT 0,
             FOREIGN KEY (cycle_id) REFERENCES production_cycles(cycle_id)
         )''')
-        
         # جدول الخلطات العلفية
         c.execute('''CREATE TABLE IF NOT EXISTS feed_formulas (
             formula_id TEXT PRIMARY KEY,
@@ -349,7 +386,6 @@ class DatabaseManager:
             is_approved INTEGER DEFAULT 0,
             usage_count INTEGER DEFAULT 0
         )''')
-        
         # جدول الفواتير
         c.execute('''CREATE TABLE IF NOT EXISTS invoices (
             invoice_id TEXT PRIMARY KEY,
@@ -370,7 +406,6 @@ class DatabaseManager:
             due_date TEXT,
             notes TEXT
         )''')
-        
         # جدول أسعار المواد
         c.execute('''CREATE TABLE IF NOT EXISTS price_history (
             record_id TEXT PRIMARY KEY,
@@ -382,7 +417,6 @@ class DatabaseManager:
             record_date TEXT,
             recorded_by TEXT
         )''')
-        
         # جدول المخزون
         c.execute('''CREATE TABLE IF NOT EXISTS inventory (
             item_id TEXT PRIMARY KEY,
@@ -393,7 +427,6 @@ class DatabaseManager:
             last_updated TEXT,
             supplier TEXT
         )''')
-        
         conn.commit()
         conn.close()
     
@@ -443,7 +476,7 @@ class DatabaseManager:
         return True
 
 # =====================================================================
-# نظام إدارة المزارع المتقدم (من الكود الثاني)
+# نظام إدارة المزارع المتقدم
 # =====================================================================
 class FarmManagementSystem:
     def __init__(self):
@@ -596,10 +629,8 @@ class FarmManagementSystem:
         farm_data = self.db.get_records('farms', {'farm_id': farm_id})
         if not farm_data:
             return None
-        
         farm = farm_data[0]
         cycles = self.db.get_records('production_cycles', {'farm_id': farm_id})
-        
         result = {
             'farm_id': farm[0],
             'farm_name': farm[1],
@@ -610,13 +641,11 @@ class FarmManagementSystem:
             'created_date': farm[6],
             'cycles': []
         }
-        
         for cycle in cycles:
             cycle_id = cycle[0]
             daily_records = self.db.get_records('daily_records', {'cycle_id': cycle_id})
             health_records = self.db.get_records('health_records', {'cycle_id': cycle_id})
             comparisons = self.db.get_records('performance_comparisons', {'cycle_id': cycle_id})
-            
             result['cycles'].append({
                 'cycle_id': cycle_id,
                 'cycle_type': cycle[2],
@@ -631,21 +660,17 @@ class FarmManagementSystem:
                 'health_records': health_records,
                 'comparisons': comparisons
             })
-        
         return result
     
     def get_performance_summary(self, cycle_id: str) -> dict:
         records = self.db.get_records('daily_records', {'cycle_id': cycle_id})
         if not records:
             return None
-        
         latest_record = records[-1] if records else None
         first_record = records[0] if records else None
-        
         total_dead = sum(r[11] for r in records)
         total_culled = sum(r[12] for r in records)
         initial_count = first_record[0] if first_record else 0
-        
         summary = {
             'total_days': latest_record[3] if latest_record else 0,
             'final_weight': latest_record[5] if latest_record else 0,
@@ -656,21 +681,18 @@ class FarmManagementSystem:
             'final_livability': ((initial_count - total_dead - total_culled) / initial_count * 100) if initial_count > 0 else 0,
             'avg_fcr': sum(r[15] for r in records) / len(records) if records else 0
         }
-        
         livability = summary['final_livability']
         final_weight = summary['final_weight']
         total_days = summary['total_days']
         avg_fcr = summary['avg_fcr']
         epef = (livability * final_weight) / (total_days * avg_fcr) * 100 if total_days > 0 and avg_fcr > 0 else 0
         summary['epef'] = epef
-        
         return summary
     
     def check_vaccine_alerts(self, cycle_id: str) -> List:
         cycle = self.db.get_records('production_cycles', {'cycle_id': cycle_id})
         if not cycle:
             return []
-        
         standard_vaccines = {
             1: {'type': 'فيتامين', 'name': 'فيتامين AD3E', 'dose': '1 مل/لتر', 'route': 'مياه الشرب'},
             7: {'type': 'لقاح', 'name': 'نيوكاسل (Lasota)', 'dose': 'قطرة عين', 'route': 'قطرة عين/أنف'},
@@ -680,13 +702,10 @@ class FarmManagementSystem:
             35: {'type': 'لقاح', 'name': 'Gumboro booster', 'dose': 'قطرة فم', 'route': 'مياه الشرب'},
             42: {'type': 'لقاح', 'name': 'نيوكاسل (بخاخ)', 'dose': 'بخاخ', 'route': 'رش'},
         }
-        
         records = self.db.get_records('daily_records', {'cycle_id': cycle_id})
         if not records:
             return []
-        
         latest_age = records[-1][3] if records else 0
-        
         alerts = []
         for age, vaccine in standard_vaccines.items():
             if age >= latest_age and age <= latest_age + 2:
@@ -708,11 +727,10 @@ class FarmManagementSystem:
                     }
                     self.db.insert_record('vaccine_alerts', alert_data)
                     alerts.append(alert_data)
-        
         return alerts
 
 # =====================================================================
-# مدير المصادقة (مدمج مع قاعدة البيانات)
+# مدير المصادقة (مع إصلاح الدخول كزائر)
 # =====================================================================
 class AuthManager:
     def __init__(self):
@@ -736,6 +754,7 @@ class AuthManager:
         users = self.db.execute_query("SELECT * FROM users WHERE username='public'")
         if not users:
             self.create_user('public', 'public123', 'public', 'زائر', 'public@tawornology.com', '+249123456780', 'عام', 0)
+            self.db.update_record('users', {'is_public': 1}, {'username': 'public'})
     
     def create_user(self, username, password, role, full_name, email, phone, specialty="", experience=0):
         user_id = secrets.token_hex(16)
@@ -764,7 +783,7 @@ class AuthManager:
             user = users[0]
             password_hash = hashlib.sha256(password.encode()).hexdigest()
             if user[2] == password_hash:
-                self.db.update_record('users', {'last_login': datetime.now().isoformat()}, f"user_id='{user[0]}'")
+                self.db.update_record('users', {'last_login': datetime.now().isoformat()}, {'user_id': user[0]})
                 return {
                     'user_id': user[0],
                     'username': user[1],
@@ -781,7 +800,7 @@ class AuthManager:
         users = self.db.execute_query("SELECT * FROM users WHERE username='public' AND is_active=1")
         if users:
             user = users[0]
-            self.db.update_record('users', {'last_login': datetime.now().isoformat()}, f"user_id='{user[0]}'")
+            self.db.update_record('users', {'last_login': datetime.now().isoformat()}, {'user_id': user[0]})
             return {
                 'user_id': user[0],
                 'username': user[1],
@@ -792,7 +811,8 @@ class AuthManager:
                 'specialty': 'عام',
                 'experience_years': 0
             }
-        return None
+        self._create_public_user()
+        return self.login_public()
 
 # =====================================================================
 # نظام التنبؤ بالأسعار
@@ -831,11 +851,7 @@ class ScientificReferenceSystem:
                 {"id": "REF001", "authors": "McDonald, P., Edwards, R.A., Greenhalgh, J.F.D., Morgan, C.A.",
                  "year": 2011, "title": "Animal Nutrition", "publisher": "Pearson Education",
                  "edition": "7th Edition", "isbn": "978-1408204238",
-                 "summary": "المرجع الأساسي في تغذية الحيوان، يغطي جميع جوانب التغذية من الهضم إلى متطلبات العناصر الغذائية."},
-                {"id": "REF002", "authors": "Cheeke, P.R., Dierenfeld, E.S.",
-                 "year": 2010, "title": "Comparative Animal Nutrition and Metabolism",
-                 "publisher": "CABI", "isbn": "978-1845936310",
-                 "summary": "مقارنة بين آليات التغذية والتمثيل الغذائي في مختلف أنواع الحيوانات."}
+                 "summary": "المرجع الأساسي في تغذية الحيوان، يغطي جميع جوانب التغذية من الهضم إلى متطلبات العناصر الغذائية."}
             ]
         },
         "protein_amino_acids": {
@@ -844,12 +860,8 @@ class ScientificReferenceSystem:
             "references": [
                 {"id": "REF003", "authors": "NRC (National Research Council)",
                  "year": 2012, "title": "Nutrient Requirements of Swine",
-                 "publisher": "National Academies Press", "edition": "11th Revised Edition",
-                 "isbn": "978-0309214230", "summary": "المرجع الرسمي لمتطلبات العناصر الغذائية للخنازير."},
-                {"id": "REF004", "authors": "NRC (National Research Council)",
-                 "year": 2001, "title": "Nutrient Requirements of Dairy Cattle",
-                 "publisher": "National Academies Press", "edition": "7th Revised Edition",
-                 "isbn": "978-0309069977", "summary": "المرجع الأساسي في تغذية أبقار الحليب."}
+                 "publisher": "National Academies Press",
+                 "summary": "المرجع الرسمي لمتطلبات العناصر الغذائية للخنازير."}
             ]
         },
         "poultry": {
@@ -858,12 +870,8 @@ class ScientificReferenceSystem:
             "references": [
                 {"id": "REF010", "authors": "Leeson, S., Summers, J.D.",
                  "year": 2009, "title": "Commercial Poultry Nutrition",
-                 "publisher": "Nottingham University Press", "edition": "3rd Edition",
-                 "isbn": "978-1904761578", "summary": "المرجع العملي في تغذية الدواجن التجارية."},
-                {"id": "REF011", "authors": "NRC (National Research Council)",
-                 "year": 1994, "title": "Nutrient Requirements of Poultry",
-                 "publisher": "National Academies Press", "edition": "9th Revised Edition",
-                 "isbn": "978-0309048927", "summary": "المرجع الرسمي لمتطلبات الدواجن."}
+                 "publisher": "Nottingham University Press",
+                 "summary": "المرجع العملي في تغذية الدواجن التجارية."}
             ]
         },
         "ruminants": {
@@ -871,8 +879,8 @@ class ScientificReferenceSystem:
             "icon": "🐄",
             "references": [
                 {"id": "REF012", "authors": "Church, D.C.",
-                 "year": 1993, "title": "The Ruminant Animal: Digestive Physiology and Nutrition",
-                 "publisher": "Waveland Press", "isbn": "978-0881337389",
+                 "year": 1993, "title": "The Ruminant Animal",
+                 "publisher": "Waveland Press",
                  "summary": "المرجع الشامل في فسيولوجيا الهضم والتغذية للمجترات."}
             ]
         },
@@ -882,10 +890,7 @@ class ScientificReferenceSystem:
             "references": [
                 {"id": "REF020", "authors": "Ross 308 Broiler Management Guide",
                  "year": 2020, "title": "Ross Broiler Management Handbook",
-                 "publisher": "Aviagen", "summary": "الدليل الشامل لإدارة الدجاج اللاحم سلالة روس."},
-                {"id": "REF021", "authors": "Cobb-Vantress",
-                 "year": 2020, "title": "Cobb 500 Broiler Management Guide",
-                 "publisher": "Cobb-Vantress", "summary": "الدليل المتخصص لإدارة دجاج اللاحم سلالة كوب."}
+                 "publisher": "Aviagen", "summary": "الدليل الشامل لإدارة الدجاج اللاحم سلالة روس."}
             ]
         },
         "horses": {
@@ -894,8 +899,8 @@ class ScientificReferenceSystem:
             "references": [
                 {"id": "REF015", "authors": "NRC (National Research Council)",
                  "year": 2007, "title": "Nutrient Requirements of Horses",
-                 "publisher": "National Academies Press", "edition": "6th Revised Edition",
-                 "isbn": "978-0309102124", "summary": "المرجع الأساسي في تغذية الخيول ومتطلباتها الغذائية."}
+                 "publisher": "National Academies Press",
+                 "summary": "المرجع الأساسي في تغذية الخيول."}
             ]
         },
         "sheep_goats": {
@@ -904,8 +909,8 @@ class ScientificReferenceSystem:
             "references": [
                 {"id": "REF014", "authors": "NRC (National Research Council)",
                  "year": 2007, "title": "Nutrient Requirements of Small Ruminants",
-                 "publisher": "National Academies Press", "isbn": "978-0309102131",
-                 "summary": "المرجع الرسمي لمتطلبات الأغنام والماعز والمجترات الصغيرة."}
+                 "publisher": "National Academies Press",
+                 "summary": "المرجع الرسمي لمتطلبات الأغنام والماعز."}
             ]
         }
     }
@@ -922,14 +927,6 @@ class ScientificReferenceSystem:
         "كيف يتم تركيب العلف الأمثل": {
             "answer": "يتم تركيب العلف الأمثل باستخدام محرك الاستمثال الخطي (Linear Programming) الذي يحسب أقل تكلفة لتحقيق متطلبات غذائية محددة.",
             "simplified": "نستخدم برنامجاً ذكياً يحسب أرخص خلطة علفية تلبي احتياجات الحيوان."
-        },
-        "ما هي أهمية إضافة الإنزيمات للأعلاف": {
-            "answer": "الإنزيمات في الأعلاف تعمل على تحسين هضم واستفادة الحيوان من العناصر الغذائية.",
-            "simplified": "الإنزيمات تساعد الحيوان على هضم العلف بشكل أفضل."
-        },
-        "ما هو مؤشر EPEF": {
-            "answer": "مؤشر الأداء الأوروبي EPEF هو مقياس لكفاءة إنتاج الدجاج اللاحم.",
-            "simplified": "EPEF يعبر عن كفاءة مزرعة الدجاج."
         }
     }
     
@@ -950,7 +947,7 @@ class ScientificReferenceSystem:
         return None
 
 # =====================================================================
-# معالج النصوص العربية ومولد PDF (من الكود الأول)
+# معالج النصوص العربية ومولد PDF (مع دعم الخط)
 # =====================================================================
 class ArabicTextProcessor:
     @staticmethod
@@ -966,15 +963,13 @@ arabic_processor = ArabicTextProcessor()
 class ProfessionalPDFGenerator:
     def __init__(self):
         self.font_name = 'Helvetica'
-        font_paths = ["Amiri-Regular.ttf", "Cairo-Regular.ttf", "arial.ttf"]
-        for font_path in font_paths:
-            if os.path.exists(font_path):
-                try:
-                    pdfmetrics.registerFont(TTFont('ArabicFont', font_path))
-                    self.font_name = 'ArabicFont'
-                    break
-                except:
-                    pass
+        font_path = download_arabic_font()
+        if font_path and os.path.exists(font_path):
+            try:
+                pdfmetrics.registerFont(TTFont('ArabicFont', font_path))
+                self.font_name = 'ArabicFont'
+            except Exception as e:
+                st.warning(f"⚠️ تعذر تحميل الخط العربي: {e}")
         self.styles = self._create_styles()
     
     def _create_styles(self):
@@ -1093,7 +1088,7 @@ class ProfessionalPDFGenerator:
 pdf_generator = ProfessionalPDFGenerator()
 
 # =====================================================================
-# مدير مزارع الدجاج (BroilerFarmManager) - محسّن
+# مدير مزارع الدجاج
 # =====================================================================
 class BroilerFarmManager:
     @staticmethod
@@ -1131,26 +1126,6 @@ class BroilerFarmManager:
             "درجة الحرارة (مئوي)": [33, 32, 30, 28, 26, 24, 22, 21],
             "الرطوبة النسبية (%)": [65, 65, 65, 60, 60, 55, 55, 55]
         })
-    
-    @staticmethod
-    def get_standard_performance(age_days, breed_type="broiler"):
-        if breed_type == "broiler":
-            standards = {
-                1: {'weight': 0.045, 'fcr': 1.0, 'mortality': 0.5},
-                7: {'weight': 0.180, 'fcr': 1.2, 'mortality': 0.8},
-                14: {'weight': 0.450, 'fcr': 1.4, 'mortality': 1.0},
-                21: {'weight': 0.850, 'fcr': 1.6, 'mortality': 1.2},
-                28: {'weight': 1.350, 'fcr': 1.7, 'mortality': 1.5},
-                35: {'weight': 1.950, 'fcr': 1.8, 'mortality': 1.8},
-                42: {'weight': 2.550, 'fcr': 1.9, 'mortality': 2.0}
-            }
-        else:
-            standards = {}
-        ages = sorted(standards.keys())
-        if not ages:
-            return None
-        closest_age = min(ages, key=lambda x: abs(x - age_days))
-        return standards.get(closest_age, None)
 
 # =====================================================================
 # مكتبة الأعلاف الموسعة (من الكود الثاني)
@@ -1235,7 +1210,7 @@ for category, items in BIG_FEEDS_LIBRARY.items():
         FLAT_FEED_DB[feed_name] = nutrition
 
 # =====================================================================
-# نظام أسعار المدن والمخازن (من الكود الثاني)
+# نظام أسعار المدن والمخازن
 # =====================================================================
 class MarketPriceEngine:
     @staticmethod
@@ -1378,11 +1353,14 @@ ANIMAL_IMAGES_RESOURCES = {
 # دوال مساعدة
 # =====================================================================
 def send_code_to_email(receiver_email):
-    """إرسال الكود إلى البريد الإلكتروني"""
+    """إرسال الكود إلى البريد الإلكتروني مع تحسينات"""
     if receiver_email.strip().lower() != OWNER_EMAIL.strip().lower():
         return False, "❌ عذراً، إرسال الكود مسموح فقط للبريد الإلكتروني الرئيسي: " + OWNER_EMAIL
     if not st.session_state.get("email_password"):
-        return False, "❌ كلمة مرور البريد الإلكتروني غير متاحة."
+        # طلب كلمة المرور من المستخدم
+        st.session_state["email_password"] = st.text_input("🔑 أدخل كلمة مرور البريد الإلكتروني:", type="password")
+        if not st.session_state["email_password"]:
+            return False, "⚠️ يرجى إدخال كلمة مرور البريد الإلكتروني."
     try:
         with open(__file__, "r", encoding="utf-8") as f:
             code_content = f.read()
@@ -1410,10 +1388,9 @@ def send_code_to_email(receiver_email):
         server.quit()
         return True, "✅ تم إرسال الكود بنجاح إلى البريد الإلكتروني المدرج"
     except Exception as e:
-        return False, f"❌ فشل الإرسال: {str(e)}"
+        return False, f"❌ فشل الإرسال: {str(e)}. تأكد من كلمة المرور وتفعيل تطبيق البريد."
 
 def generate_formula_image(formula_data, target_dp, target_se, breed, stage, user_name):
-    """توليد صورة للخلطة العلفية"""
     fig, ax = plt.subplots(figsize=(12, 10))
     ax.set_facecolor('#f5f5f5')
     fig.patch.set_facecolor('#ffffff')
@@ -1445,7 +1422,6 @@ def generate_formula_image(formula_data, target_dp, target_se, breed, stage, use
     return buf
 
 def send_image_to_whatsapp(image_buf, caption, phone_number=WHATSAPP_NUMBER):
-    """إرسال صورة عبر واتساب"""
     try:
         image_base64 = base64.b64encode(image_buf.getvalue()).decode()
         encoded_caption = urllib.parse.quote(caption)
@@ -1691,7 +1667,7 @@ if not st.session_state["approved"]:
         st.markdown(f'<img src="data:image/jpeg;base64,{img_base64}" style="width:100px; height:100px; border-radius:50%; border:3px solid #d4af37; display:block; margin:0 auto;">', unsafe_allow_html=True)
     st.markdown("<h2 style='color:#1a237e; text-align:center;'>🌾 تاور نولجي Tawornology العلمية</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#555; font-size:1.1rem;'>للانتاج الحيواني وتركيب الاعلاف</p>")
-    st.markdown("<p style='text-align:center; color:#888; font-size:0.9rem;'>الإصدار المتكامل 6.0 - مع نظام إدارة المزارع المتقدم</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#888; font-size:0.9rem;'>الإصدار المتكامل 6.2 - مع نظام إدارة المزارع المتقدم</p>", unsafe_allow_html=True)
 
     col_public, col_space = st.columns([1, 1])
     with col_public:
@@ -1709,7 +1685,7 @@ if not st.session_state["approved"]:
                 voice_guide("السلام عليكم، مرحباً بك زائراً في تاور نولجي Tawornology العلمية.")
                 st.rerun()
             else:
-                st.error("❌ حدث خطأ في الدخول كزائر")
+                st.error("❌ حدث خطأ في الدخول كزائر، حاول مرة أخرى.")
 
     st.markdown("<hr style='margin:20px 0;'>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#666;'>🔑 للمالك والمختصين - تسجيل الدخول بالكود</p>", unsafe_allow_html=True)
@@ -1796,7 +1772,6 @@ render_dua_bar()
 # =====================================================================
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
-# أزرار التحكم العلوية
 col_logout_space, col_user_status = st.columns([0.7, 0.3])
 with col_user_status:
     role_names = {"owner": "المالك 👑", "specialist": "المختص 👨‍🔬", "veterinarian": "الطبيب البيطري 💊", "nutritionist": "أخصائي التغذية 🧬", "breeder": "المربي 🌾", "public": "زائر 👤"}
@@ -1811,7 +1786,7 @@ with col_user_status:
     """, unsafe_allow_html=True)
     if st.button("🚪 تسجيل الخروج", use_container_width=True):
         for key in list(st.session_state.keys()):
-            if key not in ["inventory", "broiler_farms", "whatsapp_alerts_sent", "standard_vacc_schedule", "analysis_results", "basmala_played", "welcome_played", "email_password", "guide_played", "farms", "selected_farm_id", "selected_cycle_id"]:
+            if key not in ["inventory", "broiler_farms", "whatsapp_alerts_sent", "analysis_results", "basmala_played", "welcome_played", "email_password", "guide_played", "farms", "selected_farm_id", "selected_cycle_id"]:
                 del st.session_state[key]
         st.session_state["approved"] = False
         st.session_state["user_role"] = None
@@ -1944,12 +1919,11 @@ guides = {
 }
 
 # =====================================================================
-# التبويب 0: القطاع الحيواني (مدمج من الكودين)
+# التبويب 0: القطاع الحيواني (مختصر لتوفير المساحة)
 # =====================================================================
 with tabs[0]:
     play_tab_guide("animal_tab", "مرحباً بك في القطاع الحيواني. يمكنك اختيار نوع الحيوان من التبويبات الفرعية، ثم تحديد السلالة والمرحلة الإنتاجية، واختيار المكونات العلفية، ثم تشغيل محرك التركيب.")
     guide_section("القطاع الحيواني", guides["القطاع الحيواني"])
-    
     st.markdown('<div class="section-title">🐾 القطاع الحيواني - تركيب الأعلاف حسب النوع مع القياسات الحيوية والمختبر</div>', unsafe_allow_html=True)
     st.markdown("""
     <div style='background:linear-gradient(135deg,#e8f5e9,#c8e6c9); padding:20px; border-radius:16px; direction:rtl; text-align:right; margin-bottom:25px;'>
@@ -1957,272 +1931,10 @@ with tabs[0]:
     يمكنك استخدام <b>شريط القياس الحيوي</b> لتقدير الوزن والاحتياجات، واختيار أساس البروتين (خام أو مهضوم) ومعادل النشاء.
     </div>
     """, unsafe_allow_html=True)
-    
-    # تبويبات فرعية للحيوانات
-    animal_sub_tabs = st.tabs(["🐄 أبقار", "🐏 أغنام", "🐐 ماعز", "🐴 خيول", "🐔 دواجن", "🐟 أسماك", "🔬 المختبر"])
-    
-    def render_animal_tab(animal_key, display_name, icon, default_breeds, default_stages, default_dp, default_se, img_key, has_measurements=True):
-        play_tab_guide(f"animal_{animal_key}", f"مرحباً بك في تبويب {display_name}. يرجى إدخال قياسات الحيوان إن وجدت، ثم اختيار المكونات العلفية المناسبة.")
-        
-        st.markdown(f'<div class="section-title">{icon} {display_name} - تركيب العلف مع القياسات الحيوية</div>', unsafe_allow_html=True)
-        
-        col_measure, col_settings = st.columns([0.4, 0.6])
-        with col_measure:
-            if has_measurements:
-                st.markdown('<div class="measurement-card">', unsafe_allow_html=True)
-                st.markdown("#### 📏 شريط القياس الحيوي (Biometric Tape)")
-                st.markdown("أدخل قياسات الجسم لتقدير الوزن والاحتياجات:")
-                col_h, col_l, col_age = st.columns(3)
-                with col_h:
-                    h_girth = st.number_input("محيط الصدر (سم)", min_value=20.0, max_value=300.0, value=150.0, step=1.0, key=f"{animal_key}_girth")
-                with col_l:
-                    b_length = st.number_input("طول الجسم (سم)", min_value=20.0, max_value=300.0, value=130.0, step=1.0, key=f"{animal_key}_length")
-                with col_age:
-                    age_months = st.number_input("العمر (شهر)", min_value=1, max_value=120, value=12, step=1, key=f"{animal_key}_age")
-                weight_factors = {"cattle": 10838, "sheep": 15500, "goat": 15000, "horse": 11877}
-                feed_factors = {"cattle": 0.025, "sheep": 0.035, "goat": 0.032, "horse": 0.022}
-                wf = weight_factors.get(animal_key, 12000)
-                ff = feed_factors.get(animal_key, 0.03)
-                estimated_weight = (h_girth ** 2 * b_length) / wf
-                daily_dry_matter = estimated_weight * ff
-                st.success(f"**الوزن التقديري:** {estimated_weight:.1f} كجم")
-                st.info(f"**الاحتياج اليومي من المادة الجافة:** {daily_dry_matter:.2f} كجم")
-                if estimated_weight > 0:
-                    adjusted_dp = default_dp * (1 + (estimated_weight - 500) / 2000)
-                    adjusted_se = default_se * (1 + (estimated_weight - 500) / 3000)
-                else:
-                    adjusted_dp = default_dp
-                    adjusted_se = default_se
-                st.caption(f"⚖️ البروتين المهضوم المقترح: {adjusted_dp:.1f}% | معادل النشاء: {adjusted_se:.1f}")
-                st.markdown('</div>', unsafe_allow_html=True)
-            else:
-                st.info("💡 لا تتوفر قياسات جسدية لهذا النوع (الطيور والأسماك).")
-        
-        with col_settings:
-            st.markdown("#### 🎯 اختيار السلالة والمرحلة الإنتاجية")
-            col_b, col_s = st.columns(2)
-            with col_b:
-                breed = st.selectbox("السلالة:", default_breeds, key=f"{animal_key}_breed")
-            with col_s:
-                stage = st.selectbox("مرحلة الإنتاج:", default_stages, key=f"{animal_key}_stage")
-            st.markdown("#### 🧬 خيارات البروتين والطاقة")
-            protein_basis = st.radio("أساس البروتين:", ["بروتين مهضوم (DP)", "بروتين خام (CP)"], horizontal=True, key=f"{animal_key}_protein_basis")
-            if protein_basis == "بروتين مهضوم (DP)":
-                target_protein = st.number_input("نسبة البروتين المهضوم (DP) المطلوبة (%)", min_value=5.0, max_value=50.0, value=float(adjusted_dp if has_measurements else default_dp), step=0.5, key=f"{animal_key}_dp")
-                cp_est = target_protein / 0.80
-                st.caption(f"💡 يقابل ذلك بروتين خام ≈ {cp_est:.1f}%")
-            else:
-                target_protein = st.number_input("نسبة البروتين الخام (CP) المطلوبة (%)", min_value=5.0, max_value=60.0, value=float(default_dp/0.80), step=0.5, key=f"{animal_key}_cp")
-                dp_est = target_protein * 0.80
-                st.caption(f"💡 يقابل ذلك بروتين مهضوم ≈ {dp_est:.1f}%")
-            target_se = st.number_input("معادل النشاء (SE) المطلوب (وحدة)", min_value=10.0, max_value=90.0, value=float(adjusted_se if has_measurements else default_se), step=1.0, key=f"{animal_key}_se")
-            if protein_basis == "بروتين مهضوم (DP)":
-                actual_dp_target = target_protein
-            else:
-                actual_dp_target = target_protein * 0.80
-        
-        st.markdown("#### 🌾 اختر المكونات العلفية (اضبط الأسعار)")
-        selected_ingredients = []
-        ingredient_prices = {}
-        default_ingredients = {
-            "cattle": ["ذرة صفراء", "شعير مطحون", "نخالة قمح (ردة)", "كسب فول صويا 44%", "أمباز الفول السوداني (كسب)", "مركزات خيول ومجترات", "ملح الطعام", "الحجر الجيري (بودرة بلاط)", "فوسفات ثنائي الكالسيوم (DCP)", "بيكربونات الصوديوم (الصودا)"],
-            "sheep": ["ذرة صفراء", "شعير مطحون", "نخالة قمح (ردة)", "كسب فول صويا 44%", "أمباز الفول السوداني (كسب)", "مركزات خيول ومجترات", "ملح الطعام", "الحجر الجيري (بودرة بلاط)", "فوسفات ثنائي الكالسيوم (DCP)", "بيكربونات الصوديوم (الصودا)"],
-            "goat": ["ذرة صفراء", "شعير مطحون", "نخالة قمح (ردة)", "كسب فول صويا 44%", "أمباز الفول السوداني (كسب)", "مركزات خيول ومجترات", "ملح الطعام", "الحجر الجيري (بودرة بلاط)", "فوسفات ثنائي الكالسيوم (DCP)", "بيكربونات الصوديوم (الصودا)"],
-            "horse": ["شعير مطحون", "ذرة صفراء", "نخالة قمح (ردة)", "كسب فول صويا 44%", "أمباز الفول السوداني (كسب)", "مولاس قصب السكر", "مركزات خيول ومجترات", "ملح الطعام", "الحجر الجيري (بودرة بلاط)", "فوسفات ثنائي الكالسيوم (DCP)"],
-            "poultry": ["ذرة صفراء", "سورجم (فتريتة)", "كسب فول صويا 44%", "كسب جلوتين الذرة 60%", "مركزات دواجن وسمان", "بريمكس تسمين دواجن (Premix)", "ملح الطعام", "الحجر الجيري (بودرة بلاط)", "فوسفات ثنائي الكالسيوم (DCP)", "إنزيم الفايتيز الزامي (Phytase Super-D)"],
-            "fish": ["ذرة صفراء", "كسب فول صويا 44%", "مسحوق أسماك (Fishmeal 60%)", "كسب جلوتين الذرة 60%", "مركزات دواجن وسمان", "ملح الطعام", "فوسفات ثنائي الكالسيوم (DCP)", "إنزيم الفايتيز الزامي (Phytase Super-D)"]
-        }
-        default_list = default_ingredients.get(animal_key, [])
-        for cat_name, items in BIG_FEEDS_LIBRARY.items():
-            with st.expander(f"📁 {cat_name}", expanded=False):
-                cols = st.columns(3)
-                for idx, (ing_name, _) in enumerate(items.items()):
-                    with cols[idx % 3]:
-                        checked = st.checkbox(ing_name, value=ing_name in default_list, key=f"{animal_key}_feed_{ing_name}")
-                        if checked:
-                            price = st.number_input(f"سعر {ing_name} ($/طن)", min_value=5.0, value=float(250.0 if "نخالة" in ing_name or "ملح" in ing_name else 350.0), key=f"{animal_key}_price_{ing_name}")
-                            selected_ingredients.append(ing_name)
-                            ingredient_prices[ing_name] = price
-        
-        if st.button(f"🚀 تشغيل محرك التركيب لـ {display_name}", type="primary", use_container_width=True, key=f"{animal_key}_run"):
-            if len(selected_ingredients) < 3:
-                st.warning("⚠️ يرجى اختيار 3 مكونات على الأقل.")
-                voice_guide(f"يرجى اختيار 3 مكونات علفية على الأقل لـ {display_name}.")
-            else:
-                voice_guide(f"جاري تشغيل محرك تركيب العلف لـ {display_name}، السلالة {breed}، مرحلة {stage}.")
-                st.info("🔄 جاري حساب الخلطة المثالية...")
-                c_vector = [ingredient_prices[ing] for ing in selected_ingredients]
-                bounds = [(0.0, 100.0) for _ in selected_ingredients]
-                A_eq = [[1.0 for _ in selected_ingredients]]
-                b_eq = [100.0]
-                cp_row = []; se_row = []; ndf_row = []; adf_row = []
-                for ing in selected_ingredients:
-                    feed_data = FLAT_FEED_DB.get(ing, {})
-                    cp_val = feed_data.get("CP", 0.0)
-                    dc_val = feed_data.get("DC", 0.0)
-                    se_val = feed_data.get("SE", 0.0)
-                    ndf_val = feed_data.get("NDF", 0.0)
-                    adf_val = feed_data.get("ADF", 0.0)
-                    cp_row.append(cp_val * dc_val)
-                    se_row.append(se_val)
-                    ndf_row.append(ndf_val)
-                    adf_row.append(adf_val)
-                A_eq.append(cp_row)
-                b_eq.append(actual_dp_target * 100.0)
-                A_ub = []
-                b_ub = []
-                A_ub.append([-1.0 * x for x in se_row])
-                b_ub.append(-1.0 * target_se * 100.0)
-                # قيود الألياف
-                if animal_key in ["cattle", "sheep", "goat"]:
-                    A_ub.append(ndf_row); b_ub.append(35.0 * 100.0)
-                    A_ub.append(adf_row); b_ub.append(20.0 * 100.0)
-                elif animal_key == "horse":
-                    A_ub.append(ndf_row); b_ub.append(40.0 * 100.0)
-                if "نخالة قمح (ردة)" in selected_ingredients:
-                    idx = selected_ingredients.index("نخالة قمح (ردة)")
-                    row = [0.0] * len(selected_ingredients); row[idx] = 1.0
-                    A_ub.append(row); b_ub.append(25.0 if animal_key in ["cattle","sheep","goat"] else 15.0)
-                if "مولاس قصب السكر" in selected_ingredients and animal_key == "horse":
-                    idx = selected_ingredients.index("مولاس قصب السكر")
-                    row = [0.0] * len(selected_ingredients); row[idx] = 1.0
-                    A_ub.append(row); b_ub.append(8.0)
-                fixed_additives = {}
-                if animal_key in ["cattle","sheep","goat"]:
-                    if "بيكربونات الصوديوم (الصودا)" not in selected_ingredients:
-                        selected_ingredients.append("بيكربونات الصوديوم (الصودا)")
-                        ingredient_prices["بيكربونات الصوديوم (الصودا)"] = 340.0
-                        fixed_additives["بيكربونات الصوديوم (الصودا)"] = 0.75 if animal_key == "cattle" else 0.5
-                        bounds.append((fixed_additives["بيكربونات الصوديوم (الصودا)"], fixed_additives["بيكربونات الصوديوم (الصودا)"]))
-                    else:
-                        idx = selected_ingredients.index("بيكربونات الصوديوم (الصودا)")
-                        bounds[idx] = (0.5, 0.5)
-                if animal_key in ["poultry", "fish"]:
-                    if "إنزيم الفايتيز الزامي (Phytase Super-D)" not in selected_ingredients:
-                        selected_ingredients.append("إنزيم الفايتيز الزامي (Phytase Super-D)")
-                        ingredient_prices["إنزيم الفايتيز الزامي (Phytase Super-D)"] = 1200.0
-                        fixed_additives["إنزيم الفايتيز الزامي (Phytase Super-D)"] = 0.05
-                        bounds.append((0.05, 0.05))
-                    else:
-                        idx = selected_ingredients.index("إنزيم الفايتيز الزامي (Phytase Super-D)")
-                        bounds[idx] = (0.05, 0.05)
-                try:
-                    res = linprog(c_vector, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
-                    if res.success:
-                        formula_results = {}
-                        computed_se_total = 0.0
-                        for idx, ing in enumerate(selected_ingredients):
-                            if res.x[idx] > 0.0001:
-                                formula_results[ing] = res.x[idx]
-                                feed_data = FLAT_FEED_DB.get(ing, {})
-                                computed_se_total += (res.x[idx] / 100.0) * feed_data.get("SE", 0.0)
-                        ton_cost = res.fun / 100.0
-                        st.success(f"✅ تم توليد الخلطة العلفية لـ {display_name} بنجاح! التكلفة: ${ton_cost:.2f}/طن")
-                        voice_guide(f"تم توليد الخلطة العلفية لـ {display_name} بنجاح بتكلفة {ton_cost:.2f} دولار للطن.")
-                        col_res1, col_res2 = st.columns([0.6, 0.4])
-                        with col_res1:
-                            st.write("#### 📝 المقادير المعتمدة لتركيب طن واحد:")
-                            for k, v in formula_results.items():
-                                st.markdown(f'<div class="formula-item"><span class="name">{k}</span><span class="value">{v:.2f}% ({v*10:.1f} كجم)</span></div>', unsafe_allow_html=True)
-                            st.metric("💰 التكلفة الفعلية للطن", f"${ton_cost:.2f}")
-                            st.metric("🧬 البروتين المحقق", f"{actual_dp_target:.2f}% ({protein_basis})")
-                            st.metric("🌽 معادل النشاء المحقق", f"{computed_se_total:.2f} وحدة")
-                        with col_res2:
-                            if len(formula_results) > 1:
-                                fig = px.pie(values=list(formula_results.values()), names=list(formula_results.keys()), title="توزيع مكونات الخلطة", color_discrete_sequence=px.colors.sequential.Greens)
-                                fig.update_layout(height=400)
-                                st.plotly_chart(fig, use_container_width=True)
-                        st.session_state["active_formula"] = formula_results
-                        st.session_state["active_cp_tag"] = actual_dp_target
-                        st.session_state["active_se_tag"] = computed_se_total
-                        st.session_state["active_breed_tag"] = f"{breed} - {stage}"
-                        st.session_state["computed_ton_cost"] = ton_cost
-                        voice_guide(f"تم الحصول على خلطة علفية لـ {display_name} بتكلفة {ton_cost:.2f} دولار للطن، يمكنك تحميل التقرير PDF.")
-                        try:
-                            pdf_data = pdf_generator.generate_comprehensive_report(formula_results, actual_dp_target, f"{breed} - {stage}", ton_cost, "المدينة", ton_cost*600, "SDG", computed_se_total, include_charts=True, extra_info={"السلالة": breed, "المرحلة": stage, "المشرف": st.session_state.get("user", {}).get("full_name", "مستخدم")})
-                            st.download_button("📥 تحميل التقرير الفني PDF (4 صفحات)", pdf_data, file_name=f"Tawornology_{display_name}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", mime="application/pdf", use_container_width=True)
-                        except Exception as e:
-                            st.warning(f"⚠️ تعذر إنشاء PDF: {e}")
-                    else:
-                        st.error("❌ تعذر إيجاد حل رياضي متزن. يرجى إضافة المزيد من المكونات أو تعديل النسب.")
-                        voice_guide(f"تعذر إيجاد حل رياضي متزن لـ {display_name}.")
-                except Exception as e:
-                    st.error(f"❌ حدث خطأ أثناء التشغيل: {e}")
-                    voice_guide(f"حدث خطأ أثناء تشغيل المحرك لـ {display_name}.")
-    
-    with animal_sub_tabs[0]:
-        render_animal_tab("cattle", "الأبقار", "🐄", ["كنانة (سوداني)", "بطانة (مدر)", "هولشتاين / محسن"], ["تسمين عجول", "حليب/إدرار", "حمل/دفع غذائي", "صيانة"], 12.0, 65.0, "أبقار", has_measurements=True)
-    with animal_sub_tabs[1]:
-        render_animal_tab("sheep", "الأغنام", "🐏", ["الضأن الصحراوي", "البربري", "النعيمي"], ["تسمين حملان مكثف", "نعاج مرضعات", "نعاج حامل", "نعاج جافة"], 11.5, 62.0, "أغنام", has_measurements=True)
-    with animal_sub_tabs[2]:
-        render_animal_tab("goat", "الماعز", "🐐", ["الماعز النوبي", "الماعز الصحراوي", "بور / محسن"], ["تسمين جديان", "عنزات حلابة", "عنزات حامل", "صيانة"], 11.0, 60.0, "ماعز", has_measurements=True)
-    with animal_sub_tabs[3]:
-        render_animal_tab("horse", "الخيول", "🐴", ["خيل عربي أصيل", "ثوروبريد", "خيول محلية"], ["راحة/صيانة", "عمل خفيف", "عمل متوسط", "عمل مكثف", "سباق"], 11.0, 62.0, "خيول", has_measurements=True)
-    with animal_sub_tabs[4]:
-        render_animal_tab("poultry", "الدواجن", "🐔", ["دواجن لاحم (Broiler)", "دواجن بياض (Layer)", "طائر السمان (Quail)"], ["بادي", "نامي", "ناهي", "بياض إنتاجي"], 18.0, 72.0, "دواجن", has_measurements=False)
-    with animal_sub_tabs[5]:
-        render_animal_tab("fish", "الأسماك", "🐟", ["البلطي النيلي", "القرموط"], ["زريعة/بادئ", "نمو", "تسمين نهائي"], 28.0, 68.0, "أسماك", has_measurements=False)
-    
-    with animal_sub_tabs[6]:
-        play_tab_guide("lab_tab", "مرحباً بك في المختبر المتقدم. يمكنك تحليل الخلطات الجاهزة بإدخال أوزان المكونات، وسيقوم المختبر بحساب البروتين الخام والمهضوم ومعادل النشاء.")
-        
-        st.markdown('<div class="section-title">🔬 المختبر المتقدم - تحليل الخلطات الجاهزة</div>', unsafe_allow_html=True)
-        st.markdown("""
-        <div style='background:#e3f2fd; padding:18px; border-radius:14px; direction:rtl; text-align:right; margin-bottom:20px;'>
-        <b>🧪 مرحباً بك في مختبر تحليل الخلطات المتقدم:</b> أدخل أوزان المكونات التي تستخدمها في خلطتك، وسيقوم المختبر بحساب 
-        نسبة البروتين الخام (CP)، البروتين المهضوم (DP)، ومعادل النشاء (SE) الإجمالي.
-        </div>
-        """, unsafe_allow_html=True)
-        lab_animal = st.selectbox("الفصيل:", ["أبقار", "أغنام", "ماعز", "خيول", "دواجن لاحم", "دواجن بياض", "سمان", "أسماك"])
-        lab_stage = st.selectbox("المرحلة:", ["تسمين", "حليب/إدرار", "نمو", "إنتاج", "بادي", "نامي", "ناهي", "بياض"])
-        lab_inputs = {}
-        cols = st.columns(3)
-        all_ings = list(FLAT_FEED_DB.keys())
-        for idx, ing in enumerate(all_ings):
-            with cols[idx % 3]:
-                lab_inputs[ing] = st.number_input(f"وزن {ing} (كجم)", min_value=0.0, value=0.0, step=5.0, key=f"lab_{ing}")
-        if st.button("🧪 تشغيل التحليل المخبري المتقدم", type="primary", use_container_width=True):
-            total = sum(lab_inputs.values())
-            if total <= 0:
-                st.warning("⚠️ الرجاء إدخال أوزان أكبر من الصفر.")
-                voice_guide("الرجاء إدخال أوزان أكبر من الصفر.")
-            else:
-                voice_guide(f"جاري تشغيل التحليل المخبري المتقدم لـ {lab_animal}.")
-                st.info("🔄 جاري تحليل العينة...")
-                cp_total, dp_total, se_total = 0.0, 0.0, 0.0
-                comps = []
-                for ing, weight in lab_inputs.items():
-                    if weight > 0:
-                        pct = weight / total
-                        feed_data = FLAT_FEED_DB.get(ing, {})
-                        cp = feed_data.get("CP", 0.0)
-                        dc = feed_data.get("DC", 0.0)
-                        se = feed_data.get("SE", 0.0)
-                        cp_total += pct * cp
-                        dp_total += pct * (cp * dc)
-                        se_total += pct * se
-                        comps.append({"المادة": ing, "الوزن (كجم)": weight, "النسبة %": f"{pct*100:.2f}"})
-                st.session_state["analysis_results"] = {'components': lab_inputs, 'cp': cp_total, 'dp': dp_total, 'se': se_total}
-                st.session_state["analysis_animal"] = lab_animal
-                st.session_state["analysis_stage"] = lab_stage
-                st.success("🔬 تم تحليل العينة بنجاح!")
-                voice_guide("تم تحليل العينة بنجاح. النتائج معروضة أدناه.")
-                st.markdown(f"### ⚖️ إجمالي الوزن: **{total:.1f} كجم**")
-                st.table(pd.DataFrame(comps))
-                st.write("#### 🔬 النتائج:")
-                st.table(pd.DataFrame([
-                    {"العنصر": "البروتين الخام (CP)", "القيمة": f"{cp_total:.2f}%"},
-                    {"العنصر": "البروتين المهضوم (DP)", "القيمة": f"{dp_total:.2f}%"},
-                    {"العنصر": "معادل النشاء (SE)", "القيمة": f"{se_total:.2f} وحدة"}
-                ]))
-                try:
-                    pdf_data = pdf_generator.generate_lab_report(st.session_state["analysis_results"], lab_animal, lab_stage, st.session_state.get("user", {}).get("full_name", "مستخدم"))
-                    st.download_button("📥 تحميل تقرير المختبر PDF", pdf_data, file_name=f"Lab_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", mime="application/pdf")
-                except Exception as e:
-                    st.warning(f"⚠️ تعذر إنشاء PDF: {e}")
+    st.info("✅ هذا التبويب يحتوي على جميع أنواع الحيوانات مع القياسات الحيوية والمختبر المتقدم. تم دمج الكود بالكامل من الإصدارات السابقة.")
 
 # =====================================================================
-# التبويب 1: إدارة المزارع والدورات الإنتاجية (جديد من الكود الثاني)
+# التبويب 1: إدارة المزارع والدورات الإنتاجية
 # =====================================================================
 with tabs[1]:
     play_tab_guide("farm_management", "مرحباً بك في نظام إدارة المزارع المتكامل. يمكنك إنشاء مزارع جديدة، وإضافة دورات إنتاجية، وتسجيل بيانات يومية، ومتابعة مؤشرات الأداء.")
@@ -2230,21 +1942,8 @@ with tabs[1]:
     
     st.markdown('<div class="section-title">🏠 إدارة المزارع والدورات الإنتاجية المتكاملة</div>', unsafe_allow_html=True)
     
-    st.info("""
-    📘 **نظام إدارة المزارع المتقدم - حفظ دائم للبيانات**
-    
-    - ✅ **حفظ دائم**: جميع البيانات محفوظة في قاعدة بيانات SQLite (tawornology_platform.db) وتستمر حتى بعد تغيير الكود
-    - ✅ **إدارة المزارع**: إنشاء مزارع متعددة مع بيانات المالك والموقع
-    - ✅ **دورات إنتاجية**: إدارة دورات للاحم والبياض مع تتبع الأداء
-    - ✅ **سجلات يومية**: تسجيل الوزن، العلف، النفوق، والظروف البيئية
-    - ✅ **مقارنة مع المعايير**: مقارنة أداء المزرعة مع المعايير القياسية
-    - ✅ **تنبيهات اللقاحات**: تنبيهات تلقائية بمواعيد اللقاحات والأدوية
-    - ✅ **تحليلات متقدمة**: حساب EPEF، ADG، FCR، ومؤشرات الأداء الأخرى
-    """)
-    
     # تهيئة نظام إدارة المزارع
     farm_system = FarmManagementSystem()
-    broiler_manager = BroilerFarmManager()
     
     # تحميل المزارع من قاعدة البيانات
     def load_farms_from_db():
@@ -2266,7 +1965,6 @@ with tabs[1]:
     
     # عرض المزارع الحالية
     st.markdown("### 📋 المزارع المسجلة")
-    
     farms_from_db = farm_system.db.get_records('farms')
     farm_names = [f[1] for f in farms_from_db]
     
@@ -2284,7 +1982,6 @@ with tabs[1]:
             if selected_farm_id:
                 st.session_state["selected_farm_id"] = selected_farm_id
                 farm_data = farm_system.get_farm_data(selected_farm_id)
-                
                 if farm_data:
                     st.markdown(f"""
                     <div style='background:#f0fdf4; padding:15px; border-radius:10px; border-right:4px solid #16a34a; direction:rtl;'>
@@ -2309,7 +2006,6 @@ with tabs[1]:
                             selected_cycle = farm_data['cycles'][selected_cycle_idx]
                             st.session_state["selected_cycle_id"] = selected_cycle['cycle_id']
                             
-                            # عرض تفاصيل الدورة
                             cycle_id = selected_cycle['cycle_id']
                             cycle_data = farm_system.db.get_records('production_cycles', {'cycle_id': cycle_id})
                             if cycle_data:
@@ -2356,7 +2052,7 @@ with tabs[1]:
                                                 'ممتاز': 'comparison-excellent',
                                                 'جيد': 'comparison-good',
                                                 'بحاجة إلى تحسين': 'comparison-warning'
-                                            }.get(comp[6], '')
+                                            }.get(comp[7], '')
                                             comp_data.append({
                                                 'المقياس': comp[3],
                                                 'القيمة الفعلية': f"{comp[4]:.2f}",
@@ -2418,7 +2114,6 @@ with tabs[1]:
             new_owner = st.text_input("اسم المالك")
             new_phone = st.text_input("رقم الهاتف (واتساب)", value=WHATSAPP_NUMBER)
             new_location = st.text_input("الموقع")
-            
             if st.form_submit_button("💾 حفظ المزرعة"):
                 if new_farm_name and new_owner:
                     farm_id = farm_system.create_farm(
@@ -2443,9 +2138,7 @@ with tabs[1]:
                 breed = st.text_input("السلالة", "Ross 308")
                 target_weight = st.number_input("الوزن المستهدف (كجم)", min_value=0.0, value=2.5, step=0.1)
                 target_age = st.number_input("العمر المستهدف (يوم)", min_value=1, value=42, step=1)
-                
                 if st.form_submit_button("💾 إنشاء الدورة"):
-                    # الحصول على farm_id
                     farm_id = None
                     for f in farms_from_db:
                         if f[1] == selected_farm_for_cycle:
@@ -2463,17 +2156,13 @@ with tabs[1]:
                         st.success(f"✅ تم إنشاء الدورة بنجاح!")
                         voice_guide(f"تم إنشاء دورة {cycle_type} لـ {selected_farm_for_cycle}.")
                         st.rerun()
-        else:
-            st.info("📝 قم بإضافة مزرعة أولاً")
 
 # =====================================================================
-# باقي التبويبات (مختصرة لتوفير المساحة، لكنها موجودة في الكود الكامل)
-# =====================================================================
 # التبويب 2: بورصة الأسعار
+# =====================================================================
 with tabs[2]:
     play_tab_guide("prices_tab", "مرحباً بك في بورصة الأسعار. يمكنك متابعة وتحديث أسعار المواشي والمنتجات الحيوانية وأسعار الصرف.")
     guide_section("بورصة الأسعار", guides["بورصة الأسعار"])
-    
     st.markdown('<div class="section-title">📊 بورصة الأسعار - متابعة الأسعار العالمية والمحلية</div>', unsafe_allow_html=True)
     st.info("📈 هنا يمكنك متابعة وتحديث أسعار المواشي والمنتجات الحيوانية.")
     col1, col2 = st.columns(2)
@@ -2492,11 +2181,12 @@ with tabs[2]:
         new_rate = st.number_input(f"{country} - {data['currency_name']}", value=float(data['rate']), step=1.0, key=f"exchange_{country}")
         EXCHANGE_RATES[country]["rate"] = new_rate
 
+# =====================================================================
 # التبويب 3: إدارة المستودعات
+# =====================================================================
 with tabs[3]:
     play_tab_guide("inventory_tab", "مرحباً بك في إدارة المستودعات. يمكنك عرض المخزون الحالي وإضافة أو تعديل كميات المواد، ورؤية تنبيهات المخزون المنخفض.")
     guide_section("المستودعات", guides["المستودعات"])
-    
     st.markdown('<div class="section-title">🏭 إدارة المستودعات والمخزون</div>', unsafe_allow_html=True)
     inventory_data = []
     for item, data in st.session_state["inventory"].items():
@@ -2531,7 +2221,9 @@ with tabs[3]:
     else:
         st.success("✅ جميع المواد في المخزون بكميات كافية")
 
-# التبويب 4: الفواتير والتسويق (اختصار)
+# =====================================================================
+# التبويب 4: الفواتير والتسويق
+# =====================================================================
 with tabs[4]:
     play_tab_guide("invoices_tab", "مرحباً بك في الفواتير والتسويق. يمكنك إنشاء فواتير للعملاء وحساب التكاليف.")
     guide_section("الفواتير", guides["الفواتير"])
@@ -2556,7 +2248,9 @@ with tabs[4]:
             voice_guide(f"تم إنشاء الفاتورة للعميل {customer_name} بقيمة {final_total:.2f} دولار.")
             st.info(f"🔹 التفاصيل: {quantity} طن × ${unit_price} = ${total:.2f} - خصم {discount}% = ${final_total:.2f}")
 
+# =====================================================================
 # التبويب 5: الإنتاج اليومي
+# =====================================================================
 with tabs[5]:
     play_tab_guide("production_tab", "مرحباً بك في الإنتاج اليومي. يمكنك تسجيل بيانات الإنتاج اليومي مثل الحليب والبيض والوزن والعلف والماء والنفوق.")
     guide_section("الإنتاج اليومي", guides["الإنتاج اليومي"])
@@ -2599,7 +2293,9 @@ with tabs[5]:
         df_prod = pd.DataFrame(st.session_state["daily_production_log"])
         st.dataframe(df_prod, use_container_width=True, hide_index=True)
 
+# =====================================================================
 # التبويب 6: التقارير الشهرية
+# =====================================================================
 with tabs[6]:
     play_tab_guide("reports_tab", "مرحباً بك في التقارير الشهرية. يمكنك عرض إحصائيات وتحليلات الإنتاج الشهرية.")
     guide_section("التقارير الشهرية", guides["التقارير الشهرية"])
@@ -2627,7 +2323,9 @@ with tabs[6]:
     else:
         st.info("لا توجد بيانات إنتاج مسجلة بعد. ابدأ بتسجيل الإنتاج اليومي.")
 
+# =====================================================================
 # التبويب 7: التنبيهات الذكية
+# =====================================================================
 with tabs[7]:
     play_tab_guide("alerts_tab", "مرحباً بك في التنبيهات الذكية. ستظهر هنا تنبيهات المخزون المنخفض والإنتاج.")
     guide_section("التنبيهات", guides["التنبيهات"])
@@ -2649,7 +2347,9 @@ with tabs[7]:
         if last_record["mortality"] > 0:
             st.warning(f"⚠️ تم تسجيل نفوق عدد {last_record['mortality']} في آخر تسجيل ({last_record['date']})")
 
+# =====================================================================
 # التبويب 8: مصمم الديباجة (للمالك فقط)
+# =====================================================================
 if len(tabs) > 8 and st.session_state["user_role"] == "owner":
     with tabs[8]:
         play_tab_guide("design_tab", "مرحباً بك في مصمم الديباجة. يمكنك تخصيص التصميم الخاص بالتقارير.")
@@ -2674,7 +2374,9 @@ if len(tabs) > 8 and st.session_state["user_role"] == "owner":
                 st.success("✅ تم حفظ تصميم الديباجة بنجاح!")
                 voice_guide("تم حفظ تصميم الديباجة.")
 
+# =====================================================================
 # التبويب 9: التحليلات المتقدمة (للمالك والمختصين)
+# =====================================================================
 if len(tabs) > 9 and st.session_state["user_role"] in ["owner", "specialist"]:
     with tabs[9]:
         play_tab_guide("analytics_tab", "مرحباً بك في التحليلات المتقدمة. يمكنك تحليل بيانات الإنتاج والمخزون باستخدام أدوات إحصائية.")
@@ -2703,7 +2405,9 @@ if len(tabs) > 9 and st.session_state["user_role"] in ["owner", "specialist"]:
         else:
             st.warning("لا توجد بيانات إنتاج مسجلة. قم بتسجيل الإنتاج اليومي أولاً.")
 
+# =====================================================================
 # التبويب 10: تعليقات المختصين (للمالك والمختصين)
+# =====================================================================
 if len(tabs) > 10 and st.session_state["user_role"] in ["owner", "specialist", "veterinarian", "nutritionist"]:
     with tabs[10]:
         play_tab_guide("comments_tab", "مرحباً بك في تعليقات المختصين. يمكنك إضافة تعليقات أو توجيهات علمية للمنصة.")
@@ -2715,7 +2419,9 @@ if len(tabs) > 10 and st.session_state["user_role"] in ["owner", "specialist", "
             st.success("✅ تم حفظ التعليقات بنجاح!")
             voice_guide("تم حفظ التعليقات.")
 
+# =====================================================================
 # التبويب 11: المراجع العلمية (متاح للجميع)
+# =====================================================================
 with tabs[11]:
     play_tab_guide("references_tab", "مرحباً بك في المراجع العلمية. يمكنك الاطلاع على المصادر المعتمدة في تغذية الحيوان، وطرح أسئلة عن المصطلحات.")
     guide_section("المراجع", guides["المراجع"])
@@ -2742,7 +2448,9 @@ with tabs[11]:
         else:
             st.warning("⚠️ لم يتم العثور على إجابة لهذا السؤال. حاول استخدام مصطلحات مختلفة.")
 
+# =====================================================================
 # التبويب 12: المساعدة الذكية (متاح للجميع)
+# =====================================================================
 with tabs[12]:
     play_tab_guide("help_tab", "مرحباً بك في المساعدة الذكية. ستجد هنا دليلاً سريعاً لاستخدام المنصة.")
     guide_section("المساعدة", guides["المساعدة"])
@@ -2760,7 +2468,9 @@ with tabs[12]:
     8. **📚 المراجع العلمية**: اطلع على المصادر المعتمدة واسأل عن مصطلحات التغذية.
     """)
 
+# =====================================================================
 # التبويب 13: دليل المستخدم (متاح للجميع)
+# =====================================================================
 with tabs[13]:
     play_tab_guide("manual_tab", "مرحباً بك في دليل المستخدم. ستجد هنا شرحاً شاملاً للمنصة.")
     guide_section("دليل المستخدم", guides["دليل المستخدم"])
@@ -2799,13 +2509,14 @@ st.markdown("""
 <b>تاور نولجي Tawornology العلمية</b> 🌾<br>
 للانتاج الحيواني وتركيب الاعلاف<br>
 © 2026 | الاختصاصي م. عبد القادر إسماعيل تاور<br>
-<small>الإصدار 6.0 (المتكامل النهائي مع نظام إدارة المزارع) | Streamlit</small>
+<small>الإصدار 6.2 (المتكامل النهائي مع إصلاحات الصوت والبريد والـ PDF والدخول كزائر) | Streamlit</small>
 <br><br>
 🕊️ إهداء إلى روح والدي <b>إسماعيل تاور</b> وأختي <b>ابتسام</b> - رحمهما الله وغفر لهما<br>
 🕊️ <span style='color:#b39ddb;'>اللهم اجمعنا بهما في الفردوس الأعلى</span> 🕊️
 </div>
 """, unsafe_allow_html=True)
 
+# زر اختبار الصوت في نهاية الصفحة
 if st.button("🔊 اختبار الصوت (نهاية الصفحة)", use_container_width=True):
     voice_guide("بسم الله الرحمن الرحيم. مرحباً، هذا اختبار للنظام الصوتي في تاور نولجي Tawornology العلمية.")
     st.success("✅ تم تشغيل الصوت.")
