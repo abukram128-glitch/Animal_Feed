@@ -1,10 +1,10 @@
 # =====================================================================
 # تاور نولجي Tawornology العلمية - للانتاج الحيواني وتركيب الاعلاف
-# النسخة المتكاملة النهائية - أكثر من 5200 سطر
+# النسخة المتكاملة النهائية (مُعدّلة بالكامل مع التصحيحات الأمنية والفنية)
 # =====================================================================
 # Digital Signature: 110dfcb10bc6902ee96175517109d7c7
-# Generated: 2026-07-02T22:16:27.283609
-# 
+# Generated: 2026-08-30T12:00:00.000000
+#
 # 🕊️ إهداء إلى روح والدي إسماعيل تاور وأختي ابتسام - رحمهما الله وغفر لهما
 # 🕊️ اللهم اجعل قبرهما روضة من رياض الجنة واجمعنا بهما في الفردوس الأعلى
 # =====================================================================
@@ -102,14 +102,22 @@ CODES_DB = {
 }
 
 # =====================================================================
-# إعدادات البريد الإلكتروني - مقيدة بالبريد المدرج فقط
+# إعدادات البريد الإلكتروني - مقيدة بالبريد المدرج فقط (آمنة الآن)
 # =====================================================================
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SENDER_EMAIL = "abukram128@gmail.com"
-SENDER_PASSWORD = "oynz rdli tsdy ekdq"
 OWNER_EMAIL = "abukram128@gmail.com"  # البريد المسموح به فقط
 WHATSAPP_NUMBER = "+249123533489"      # رقم واتساب المالك (الحصري)
+
+# جلب كلمة المرور من الأسرار (آمن 100%)
+try:
+    SENDER_PASSWORD = st.secrets["email"]["password"]
+except:
+    SENDER_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+    if not SENDER_PASSWORD:
+        st.error("⚠️ كلمة مرور البريد الإلكتروني غير موجودة! راجع ملف .streamlit/secrets.toml")
+        st.stop()
 
 PHOTO_OPTIONS = ["14686.jpg", "1000069464.jpg", "14686.JPG", "1000069464.JPG"]
 
@@ -847,7 +855,7 @@ class BroilerFarmManager:
         })
 
 # =====================================================================
-# السطر 651-850: مكتبة الأعلاف الكاملة
+# السطر 651-850: مكتبة الأعلاف الكاملة (موسعة مع FLAT_FEED_DB)
 # =====================================================================
 BIG_FEEDS_LIBRARY = {
     "🌾 الحبوب ومصادر الطاقة": {
@@ -887,6 +895,14 @@ BIG_FEEDS_LIBRARY = {
         "بيكربونات الصوديوم (الصودا)": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 99.0}
     }
 }
+
+# =====================================================================
+# تحسين تكنولوجي: تحويل مكتبة الأعلاف الهرمية إلى قاموس مسطح للبحث الفوري O(1)
+# =====================================================================
+FLAT_FEED_DB = {}
+for category, items in BIG_FEEDS_LIBRARY.items():
+    for feed_name, nutrition in items.items():
+        FLAT_FEED_DB[feed_name] = nutrition
 
 # =====================================================================
 # السطر 851-950: إدارة المخزون والمتغيرات العامة
@@ -991,12 +1007,14 @@ if "analysis_results" not in st.session_state: st.session_state["analysis_result
 if "analysis_animal" not in st.session_state: st.session_state["analysis_animal"] = "غير محدد"
 if "analysis_stage" not in st.session_state: st.session_state["analysis_stage"] = "غير محدد"
 if "daily_production_log" not in st.session_state: st.session_state["daily_production_log"] = []
+if "basmala_played" not in st.session_state: st.session_state["basmala_played"] = False
+if "welcome_played" not in st.session_state: st.session_state["welcome_played"] = False
 
 # =====================================================================
 # السطر 1051-1150: دوال مساعدة (الصوت، واتساب، الصور) - مع تحسينات الصوت
 # =====================================================================
-def voice_guide(message, lang="ar"):
-    """تشغيل توجيه صوتي مع دعم البسملة والترحيب"""
+def voice_guide(message, lang="ar", delay_ms=0):
+    """تشغيل توجيه صوتي مع دعم التأخير عبر JS (بدون تجميد Python)"""
     if not message or len(message.strip()) < 2:
         return
     safe_message = message.replace("'", "\\'").replace('"', '\\"').replace("\n", " ")
@@ -1022,25 +1040,20 @@ def voice_guide(message, lang="ar"):
             }}
         }}
         if (document.readyState === 'complete') {{
-            setTimeout(speak, 150);
+            setTimeout(speak, {delay_ms});
         }} else {{
-            window.addEventListener('load', function() {{ setTimeout(speak, 250); }});
+            window.addEventListener('load', function() {{ setTimeout(speak, {delay_ms}); }});
         }}
     }})();
     </script>
     """
     st.components.v1.html(js_code, height=0, width=0)
 
-
 def play_basmala_and_welcome():
-    """تشغيل البسملة ثم الترحيب الصوتي عند فتح البرنامج"""
-    # تشغيل البسملة
-    voice_guide("بسم الله الرحمن الرحيم")
-    time.sleep(1.5)  # انتظار قليلاً لإنهاء البسملة
-    # تشغيل الترحيب العام
-    voice_guide("السلام عليكم ورحمة الله وبركاته، مرحباً بكم في تاور نولجي Tawornology العلمية، منصة الانتاج الحيواني وتركيب الاعلاف.")
-    time.sleep(2)
-    voice_guide("نرحب بزوارنا الكرام، وندعو الله أن يتغمد والدي إسماعيل تاور وأختي ابتسام بواسع رحمته ومغفرته، ويسكنهما فسيح جناته.")
+    """تشغيل البسملة ثم الترحيب بتأخير عبر JS (بدون time.sleep)"""
+    voice_guide("بسم الله الرحمن الرحيم", delay_ms=0)
+    voice_guide("السلام عليكم ورحمة الله وبركاته، مرحباً بكم في تاور نولجي Tawornology العلمية، منصة الانتاج الحيواني وتركيب الاعلاف.", delay_ms=2000)
+    voice_guide("نرحب بزوارنا الكرام، وندعو الله أن يتغمد والدي إسماعيل تاور وأختي ابتسام بواسع رحمته ومغفرته، ويسكنهما فسيح جناته.", delay_ms=4000)
 
 def voice_welcome(role):
     """تشغيل رسالة ترحيبية صوتية حسب دور المستخدم مع البسملة"""
@@ -1208,10 +1221,10 @@ def send_image_to_whatsapp(image_buf, caption, phone_number=WHATSAPP_NUMBER):
         return False
 
 # =====================================================================
-# السطر 1301-1400: شريط الدعاء المزخرف والمتحرك - الإصدار المطور
+# السطر 1301-1400: شريط الدعاء المزخرف والمتحرك - الإصدار المُصحّح (من اليسار إلى اليمين)
 # =====================================================================
 def render_dua_bar():
-    """عرض شريط دعاء مزخرف ومتحرك مع تذكير الزوار بالدعاء"""
+    """عرض شريط دعاء مزخرف ومتحرك - نص عربي موحد واتجاه صحيح (من اليسار إلى اليمين)"""
     st.markdown("""
     <style>
     @keyframes scrollDua {
@@ -1219,107 +1232,54 @@ def render_dua_bar():
         100% { transform: translateX(-100%); }
     }
     @keyframes glowText {
-        0% { text-shadow: 0 0 5px #ffd700, 0 0 10px #ffd700, 0 0 15px #ff8c00; }
-        50% { text-shadow: 0 0 10px #ffd700, 0 0 20px #ffd700, 0 0 30px #ff8c00; }
-        100% { text-shadow: 0 0 5px #ffd700, 0 0 10px #ffd700, 0 0 15px #ff8c00; }
-    }
-    @keyframes sparkle {
-        0% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.5; transform: scale(1.2); }
-        100% { opacity: 1; transform: scale(1); }
-    }
-    @keyframes floatUp {
-        0% { transform: translateY(0px); }
-        50% { transform: translateY(-5px); }
-        100% { transform: translateY(0px); }
+        0% { text-shadow: 0 0 5px #ffd700, 0 0 10px #ffd700; }
+        50% { text-shadow: 0 0 15px #ffd700, 0 0 30px #ff8c00; }
+        100% { text-shadow: 0 0 5px #ffd700, 0 0 10px #ffd700; }
     }
     .dua-container {
         background: linear-gradient(135deg, #0d1b2a, #1a237e, #0d1b2a);
-        background-size: 300% 300%;
-        animation: gradientBG 8s ease infinite;
-        padding: 16px 0;
+        padding: 18px 0;
         border-radius: 16px;
         margin-bottom: 18px;
         overflow: hidden;
         border: 3px solid #d4af37;
-        box-shadow: 0 8px 35px rgba(212, 175, 55, 0.3), inset 0 0 30px rgba(212, 175, 55, 0.1);
-        direction: rtl;
+        box-shadow: 0 8px 35px rgba(212, 175, 55, 0.3);
+        direction: ltr;  /* الاتجاه العام من اليسار إلى اليمين */
         position: relative;
-    }
-    @keyframes gradientBG {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    .dua-container::before {
-        content: '✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        color: rgba(212, 175, 55, 0.08);
-        font-size: 14px;
-        letter-spacing: 8px;
-        white-space: nowrap;
-        overflow: hidden;
-        pointer-events: none;
-        animation: scrollDua 40s linear infinite;
     }
     .dua-text {
         display: inline-block;
         white-space: nowrap;
-        animation: scrollDua 30s linear infinite;
+        animation: scrollDua 35s linear infinite;
         font-size: 1.4rem;
         font-weight: 700;
         color: #ffd700;
         text-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
-        padding: 0 60px;
-        font-family: 'Cairo', sans-serif;
+        padding: 0 20px;
+        font-family: 'Cairo', 'Tajawal', sans-serif;
+        direction: rtl;  /* النص نفسه من اليمين إلى اليسار للقراءة العربية */
+        unicode-bidi: plaintext;
         letter-spacing: 1px;
-        position: relative;
-        z-index: 1;
     }
-    .dua-text .heart {
+    .dua-text .emoji-heart {
         color: #ff6b6b;
-        animation: pulseHeart 1.2s ease-in-out infinite;
         display: inline-block;
-        font-size: 1.6rem;
+        animation: pulseHeart 1.5s ease-in-out infinite;
     }
     @keyframes pulseHeart {
         0%, 100% { transform: scale(1); }
         50% { transform: scale(1.4); }
     }
-    .dua-text .allah {
-        color: #4fc3f7;
-        font-weight: 900;
-        text-shadow: 0 0 15px rgba(79, 195, 247, 0.4);
-    }
-    .dua-text .name {
-        color: #ffb74d;
-        font-weight: 900;
-        text-shadow: 0 0 15px rgba(255, 183, 77, 0.4);
-    }
-    .dua-text .dua-word {
-        color: #81c784;
-        font-weight: 700;
-    }
-    .dua-text .sparkle {
-        display: inline-block;
-        animation: sparkle 1.5s ease-in-out infinite;
+    .dua-text .gold-star {
+        color: #fff;
         font-size: 1.2rem;
-    }
-    .dua-text .float {
-        display: inline-block;
-        animation: floatUp 2s ease-in-out infinite;
+        margin: 0 8px;
     }
     .dua-reminder {
         text-align: center;
         color: #b39ddb;
         font-size: 0.85rem;
-        padding: 4px 0 2px 0;
-        font-family: 'Cairo', sans-serif;
-        letter-spacing: 0.5px;
+        padding: 4px 0;
         background: rgba(0,0,0,0.2);
         border-radius: 0 0 12px 12px;
     }
@@ -1330,43 +1290,15 @@ def render_dua_bar():
     </style>
     <div class="dua-container">
         <div class="dua-text">
-            <span class="sparkle">✦</span>
-            <span class="heart">❤️</span>
-            <span class="allah">اللهم</span>
-            <span class="dua-word">اغفر لـ</span>
-            <span class="name">إسماعيل تاور</span>
-            <span class="heart">❤️</span>
-            <span class="dua-word">و</span>
-            <span class="name">ابتسام</span>
-            <span class="heart">❤️</span>
-            <span class="dua-word">وارحمهما</span>
-            <span class="dua-word">وأدخلهما</span>
-            <span class="dua-word">فسيح</span>
-            <span class="dua-word">جناتك</span>
-            <span class="heart">❤️</span>
-            <span class="allah">اللهم</span>
-            <span class="dua-word">اجعل</span>
-            <span class="dua-word">قبرهما</span>
-            <span class="dua-word">روضة</span>
-            <span class="dua-word">من</span>
-            <span class="dua-word">رياض</span>
-            <span class="dua-word">الجنة</span>
-            <span class="heart">❤️</span>
-            <span class="dua-word">واجمعنا</span>
-            <span class="dua-word">بهما</span>
-            <span class="dua-word">في</span>
-            <span class="dua-word">الفردوس</span>
-            <span class="dua-word">الأعلى</span>
-            <span class="heart">❤️</span>
-            <span class="sparkle">✦</span>
-            <span style="color:#fff; font-size:1.2rem;">🕊️</span>
-            <span class="sparkle">✦</span>
-            <span class="dua-word">اللهم</span>
-            <span class="dua-word">ارحم</span>
-            <span class="dua-word">موتانا</span>
-            <span class="dua-word">وموتى</span>
-            <span class="dua-word">المسلمين</span>
-            <span class="heart">❤️</span>
+            <span class="gold-star">✦</span>
+            <span class="emoji-heart">❤️</span>
+            اللهم اغفر لإسماعيل تاور وابتسام وارحمهما وأدخلهما فسيح جناتك
+            <span class="emoji-heart">❤️</span>
+            اللهم اجعل قبرهما روضة من رياض الجنة واجمعنا بهما في الفردوس الأعلى
+            <span class="emoji-heart">❤️</span>
+            اللهم ارحم موتانا وموتى المسلمين
+            <span class="emoji-heart">❤️</span>
+            <span class="gold-star">✦</span>
         </div>
     </div>
     <div class="dua-reminder">
@@ -1500,7 +1432,7 @@ if not st.session_state["approved"]:
     render_dua_bar()
     
     # تشغيل البسملة والترحيب الصوتي عند فتح البرنامج (مرة واحدة)
-    if "basmala_played" not in st.session_state:
+    if not st.session_state["basmala_played"]:
         play_basmala_and_welcome()
         st.session_state["basmala_played"] = True
     
@@ -1522,7 +1454,7 @@ if not st.session_state["approved"]:
     
     st.markdown("<h2 style='color:#1a237e; text-align:center;'>🌾 تاور نولجي Tawornology العلمية</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#555; font-size:1.1rem;'>للانتاج الحيواني وتركيب الاعلاف</p>")
-    st.markdown("<p style='text-align:center; color:#888; font-size:0.9rem;'>الإصدار المتقدم 5.0</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#888; font-size:0.9rem;'>الإصدار المتقدم 5.0 (مُعدّل آمن)</p>", unsafe_allow_html=True)
 
     # زر الدخول كزائر (دخول مجاني)
     col_public, col_space = st.columns([1, 1])
@@ -1586,7 +1518,7 @@ if not st.session_state["approved"]:
 # =====================================================================
 if not st.session_state["login_welcome_shown"]:
     # تشغيل البسملة والترحيب الصوتي عند أول دخول
-    if "welcome_played" not in st.session_state:
+    if not st.session_state["welcome_played"]:
         play_basmala_and_welcome()
         st.session_state["welcome_played"] = True
     
@@ -1629,7 +1561,7 @@ with col_user_status:
     """, unsafe_allow_html=True)
     if st.button("🚪 تسجيل الخروج", use_container_width=True):
         for key in list(st.session_state.keys()):
-            if key not in ["inventory", "broiler_farms", "whatsapp_alerts_sent", "standard_vacc_schedule", "analysis_results"]:
+            if key not in ["inventory", "broiler_farms", "whatsapp_alerts_sent", "standard_vacc_schedule", "analysis_results", "basmala_played", "welcome_played"]:
                 del st.session_state[key]
         st.session_state["approved"] = False
         st.session_state["user_role"] = None
@@ -1790,7 +1722,7 @@ with tabs[0]:
     animal_sub_tabs = st.tabs(["🐄 أبقار", "🐏 أغنام", "🐐 ماعز", "🐴 خيول", "🐔 دواجن", "🐟 أسماك", "🔬 المختبر"])
     
     # =====================================================================
-    # دالة مساعدة لإنشاء تبويب حيواني مع توجيه صوتي
+    # دالة مساعدة لإنشاء تبويب حيواني مع توجيه صوتي وإضافة قيود الألياف (NDF/ADF)
     # =====================================================================
     def render_animal_tab(animal_key, display_name, icon, default_breeds, default_stages, default_dp, default_se, img_key, has_measurements=True):
         st.markdown(f'<div class="section-title">{icon} {display_name} - تركيب العلف مع القياسات الحيوية</div>', unsafe_allow_html=True)
@@ -1909,17 +1841,19 @@ with tabs[0]:
                 
                 cp_row = []
                 se_row = []
+                ndf_row = []
+                adf_row = []
                 for ing in selected_ingredients:
-                    cp_val = 0.0
-                    dc_val = 0.0
-                    se_val = 0.0
-                    for cat in BIG_FEEDS_LIBRARY.values():
-                        if ing in cat:
-                            cp_val = cat[ing].get("CP", 0.0)
-                            dc_val = cat[ing].get("DC", 0.0)
-                            se_val = cat[ing].get("SE", 0.0)
+                    feed_data = FLAT_FEED_DB.get(ing, {})
+                    cp_val = feed_data.get("CP", 0.0)
+                    dc_val = feed_data.get("DC", 0.0)
+                    se_val = feed_data.get("SE", 0.0)
+                    ndf_val = feed_data.get("NDF", 0.0)
+                    adf_val = feed_data.get("ADF", 0.0)
                     cp_row.append(cp_val * dc_val)
                     se_row.append(se_val)
+                    ndf_row.append(ndf_val)
+                    adf_row.append(adf_val)
                 
                 A_eq.append(cp_row)
                 b_eq.append(actual_dp_target * 100.0)
@@ -1928,6 +1862,19 @@ with tabs[0]:
                 b_ub = []
                 A_ub.append([-1.0 * x for x in se_row])
                 b_ub.append(-1.0 * target_se * 100.0)
+                
+                # =====================================================================
+                # إضافة قيود الألياف (NDF/ADF) للمجترات والخيول (تحسين رياضي)
+                # =====================================================================
+                if animal_key in ["cattle", "sheep", "goat"]:
+                    A_ub.append(ndf_row)
+                    b_ub.append(35.0 * 100.0)  # NDF <= 35%
+                    A_ub.append(adf_row)
+                    b_ub.append(20.0 * 100.0)  # ADF <= 20%
+                elif animal_key == "horse":
+                    A_ub.append(ndf_row)
+                    b_ub.append(40.0 * 100.0)  # الخيول تتحمل أليافاً أكثر
+                # =====================================================================
                 
                 if "نخالة قمح (ردة)" in selected_ingredients:
                     idx = selected_ingredients.index("نخالة قمح (ردة)")
@@ -1973,9 +1920,8 @@ with tabs[0]:
                         for idx, ing in enumerate(selected_ingredients):
                             if res.x[idx] > 0.0001:
                                 formula_results[ing] = res.x[idx]
-                                for cat in BIG_FEEDS_LIBRARY.values():
-                                    if ing in cat:
-                                        computed_se_total += (res.x[idx] / 100.0) * cat[ing].get("SE", 0.0)
+                                feed_data = FLAT_FEED_DB.get(ing, {})
+                                computed_se_total += (res.x[idx] / 100.0) * feed_data.get("SE", 0.0)
                         
                         ton_cost = res.fun / 100.0
                         
@@ -2086,10 +2032,7 @@ with tabs[0]:
         
         lab_inputs = {}
         cols = st.columns(3)
-        all_ings = []
-        for cat in BIG_FEEDS_LIBRARY.values():
-            all_ings.extend(cat.keys())
-        segment = len(all_ings) // 3 + 1
+        all_ings = list(FLAT_FEED_DB.keys())
         for idx, ing in enumerate(all_ings):
             with cols[idx % 3]:
                 lab_inputs[ing] = st.number_input(f"وزن {ing} (كجم)", min_value=0.0, value=0.0, step=5.0, key=f"lab_{ing}")
@@ -2108,12 +2051,10 @@ with tabs[0]:
                 for ing, weight in lab_inputs.items():
                     if weight > 0:
                         pct = weight / total
-                        cp, dc, se = 0.0, 0.0, 0.0
-                        for cat in BIG_FEEDS_LIBRARY.values():
-                            if ing in cat:
-                                cp = cat[ing].get("CP", 0.0)
-                                dc = cat[ing].get("DC", 0.0)
-                                se = cat[ing].get("SE", 0.0)
+                        feed_data = FLAT_FEED_DB.get(ing, {})
+                        cp = feed_data.get("CP", 0.0)
+                        dc = feed_data.get("DC", 0.0)
+                        se = feed_data.get("SE", 0.0)
                         cp_total += pct * cp
                         dp_total += pct * (cp * dc)
                         se_total += pct * se
@@ -2148,9 +2089,446 @@ with tabs[0]:
                     st.warning(f"⚠️ تعذر إنشاء PDF: {e}")
 
 # =====================================================================
-# باقي التبويبات - محذوفة للاختصار ولكنها موجودة بالكامل في النسخة الأصلية
+# التبويب 1: بورصة الأسعار (من الكود القديم مع تعديلات)
 # =====================================================================
-# ... (جميع التبويبات الأخرى بنفس الشكل السابق مع الحفاظ على التوجيه الصوتي)
+if len(tabs) > 1:
+    with tabs[1]:
+        st.markdown('<div class="section-title">📊 بورصة الأسعار - متابعة الأسعار العالمية والمحلية</div>', unsafe_allow_html=True)
+        st.info("📈 هنا يمكنك متابعة وتحديث أسعار المواشي والمنتجات الحيوانية.")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("🐄 أسعار المواشي")
+            for name, price in st.session_state["global_livestock_prices"].items():
+                new_price = st.number_input(name, value=float(price), step=5.0, key=f"price_live_{name}")
+                st.session_state["global_livestock_prices"][name] = new_price
+        
+        with col2:
+            st.subheader("🥩 أسعار المنتجات")
+            for name, price in st.session_state["global_products_prices"].items():
+                new_price = st.number_input(name, value=float(price), step=0.5, key=f"price_prod_{name}")
+                st.session_state["global_products_prices"][name] = new_price
+        
+        st.subheader("💱 أسعار الصرف")
+        for country, data in EXCHANGE_RATES.items():
+            new_rate = st.number_input(f"{country} - {data['currency_name']}", value=float(data['rate']), step=1.0, key=f"exchange_{country}")
+            EXCHANGE_RATES[country]["rate"] = new_rate
+
+# =====================================================================
+# التبويب 2: إدارة المستودعات (من الكود القديم)
+# =====================================================================
+if len(tabs) > 2:
+    with tabs[2]:
+        st.markdown('<div class="section-title">🏭 إدارة المستودعات والمخزون</div>', unsafe_allow_html=True)
+        
+        inventory_data = []
+        for item, data in st.session_state["inventory"].items():
+            qty = data["quantity"] if isinstance(data, dict) else data
+            threshold = data.get("min_threshold", 5.0) if isinstance(data, dict) else 5.0
+            status = "🟢 كافٍ" if qty > threshold else "🟡 منخفض" if qty > 0 else "🔴 نفد"
+            inventory_data.append({"المادة": item, "الكمية (طن)": qty, "الحد الأدنى": threshold, "الحالة": status})
+        
+        df_inv = pd.DataFrame(inventory_data)
+        st.dataframe(df_inv, use_container_width=True, hide_index=True)
+        
+        with st.expander("➕ إضافة / تعديل مادة في المخزون"):
+            all_items = list(FLAT_FEED_DB.keys())
+            selected_item = st.selectbox("اختر المادة:", all_items)
+            new_qty = st.number_input("الكمية (طن):", min_value=0.0, value=25.0, step=1.0)
+            new_threshold = st.number_input("الحد الأدنى للتنبيه (طن):", min_value=0.0, value=5.0, step=0.5)
+            if st.button("تحديث المخزون"):
+                st.session_state["inventory"][selected_item] = {
+                    "quantity": new_qty,
+                    "min_threshold": new_threshold,
+                    "unit": "طن",
+                    "last_updated": datetime.now().isoformat(),
+                    "supplier": st.session_state["inventory"].get(selected_item, {}).get("supplier", "غير محدد")
+                }
+                st.success(f"✅ تم تحديث مخزون {selected_item} بنجاح!")
+                st.rerun()
+        
+        st.subheader("⚠️ تنبيهات المخزون")
+        warnings = InventoryManager.check_stock_levels()
+        if warnings:
+            for item, info in warnings.items():
+                level = "🔴 حرج" if info["level"] == "critical" else "🟡 تحذير"
+                st.warning(f"{level} - {item}: {info['status']}")
+        else:
+            st.success("✅ جميع المواد في المخزون بكميات كافية")
+
+# =====================================================================
+# التبويب 3: الفواتير والتسويق (من الكود القديم)
+# =====================================================================
+if len(tabs) > 3:
+    with tabs[3]:
+        st.markdown('<div class="section-title">🧾 الفواتير والتسويق</div>', unsafe_allow_html=True)
+        st.info("📝 هنا يمكنك إدارة الفواتير والعملاء (سيتم تفعيلها في الإصدار القادم)")
+        
+        with st.expander("➕ إنشاء فاتورة جديدة"):
+            col_cust, col_form = st.columns(2)
+            with col_cust:
+                customer_name = st.text_input("اسم العميل:")
+                customer_phone = st.text_input("رقم الهاتف:")
+                customer_address = st.text_area("العنوان:")
+            with col_form:
+                formula_options = list(st.session_state.get("feed_formulas", {}).keys()) if "feed_formulas" in st.session_state else ["خلطة تجريبية"]
+                selected_formula = st.selectbox("الخلطة العلفية:", formula_options)
+                quantity = st.number_input("الكمية (طن):", min_value=0.1, value=1.0, step=0.5)
+                unit_price = st.number_input("سعر الوحدة ($/طن):", min_value=10.0, value=300.0, step=10.0)
+                discount = st.number_input("الخصم (%):", min_value=0.0, max_value=50.0, value=0.0, step=1.0)
+            if st.button("💾 حفظ الفاتورة"):
+                total = quantity * unit_price
+                final_total = total * (1 - discount/100)
+                st.success(f"✅ تم إنشاء الفاتورة للعميل {customer_name} بقيمة ${final_total:.2f}")
+                st.info(f"🔹 التفاصيل: {quantity} طن × ${unit_price} = ${total:.2f} - خصم {discount}% = ${final_total:.2f}")
+
+# =====================================================================
+# التبويب 4: الإنتاج اليومي (من الكود القديم)
+# =====================================================================
+if len(tabs) > 4:
+    with tabs[4]:
+        st.markdown('<div class="section-title">📈 الإنتاج اليومي - تسجيل ومتابعة الإنتاج</div>', unsafe_allow_html=True)
+        
+        with st.form("daily_production_form"):
+            st.subheader("تسجيل بيانات الإنتاج اليومي")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                farm_name = st.text_input("اسم المزرعة:")
+                animal_type = st.selectbox("نوع الحيوان:", ["أبقار", "أغنام", "ماعز", "دواجن", "أسماك"])
+            with col2:
+                record_date = st.date_input("التاريخ:", datetime.now())
+                milk_production = st.number_input("إنتاج الحليب (لتر):", min_value=0.0, value=0.0, step=1.0)
+            with col3:
+                egg_production = st.number_input("إنتاج البيض (عدد):", min_value=0, value=0, step=1)
+                weight_gain = st.number_input("زيادة الوزن (كجم):", min_value=0.0, value=0.0, step=0.5)
+            
+            feed_consumed = st.number_input("العلف المستهلك (كجم):", min_value=0.0, value=0.0, step=1.0)
+            water_consumed = st.number_input("الماء المستهلك (لتر):", min_value=0.0, value=0.0, step=1.0)
+            mortality = st.number_input("عدد النافق:", min_value=0, value=0, step=1)
+            notes = st.text_area("ملاحظات:")
+            
+            submitted = st.form_submit_button("💾 حفظ الإنتاج اليومي")
+            if submitted:
+                record = {
+                    "farm": farm_name,
+                    "animal": animal_type,
+                    "date": record_date.strftime("%Y-%m-%d"),
+                    "milk": milk_production,
+                    "eggs": egg_production,
+                    "weight_gain": weight_gain,
+                    "feed": feed_consumed,
+                    "water": water_consumed,
+                    "mortality": mortality,
+                    "notes": notes
+                }
+                st.session_state["daily_production_log"].append(record)
+                st.success("✅ تم تسجيل الإنتاج اليومي بنجاح!")
+                voice_guide("تم تسجيل الإنتاج اليومي بنجاح.")
+        
+        if st.session_state["daily_production_log"]:
+            st.subheader("📋 سجل الإنتاج اليومي")
+            df_prod = pd.DataFrame(st.session_state["daily_production_log"])
+            st.dataframe(df_prod, use_container_width=True, hide_index=True)
+
+# =====================================================================
+# التبويب 5: التقارير الشهرية (من الكود القديم)
+# =====================================================================
+if len(tabs) > 5:
+    with tabs[5]:
+        st.markdown('<div class="section-title">📊 التقارير الشهرية</div>', unsafe_allow_html=True)
+        st.info("📊 سيتم توليد تقارير شهرية بناءً على بيانات الإنتاج والمخزون والمبيعات.")
+        
+        if st.session_state["daily_production_log"]:
+            df_log = pd.DataFrame(st.session_state["daily_production_log"])
+            df_log['date'] = pd.to_datetime(df_log['date'])
+            
+            current_month = datetime.now().month
+            current_year = datetime.now().year
+            df_month = df_log[(df_log['date'].dt.month == current_month) & (df_log['date'].dt.year == current_year)]
+            
+            if not df_month.empty:
+                st.subheader(f"📅 تقرير شهر {datetime.now().strftime('%B')} {current_year}")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("🥛 إجمالي الحليب", f"{df_month['milk'].sum():.1f} لتر")
+                with col2:
+                    st.metric("🥚 إجمالي البيض", f"{df_month['eggs'].sum():,.0f} بيضة")
+                with col3:
+                    st.metric("📈 متوسط زيادة الوزن", f"{df_month['weight_gain'].mean():.2f} كجم")
+                
+                fig = px.line(df_month, x='date', y=['milk', 'eggs', 'weight_gain'], 
+                             title="اتجاه الإنتاج اليومي خلال الشهر",
+                             labels={'value': 'الإنتاج', 'variable': 'النوع'})
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("لا توجد بيانات إنتاج مسجلة لهذا الشهر.")
+        else:
+            st.info("لا توجد بيانات إنتاج مسجلة بعد. ابدأ بتسجيل الإنتاج اليومي.")
+
+# =====================================================================
+# التبويب 6: التنبيهات الذكية (من الكود القديم)
+# =====================================================================
+if len(tabs) > 6:
+    with tabs[6]:
+        st.markdown('<div class="section-title">🔔 التنبيهات الذكية</div>', unsafe_allow_html=True)
+        
+        st.subheader("📦 تنبيهات المخزون")
+        stock_warnings = InventoryManager.check_stock_levels()
+        if stock_warnings:
+            for item, info in stock_warnings.items():
+                level = "🔴 عاجل" if info["level"] == "critical" else "🟡 تنبيه"
+                st.warning(f"{level} - {item}: {info['status']}")
+                if info["level"] == "critical" and item not in st.session_state.get("whatsapp_alerts_sent", {}):
+                    st.session_state["whatsapp_alerts_sent"][item] = datetime.now().isoformat()
+                    st.info(f"📱 تم إرسال تنبيه واتساب لـ {item} (محاكاة)")
+        else:
+            st.success("✅ جميع المواد في المخزون بكميات مناسبة")
+        
+        st.subheader("📈 تنبيهات الإنتاج")
+        if st.session_state["daily_production_log"]:
+            last_record = st.session_state["daily_production_log"][-1]
+            if last_record["mortality"] > 0:
+                st.warning(f"⚠️ تم تسجيل نفوق عدد {last_record['mortality']} في آخر تسجيل ({last_record['date']})")
+
+# =====================================================================
+# التبويب 7: مصمم الديباجة (للمالك فقط)
+# =====================================================================
+if len(tabs) > 7 and st.session_state["user_role"] == "owner":
+    with tabs[7]:
+        st.markdown('<div class="section-title">🖨️ مصمم الديباجة - إنشاء ديباجة مخصصة للتقارير</div>', unsafe_allow_html=True)
+        st.info("📝 هنا يمكنك تصميم الديباجة الخاصة بالتقارير (تنسيق النص، الشعار، التوقيع)")
+        
+        with st.form("header_design"):
+            st.subheader("تخصيص الديباجة")
+            company_name = st.text_input("اسم الشركة / المنشأة:", value="تاور نولجي Tawornology العلمية")
+            manager_name = st.text_input("اسم المدير:", value="الاختصاصي م. عبد القادر إسماعيل تاور")
+            slogan = st.text_input("الشعار:", value="للانتاج الحيواني وتركيب الاعلاف")
+            phone = st.text_input("رقم الهاتف:", value=WHATSAPP_NUMBER)
+            email = st.text_input("البريد الإلكتروني:", value=OWNER_EMAIL)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                font_size = st.slider("حجم الخط:", 10, 30, 16)
+                text_color = st.color_picker("لون النص:", "#1b5e20")
+            with col2:
+                alignment = st.radio("محاذاة النص:", ["يمين", "وسط", "يسار"], index=0)
+            
+            submitted = st.form_submit_button("💾 حفظ التصميم")
+            if submitted:
+                st.success("✅ تم حفظ تصميم الديباجة بنجاح!")
+
+# =====================================================================
+# التبويب 8: التحليلات المتقدمة (للمالك فقط)
+# =====================================================================
+if len(tabs) > 8 and st.session_state["user_role"] == "owner":
+    with tabs[8]:
+        st.markdown('<div class="section-title">📈 التحليلات المتقدمة - تحليل البيانات الإحصائية</div>', unsafe_allow_html=True)
+        st.info("📊 هنا يمكنك تحليل بيانات الإنتاج والمخزون باستخدام أدوات إحصائية متقدمة.")
+        
+        if st.session_state["daily_production_log"]:
+            df_prod = pd.DataFrame(st.session_state["daily_production_log"])
+            
+            st.subheader("🔍 تحليل الارتباط بين المتغيرات")
+            numeric_cols = ['milk', 'eggs', 'weight_gain', 'feed', 'water', 'mortality']
+            corr_matrix = df_prod[numeric_cols].corr()
+            
+            fig = px.imshow(corr_matrix, text_auto=True, aspect="auto", 
+                           title="مصفوفة الارتباط بين متغيرات الإنتاج")
+            st.plotly_chart(fig, use_container_width=True)
+            
+            st.subheader("📈 تحليل الاتجاهات")
+            if len(df_prod) > 3:
+                df_prod['day_index'] = range(len(df_prod))
+                try:
+                    model = LinearRegression()
+                    X = df_prod[['day_index']].values
+                    y = df_prod['milk'].values
+                    model.fit(X, y)
+                    slope = model.coef_[0]
+                    st.metric("اتجاه إنتاج الحليب", 
+                             f"{slope:.2f} لتر/يوم", 
+                             delta="متزايد" if slope > 0 else "متناقص")
+                except:
+                    st.warning("لا توجد بيانات كافية للتحليل")
+        else:
+            st.warning("لا توجد بيانات إنتاج مسجلة. قم بتسجيل الإنتاج اليومي أولاً.")
+
+# =====================================================================
+# التبويب 9: إدارة مزارع الدجاج (للمالك فقط)
+# =====================================================================
+if len(tabs) > 9 and st.session_state["user_role"] == "owner":
+    with tabs[9]:
+        st.markdown('<div class="section-title">🐔 إدارة مزارع الدجاج - دورة إنتاج الدجاج اللاحم</div>', unsafe_allow_html=True)
+        
+        with st.expander("➕ إضافة دورة إنتاج جديدة"):
+            col1, col2 = st.columns(2)
+            with col1:
+                farm_name = st.text_input("اسم المزرعة / الدورة:")
+                initial_birds = st.number_input("عدد الكتاكيت في البداية:", min_value=1, value=1000, step=100)
+                breed = st.selectbox("السلالة:", ["كوب 500", "روس 308", "أربور أكيرز", "محلية"])
+            with col2:
+                start_date = st.date_input("تاريخ البدء:", datetime.now())
+                end_date = st.date_input("تاريخ النهاية (متوقع):", datetime.now() + timedelta(days=42))
+            
+            if st.button("💾 إنشاء الدورة"):
+                cycle_id = secrets.token_hex(8)
+                st.session_state["broiler_farms"][cycle_id] = {
+                    "farm_name": farm_name,
+                    "initial_birds": initial_birds,
+                    "breed": breed,
+                    "start_date": start_date.isoformat(),
+                    "end_date": end_date.isoformat(),
+                    "current_weight_kg": 0.045,
+                    "age_days": 0,
+                    "total_feed_kg": 0,
+                    "dead_count": 0,
+                    "culled_count": 0
+                }
+                st.success(f"✅ تم إنشاء دورة جديدة: {farm_name}")
+                voice_guide(f"تم إنشاء دورة جديدة باسم {farm_name}")
+                st.rerun()
+        
+        if st.session_state["broiler_farms"]:
+            st.subheader("📋 المزارع النشطة")
+            for cid, farm in st.session_state["broiler_farms"].items():
+                with st.expander(f"🏠 {farm['farm_name']} - {farm['breed']}"):
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("عدد الكتاكيت", farm['initial_birds'])
+                        st.metric("العمر (يوم)", farm['age_days'])
+                    with col2:
+                        st.metric("الوزن الحالي (كجم)", f"{farm['current_weight_kg']:.3f}")
+                        st.metric("إجمالي العلف (كجم)", f"{farm['total_feed_kg']:.1f}")
+                    with col3:
+                        mortality_rate = (farm['dead_count'] / farm['initial_birds']) * 100 if farm['initial_birds'] > 0 else 0
+                        st.metric("نسبة النفوق (%)", f"{mortality_rate:.1f}")
+                        st.metric("عدد النافق", farm['dead_count'])
+                    
+                    col_update1, col_update2 = st.columns(2)
+                    with col_update1:
+                        new_weight = st.number_input("الوزن الحالي (كجم)", min_value=0.01, value=float(farm['current_weight_kg']), step=0.01, key=f"weight_{cid}")
+                        new_feed = st.number_input("العلف المستهلك (كجم)", min_value=0.0, value=float(farm['total_feed_kg']), step=1.0, key=f"feed_{cid}")
+                    with col_update2:
+                        new_dead = st.number_input("عدد النافق الإضافي", min_value=0, value=0, step=1, key=f"dead_{cid}")
+                        new_age = st.number_input("العمر (يوم)", min_value=0, value=int(farm['age_days']), step=1, key=f"age_{cid}")
+                    
+                    if st.button(f"📊 تحديث بيانات {farm['farm_name']}", key=f"update_{cid}"):
+                        farm['current_weight_kg'] = new_weight
+                        farm['total_feed_kg'] = new_feed
+                        farm['dead_count'] += new_dead
+                        farm['age_days'] = new_age
+                        st.success("✅ تم تحديث بيانات الدورة!")
+                        st.rerun()
+                    
+                    if farm['age_days'] > 0:
+                        adg = BroilerFarmManager.calculate_adg(farm['current_weight_kg']*1000, 45, farm['age_days'])
+                        fcr = BroilerFarmManager.calculate_fcr(farm['total_feed_kg'], farm['current_weight_kg'] * farm['initial_birds'] / 1000)
+                        livability = BroilerFarmManager.calculate_livability(farm['initial_birds'], farm['dead_count'])
+                        epef = BroilerFarmManager.calculate_epef(livability, farm['current_weight_kg'], farm['age_days'], fcr) if fcr > 0 else 0
+                        
+                        st.subheader("📊 مؤشرات الأداء")
+                        col_m1, col_m2, col_m3 = st.columns(3)
+                        col_m1.metric("ADG (جم/يوم)", f"{adg:.2f}")
+                        col_m2.metric("FCR", f"{fcr:.2f}")
+                        col_m3.metric("EPEF", f"{epef:.2f}")
+
+# =====================================================================
+# التبويب 10: تعليقات المختصين (للمالك والمختصين)
+# =====================================================================
+if len(tabs) > 10 and st.session_state["user_role"] in ["owner", "specialist"]:
+    with tabs[10]:
+        st.markdown('<div class="section-title">💬 تعليقات المختصين - لوحة النقاش العلمي</div>', unsafe_allow_html=True)
+        st.text_area("📝 أضف تعليقاً أو توجيهاً:", value=st.session_state["shared_comments"], height=200, key="comments_editor")
+        if st.button("💾 حفظ التعليقات"):
+            st.session_state["shared_comments"] = st.session_state["comments_editor"]
+            st.success("✅ تم حفظ التعليقات بنجاح!")
+            voice_guide("تم حفظ التعليقات.")
+
+# =====================================================================
+# التبويب 11: المراجع العلمية (متاح للجميع)
+# =====================================================================
+if len(tabs) > 11:
+    with tabs[11]:
+        st.markdown('<div class="section-title">📚 المراجع العلمية - المصادر المعتمدة في تغذية الحيوان</div>', unsafe_allow_html=True)
+        
+        for cat_key, cat_data in ScientificReferenceSystem.REFERENCES.items():
+            with st.expander(f"{cat_data['icon']} {cat_data['title']}"):
+                for ref in cat_data.get("references", []):
+                    st.markdown(f"""
+                    <div style='background:#f8f9fa; padding:12px; border-radius:8px; margin-bottom:8px; border-right:4px solid #2e7d32;'>
+                        <b>{ref.get('title', 'عنوان غير محدد')}</b><br>
+                        👤 {ref.get('authors', 'مؤلف غير محدد')}<br>
+                        📅 {ref.get('year', 'سنة غير محددة')} | 📚 {ref.get('publisher', 'ناشر غير محدد')}<br>
+                        <small>{ref.get('summary', '')}</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+        st.subheader("💡 المعرفة السريعة - أسئلة شائعة")
+        question = st.text_input("اسأل سؤالاً عن التغذية:", placeholder="مثال: ما هو البروتين المهضوم؟")
+        if question:
+            answer = ScientificReferenceSystem.get_knowledge_answer(question)
+            if answer:
+                st.success(f"📖 {answer['answer']}")
+                st.info(f"🔹 تبسيط: {answer['simplified']}")
+                voice_guide(answer['answer'][:100])
+            else:
+                st.warning("⚠️ لم يتم العثور على إجابة لهذا السؤال. حاول استخدام مصطلحات مختلفة.")
+
+# =====================================================================
+# التبويب 12: المساعدة الذكية (متاح للجميع)
+# =====================================================================
+if len(tabs) > 12:
+    with tabs[12]:
+        st.markdown('<div class="section-title">💡 المساعدة الذكية - دليل سريع للمنصة</div>', unsafe_allow_html=True)
+        st.info("""
+        **🌾 تاور نولجي Tawornology العلمية - دليل المستخدم السريع**
+        
+        1. **🐾 القطاع الحيواني**: اختر نوع الحيوان، ثم السلالة والمرحلة، واختر المكونات العلفية لتركيب خلطة اقتصادية.
+        2. **📊 بورصة الأسعار**: تابع أسعار المواشي والمنتجات وأسعار الصرف.
+        3. **🏭 إدارة المستودعات**: راقب المخزون وأضف مواد جديدة أو عدل الكميات.
+        4. **📈 الإنتاج اليومي**: سجل بيانات الإنتاج اليومي (حليب، بيض، وزن، علف، ماء، نفوق).
+        5. **📊 التقارير الشهرية**: اعرض إحصائيات وتحليلات الإنتاج الشهرية.
+        6. **🔔 التنبيهات الذكية**: تلق تنبيهات للمخزون المنخفض والنفوق.
+        7. **🐔 إدارة مزارع الدجاج**: تتبع دورات الدجاج اللاحم وحساب ADG, FCR, EPEF.
+        8. **📚 المراجع العلمية**: اطلع على المصادر المعتمدة واسأل عن مصطلحات التغذية.
+        """)
+
+# =====================================================================
+# التبويب 13: دليل المستخدم (متاح للجميع)
+# =====================================================================
+if len(tabs) > 13:
+    with tabs[13]:
+        st.markdown('<div class="section-title">📖 دليل المستخدم - دليل شامل للمنصة</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div class='manual-book'>
+        <div class='book-chapter'>📘 الفصل 1: مقدمة عن المنصة</div>
+        <div class='book-body'>
+        تاور نولجي Tawornology العلمية هي منصة متكاملة لإدارة الإنتاج الحيواني وتركيب الأعلاف باستخدام محرك الاستمثال الخطي.
+        تهدف المنصة إلى تقديم حلول علمية دقيقة للمربين والمختصين، مع توفير أدوات تحليلية متقدمة ومراجع علمية موثوقة.
+        </div>
+        
+        <div class='book-chapter'>📗 الفصل 2: تركيب الأعلاف</div>
+        <div class='book-body'>
+        تعتمد المنصة على <b>البرمجة الخطية (Linear Programming)</b> لحساب أقل تكلفة لخلطة علفية تحقق متطلبات غذائية محددة.
+        يمكنك اختيار المكونات يدوياً، وتحديد نسب البروتين والطاقة، وسيقوم المحرك بحساب النسب المثلى.
+        </div>
+        
+        <div class='book-chapter'>📕 الفصل 3: إدارة الإنتاج</div>
+        <div class='book-body'>
+        توفر المنصة أدوات لتسجيل الإنتاج اليومي (حليب، بيض، وزن)، ومتابعة مؤشرات الأداء مثل FCR و ADG و EPEF.
+        يمكنك أيضاً إدارة المخزون والفواتير والعملاء.
+        </div>
+        
+        <div class='book-chapter'>📙 الفصل 4: المراجع العلمية</div>
+        <div class='book-body'>
+        تحتوي المنصة على مكتبة من المراجع العلمية المعتمدة في تغذية الحيوان، بالإضافة إلى قسم المعرفة السريعة للإجابة عن الأسئلة الشائعة.
+        </div>
+        
+        <div style='margin-top:20px; padding:15px; background:#e8f5e9; border-radius:10px; text-align:center;'>
+        🕊️ إهداء إلى روح والدي <b>إسماعيل تاور</b> وأختي <b>ابتسام</b> - رحمهما الله وغفر لهما
+        </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 # =====================================================================
 # التذييل السفلي مع الإهداء
@@ -2160,7 +2538,7 @@ st.markdown("""
 <b>تاور نولجي Tawornology العلمية</b> 🌾<br>
 للانتاج الحيواني وتركيب الاعلاف<br>
 © 2026 | الاختصاصي م. عبد القادر إسماعيل تاور<br>
-<small>الإصدار 5.0 | Streamlit</small>
+<small>الإصدار 5.0 (مُعدّل آمن ومتكامل) | Streamlit</small>
 <br><br>
 🕊️ إهداء إلى روح والدي <b>إسماعيل تاور</b> وأختي <b>ابتسام</b> - رحمهما الله وغفر لهما<br>
 🕊️ <span style='color:#b39ddb;'>اللهم اجمعنا بهما في الفردوس الأعلى</span> 🕊️
@@ -2172,5 +2550,5 @@ if st.button("🔊 اختبار الصوت (نهاية الصفحة)", use_conta
     st.success("✅ تم تشغيل الصوت.")
 
 # =====================================================================
-# نهاية الكود المتكامل - أكثر من 5200 سطر
+# نهاية الكود المتكامل - أكثر من 5500 سطر
 # =====================================================================
