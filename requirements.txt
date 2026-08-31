@@ -13,4 +13,3 @@ Pillow
 matplotlib
 gTTS
 requests
-pip install 
