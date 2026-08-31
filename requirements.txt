@@ -13,5 +13,4 @@ Pillow
 matplotlib
 gTTS
 requests
-pip install -r requirements.txt
-streamlit run tawornology_app.py
+pip install 
