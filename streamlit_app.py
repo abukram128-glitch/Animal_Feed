@@ -1,15 +1,12 @@
 # ============================================================================
-# تاور نولجي Tawornology العلمية - الإصدار المتكامل الشامل 12.0
+# تاور نولجي Tawornology العلمية - الإصدار المتكامل الشامل 13.0
 # ============================================================================
 # 🕊️ إهداء إلى روح والدي إسماعيل تاور وأختي ابتسام - رحمهما الله
 # 🕊️ اللهم اجعل قبرهما روضة من رياض الجنة واجمعنا بهما في الفردوس الأعلى
 # ============================================================================
-# هذا الإصدار يحتوي على أكثر من 4500 سطر من الكود المتكامل
+# PDF المختبر وتقارير التركيب مطابقة تماماً لما يظهر على الشاشة
+# مع توقيع المشرف: الاختصاصي م. عبد القادر إسماعيل تاور
 # جميع التبويبات تعمل بكفاءة للمالك والمختصين والزائر على حد سواء
-# يشمل: القطاع الحيواني (جميع الأنواع)، المختبر المتقدم، إدارة المزارع،
-# بورصة الأسعار، المستودعات، الفواتير، الإنتاج اليومي، التقارير،
-# التنبيهات، المراجع العلمية، المساعدة، دليل المستخدم، وإرسال الكود.
-# المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور
 # ============================================================================
 
 import streamlit as st
@@ -144,7 +141,7 @@ def get_image_base64(paths):
 img_base64 = get_image_base64(PHOTO_OPTIONS)
 
 # =====================================================================
-# دوال الصوت (تعمل فقط عند الضغط على الزر، مع فترات انتظار)
+# دوال الصوت (تعمل فقط عند الضغط على الزر)
 # =====================================================================
 @st.cache_data(ttl=3600)
 def text_to_speech_base64(text, lang="ar"):
@@ -534,7 +531,7 @@ class DatabaseManager:
         return True
 
 # =====================================================================
-# نظام إدارة المزارع المتقدم
+# نظام إدارة المزارع المتقدم (مختصر)
 # =====================================================================
 class FarmManagementSystem:
     def __init__(self):
@@ -1063,7 +1060,7 @@ class ScientificReferenceSystem:
         return None
 
 # =====================================================================
-# مولد PDF (مع دعم العربية والألوان والرموز وتوقيع المشرف)
+# مولد PDF المتقدم (مطابق للشاشة مع توقيع المشرف)
 # =====================================================================
 class ProfessionalPDFGenerator:
     def __init__(self):
@@ -1078,45 +1075,305 @@ class ProfessionalPDFGenerator:
                 except:
                     pass
         self.styles = self._create_styles()
+        self.SUPERVISOR_SIGNATURE = "الاختصاصي م. عبد القادر إسماعيل تاور"
     
     def _create_styles(self):
         styles = {}
-        styles['title'] = ParagraphStyle('title', fontName=self.font_name, fontSize=24, alignment=TA_CENTER, textColor=HexColor('#1b5e20'), spaceAfter=20, leading=30)
+        styles['title'] = ParagraphStyle('title', fontName=self.font_name, fontSize=22, alignment=TA_CENTER, textColor=HexColor('#1b5e20'), spaceAfter=20, leading=30)
         styles['subtitle'] = ParagraphStyle('subtitle', fontName=self.font_name, fontSize=16, alignment=TA_CENTER, textColor=HexColor('#2e7d32'), spaceAfter=15, leading=20)
         styles['heading'] = ParagraphStyle('heading', fontName=self.font_name, fontSize=14, alignment=TA_RIGHT, textColor=HexColor('#1b5e20'), spaceAfter=10, leading=18, fontweight='bold')
         styles['body'] = ParagraphStyle('body', fontName=self.font_name, fontSize=11, alignment=TA_RIGHT, textColor=HexColor('#333333'), spaceAfter=6, leading=16)
         styles['footer'] = ParagraphStyle('footer', fontName=self.font_name, fontSize=8, alignment=TA_CENTER, textColor=HexColor('#999999'), spaceAfter=0, leading=10)
         styles['lab_title'] = ParagraphStyle('lab_title', fontName=self.font_name, fontSize=20, alignment=TA_CENTER, textColor=HexColor('#1565C0'), spaceAfter=15, leading=25)
         styles['lab_body'] = ParagraphStyle('lab_body', fontName=self.font_name, fontSize=11, alignment=TA_RIGHT, textColor=HexColor('#1a237e'), spaceAfter=6, leading=16)
+        styles['signature'] = ParagraphStyle('signature', fontName=self.font_name, fontSize=12, alignment=TA_CENTER, textColor=HexColor('#1b5e20'), spaceAfter=10, leading=18, fontweight='bold')
         return styles
     
-    def generate_comprehensive_report(self, formula, target_dp, breed, cost, city, local_cost, local_sym, computed_se, user_name, include_charts=True, extra_info=None):
+    def generate_lab_report(self, analysis_results, animal_type, stage, user_name, 
+                           standard=None, evaluation=None, comps=None, total_weight=None):
+        """
+        توليد تقرير مختبر مطابق تماماً لما يظهر على الشاشة
+        مع توقيع المشرف في جميع الحالات
+        """
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
         story = []
+        
         def p(text, style='body'):
             safe_text = arabic_processor.fix_arabic_text(str(text))
             return Paragraph(safe_text, self.styles.get(style, self.styles['body']))
+        
+        def ps(text, style='signature'):
+            safe_text = arabic_processor.fix_arabic_text(str(text))
+            return Paragraph(safe_text, self.styles.get(style, self.styles['signature']))
+        
+        # العنوان الرئيسي
+        story.append(p("🔬 تقرير التحليل المخبري المتقدم", 'title'))
+        story.append(p("تاور نولجي Tawornology العلمية - للانتاج الحيواني وتركيب الاعلاف", 'subtitle'))
+        story.append(Spacer(1, 10))
+        
+        # معلومات التقرير
+        story.append(p(f"👨‍💻 المشرف العام: {self.SUPERVISOR_SIGNATURE}", 'heading'))
+        story.append(p(f"🐾 الحيوان: {animal_type} | المرحلة: {stage}", 'body'))
+        story.append(p(f"📅 تاريخ التحليل: {datetime.now().strftime('%Y-%m-%d %H:%M')}", 'body'))
+        story.append(Spacer(1, 15))
+        
+        # === جدول المكونات (مطابق للشاشة) ===
+        if comps and total_weight:
+            story.append(p("📋 المكونات المدخلة:", 'heading'))
+            story.append(Spacer(1, 5))
+            # بناء بيانات الجدول
+            table_data = [['المادة', 'الوزن (كجم)', 'النسبة %']]
+            for item in comps:
+                table_data.append([
+                    item.get('المادة', ''),
+                    f"{item.get('الوزن', 0):.2f}",
+                    f"{item.get('النسبة %', '0'):.2f}"
+                ])
+            # إضافة صف إجمالي الوزن
+            table_data.append(['إجمالي الوزن', f"{total_weight:.1f}", '100.00'])
+            
+            t = Table(table_data, colWidths=[180, 120, 120])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), HexColor('#2e7d32')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, -1), self.font_name),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 1, HexColor('#bdbdbd')),
+                ('BACKGROUND', (0, -1), (-1, -1), HexColor('#e8f5e9')),
+                ('FONTWEIGHT', (0, -1), (-1, -1), 'BOLD'),
+            ]))
+            story.append(t)
+            story.append(Spacer(1, 15))
+        
+        # === النتائج المحسوبة (مطابقة للشاشة) ===
+        story.append(p("🔬 النتائج المحسوبة:", 'heading'))
+        story.append(Spacer(1, 5))
+        if analysis_results:
+            results_data = [['العنصر', 'القيمة']]
+            for key, val in analysis_results.items():
+                if key != 'components':
+                    label_map = {
+                        'cp': 'البروتين الخام (CP)',
+                        'dp': 'البروتين المهضوم (DP)',
+                        'se': 'معادل النشاء (SE)'
+                    }
+                    label = label_map.get(key, key)
+                    results_data.append([label, f"{val:.2f}%" if key != 'se' else f"{val:.2f} وحدة"])
+            
+            t_results = Table(results_data, colWidths=[250, 200])
+            t_results.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), HexColor('#1565C0')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, -1), self.font_name),
+                ('FONTSIZE', (0, 0), (-1, -1), 11),
+                ('GRID', (0, 0), (-1, -1), 1, HexColor('#1565C0')),
+                ('BACKGROUND', (0, 1), (-1, -1), HexColor('#e3f2fd')),
+            ]))
+            story.append(t_results)
+            story.append(Spacer(1, 15))
+        
+        # === جدول المقارنة مع المعايير القياسية (مطابق للشاشة) ===
+        if standard:
+            story.append(p("📊 التقييم والمقارنة مع المعايير القياسية:", 'heading'))
+            story.append(Spacer(1, 5))
+            
+            comp_data = [['المقياس', 'المحسوب', 'القياسي', 'الانحراف %', 'التقييم']]
+            
+            if 'dp' in analysis_results and 'dp' in standard:
+                dev = ((analysis_results['dp'] - standard['dp']) / standard['dp']) * 100 if standard['dp'] > 0 else 0
+                grade = "✅ ممتاز" if abs(dev) <= 5 else ("👍 جيد" if abs(dev) <= 10 else "⚠️ يحتاج تحسين")
+                comp_data.append(['البروتين المهضوم (DP)', f"{analysis_results['dp']:.2f}%", f"{standard['dp']:.2f}%", f"{dev:.1f}%", grade])
+            
+            if 'se' in analysis_results and 'se' in standard:
+                dev = ((analysis_results['se'] - standard['se']) / standard['se']) * 100 if standard['se'] > 0 else 0
+                grade = "✅ ممتاز" if abs(dev) <= 5 else ("👍 جيد" if abs(dev) <= 10 else "⚠️ يحتاج تحسين")
+                comp_data.append(['معادل النشاء (SE)', f"{analysis_results['se']:.2f}", f"{standard['se']:.2f}", f"{dev:.1f}%", grade])
+            
+            if 'cp' in analysis_results and 'cp' in standard:
+                dev = ((analysis_results['cp'] - standard['cp']) / standard['cp']) * 100 if standard['cp'] > 0 else 0
+                grade = "✅ ممتاز" if abs(dev) <= 5 else ("👍 جيد" if abs(dev) <= 10 else "⚠️ يحتاج تحسين")
+                comp_data.append(['البروتين الخام (CP)', f"{analysis_results['cp']:.2f}%", f"{standard['cp']:.2f}%", f"{dev:.1f}%", grade])
+            
+            t_comp = Table(comp_data, colWidths=[140, 100, 100, 100, 120])
+            t_comp.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), HexColor('#2e7d32')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, -1), self.font_name),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 1, HexColor('#bdbdbd')),
+                ('BACKGROUND', (0, 1), (-1, -1), HexColor('#f5f5f5')),
+            ]))
+            story.append(t_comp)
+            story.append(Spacer(1, 15))
+        
+        # === الرسم البياني للمقارنة (محاكاة) ===
+        if standard and analysis_results:
+            story.append(p("📈 الرسم البياني للمقارنة:", 'heading'))
+            story.append(Spacer(1, 5))
+            try:
+                fig, ax = plt.subplots(figsize=(5, 3))
+                labels = []
+                calc_vals = []
+                std_vals = []
+                if 'dp' in analysis_results and 'dp' in standard:
+                    labels.append('DP')
+                    calc_vals.append(analysis_results['dp'])
+                    std_vals.append(standard['dp'])
+                if 'se' in analysis_results and 'se' in standard:
+                    labels.append('SE')
+                    calc_vals.append(analysis_results['se'])
+                    std_vals.append(standard['se'])
+                if 'cp' in analysis_results and 'cp' in standard:
+                    labels.append('CP')
+                    calc_vals.append(analysis_results['cp'])
+                    std_vals.append(standard['cp'])
+                
+                x = np.arange(len(labels))
+                width = 0.35
+                ax.bar(x - width/2, calc_vals, width, label='المحسوب', color='#2e7d32')
+                ax.bar(x + width/2, std_vals, width, label='القياسي', color='#1565C0')
+                ax.set_xlabel('العنصر')
+                ax.set_ylabel('القيمة')
+                ax.set_title('مقارنة القيم المحسوبة مع المعايير القياسية')
+                ax.set_xticks(x)
+                ax.set_xticklabels(labels)
+                ax.legend()
+                
+                buf_img = io.BytesIO()
+                plt.savefig(buf_img, format='png', dpi=150, bbox_inches='tight')
+                plt.close()
+                buf_img.seek(0)
+                story.append(Image(buf_img, width=400, height=240))
+            except:
+                story.append(p("⚠️ تعذر إنشاء الرسم البياني", 'body'))
+            story.append(Spacer(1, 15))
+        
+        # === التقييم النهائي ===
+        if evaluation:
+            story.append(p("⭐ التقييم النهائي:", 'heading'))
+            story.append(Spacer(1, 5))
+            eval_data = [['المقياس', 'التقييم']]
+            for item, grade in evaluation.items():
+                if grade:
+                    eval_data.append([item, grade])
+            t_eval = Table(eval_data, colWidths=[200, 200])
+            t_eval.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), HexColor('#1b5e20')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, -1), self.font_name),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 1, HexColor('#bdbdbd')),
+            ]))
+            story.append(t_eval)
+            story.append(Spacer(1, 15))
+        
+        # === الملاحظات ===
+        story.append(p("📌 الملاحظات:", 'heading'))
+        story.append(Spacer(1, 5))
+        
+        notes = []
+        if standard and analysis_results:
+            if 'dp' in analysis_results and 'dp' in standard:
+                dev = ((analysis_results['dp'] - standard['dp']) / standard['dp']) * 100 if standard['dp'] > 0 else 0
+                if abs(dev) > 10:
+                    if dev > 0:
+                        notes.append("⚠️ البروتين المهضوم أعلى من المعيار، يمكن خفضه لتقليل التكلفة.")
+                    else:
+                        notes.append("⚠️ البروتين المهضوم أقل من المعيار، أضف مصادر بروتين.")
+            if 'se' in analysis_results and 'se' in standard:
+                dev = ((analysis_results['se'] - standard['se']) / standard['se']) * 100 if standard['se'] > 0 else 0
+                if abs(dev) > 10:
+                    if dev > 0:
+                        notes.append("⚠️ الطاقة أعلى من المعيار، يمكن تقليل مصادر الطاقة.")
+                    else:
+                        notes.append("⚠️ الطاقة أقل من المعيار، أضف مصادر طاقة.")
+        if not notes:
+            notes.append("✅ الخلطة متوازنة وتتوافق مع المعايير القياسية بشكل ممتاز.")
+        
+        for note in notes:
+            story.append(p(f"• {note}", 'body'))
+        
+        story.append(Spacer(1, 20))
+        
+        # === التوقيع (يظهر في جميع الحالات) ===
+        story.append(ps("مع خالص التحية والتقدير،", 'signature'))
+        story.append(Spacer(1, 5))
+        story.append(ps(self.SUPERVISOR_SIGNATURE, 'signature'))
+        story.append(Spacer(1, 10))
+        story.append(p("تم التوليد بواسطة تاور نولجي Tawornology العلمية © 2026", 'footer'))
+        
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
+    
+    def generate_comprehensive_report(self, formula, target_dp, breed, cost, city, 
+                                      local_cost, local_sym, computed_se, user_name, 
+                                      include_charts=True, extra_info=None):
+        """توليد تقرير تركيب العلف مع توقيع المشرف"""
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+        story = []
+        
+        def p(text, style='body'):
+            safe_text = arabic_processor.fix_arabic_text(str(text))
+            return Paragraph(safe_text, self.styles.get(style, self.styles['body']))
+        
+        def ps(text, style='signature'):
+            safe_text = arabic_processor.fix_arabic_text(str(text))
+            return Paragraph(safe_text, self.styles.get(style, self.styles['signature']))
+        
         story.append(p("🌾 تاور نولجي Tawornology العلمية - للانتاج الحيواني وتركيب الاعلاف", 'title'))
         story.append(p("📄 تقرير فني شامل - تقرير التركيب", 'subtitle'))
         story.append(Spacer(1, 10))
-        for line in [f"👨‍💻 المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور", f"📌 الموقع الجغرافي: {city}", f"🐾 الفصيل المستهدف: {breed}", f"📅 تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %H:%M')}"]:
-            story.append(p(line))
+        
+        # معلومات التقرير مع توقيع المشرف
+        story.append(p(f"👨‍💻 المشرف العام: {self.SUPERVISOR_SIGNATURE}", 'heading'))
+        story.append(p(f"📌 الموقع الجغرافي: {city}", 'body'))
+        story.append(p(f"🐾 الفصيل المستهدف: {breed}", 'body'))
+        story.append(p(f"📅 تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %H:%M')}", 'body'))
         story.append(Spacer(1, 15))
-        tdata = [['المعيار', 'القيمة'], ['البروتين المهضوم (DP)', f'{target_dp:.2f}%'], ['معادل النشاء (SE)', f'{computed_se:.2f} وحدة'], ['التكلفة للطن', f'${cost:.2f} ({local_cost:,.2f} {local_sym})']]
-        t = Table([[arabic_processor.fix_arabic_text(cell) for cell in row] for row in tdata], colWidths=[250, 250])
-        t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),HexColor('#1b5e20')),('TEXTCOLOR',(0,0),(-1,0),white),('ALIGN',(0,0),(-1,-1),'CENTER'),('FONTNAME',(0,0),(-1,-1),self.font_name),('FONTSIZE',(0,0),(-1,-1),11),('GRID',(0,0),(-1,-1),1,HexColor('#2e7d32'))]))
+        
+        # جدول النتائج الرئيسية
+        tdata = [['المعيار', 'القيمة']]
+        tdata.append(['البروتين المهضوم (DP)', f'{target_dp:.2f}%'])
+        tdata.append(['معادل النشاء (SE)', f'{computed_se:.2f} وحدة'])
+        tdata.append(['التكلفة للطن', f'${cost:.2f} ({local_cost:,.2f} {local_sym})'])
+        
+        t = Table(tdata, colWidths=[250, 250])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#1b5e20')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), self.font_name),
+            ('FONTSIZE', (0, 0), (-1, -1), 11),
+            ('GRID', (0, 0), (-1, -1), 1, HexColor('#2e7d32')),
+        ]))
         story.append(t)
         story.append(PageBreak())
+        
+        # المقادير
         story.append(p("📋 المقادير المعتمدة لتركيب الطن الواحد:", 'heading'))
         story.append(Spacer(1, 10))
         ing_data = [['المكون', 'النسبة %', 'كجم/طن']]
         for ing, pct in formula.items():
             ing_data.append([ing, f'{pct:.2f}%', f'{pct*10:.1f}'])
-        t2 = Table([[arabic_processor.fix_arabic_text(cell) for cell in row] for row in ing_data], colWidths=[180, 150, 150])
-        t2.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),HexColor('#2e7d32')),('TEXTCOLOR',(0,0),(-1,0),white),('ALIGN',(0,0),(-1,-1),'CENTER'),('FONTNAME',(0,0),(-1,-1),self.font_name),('FONTSIZE',(0,0),(-1,-1),10),('GRID',(0,0),(-1,-1),1,HexColor('#bdbdbd'))]))
+        t2 = Table(ing_data, colWidths=[180, 150, 150])
+        t2.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#2e7d32')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), self.font_name),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 1, HexColor('#bdbdbd')),
+        ]))
         story.append(t2)
         story.append(Spacer(1, 15))
+        
         if include_charts and len(formula) > 1:
             try:
                 fig, ax = plt.subplots(figsize=(6, 3.5))
@@ -1124,7 +1381,9 @@ class ProfessionalPDFGenerator:
                 vals = list(formula.values())
                 colors = ['#1b5e20','#2e7d32','#388e3c','#43a047','#4caf50','#66bb6a']
                 ax.pie(vals, labels=None, autopct='%1.1f%%', colors=colors[:len(names)])
-                ax.legend([arabic_processor.fix_arabic_text(n) for n in names], title=arabic_processor.fix_arabic_text("المكونات"), loc='center left', bbox_to_anchor=(1,0,0.5,1), fontsize=8)
+                ax.legend([arabic_processor.fix_arabic_text(n) for n in names], 
+                         title=arabic_processor.fix_arabic_text("المكونات"), 
+                         loc='center left', bbox_to_anchor=(1, 0, 0.5, 1), fontsize=8)
                 ax.set_title(arabic_processor.fix_arabic_text('📊 توزيع المكونات'), fontsize=12)
                 buf = io.BytesIO()
                 plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
@@ -1133,89 +1392,32 @@ class ProfessionalPDFGenerator:
                 story.append(Image(buf, width=400, height=230))
             except:
                 pass
+        
         story.append(PageBreak())
         story.append(p("📌 التوصيات الفنية:", 'heading'))
         for rec in ["• يوصى بإضافة الإنزيمات لتحسين الهضم.", "• يجب مراقبة جودة المواد الخام بشكل دوري.", "• يجب تخزين العلف في مكان جاف بعيداً عن الرطوبة.", "• يوصى بتقسيم العلف على عدة وجبات."]:
             story.append(p(rec))
         story.append(Spacer(1, 15))
+        
         if extra_info:
             story.append(p("معلومات إضافية:", 'heading'))
             for key, value in extra_info.items():
                 if value:
-                    story.append(p(f"• {key}: {value}"))
+                    story.append(p(f"• {key}: {value}", 'body'))
+        
         story.append(PageBreak())
         story.append(p("📝 خاتمة التقرير", 'heading'))
         story.append(Spacer(1, 10))
         story.append(p("تم إعداد هذا التقرير الفني بناءً على تحليل دقيق للاحتياجات الغذائية للفصيل المستهدف."))
         story.append(Spacer(1, 20))
-        story.append(p("مع خالص التحية والتقدير،", 'body'))
-        story.append(Spacer(1, 10))
-        story.append(p("الاختصاصي م. عبد القادر إسماعيل تاور", 'body'))
+        
+        # التوقيع (يظهر في جميع الحالات)
+        story.append(ps("مع خالص التحية والتقدير،", 'signature'))
+        story.append(Spacer(1, 5))
+        story.append(ps(self.SUPERVISOR_SIGNATURE, 'signature'))
         story.append(Spacer(1, 25))
         story.append(p("تم التوليد بواسطة تاور نولجي Tawornology العلمية © 2026", 'footer'))
-        doc.build(story)
-        buffer.seek(0)
-        return buffer.getvalue()
-    
-    def generate_lab_report(self, analysis_results, animal_type, stage, user_name, standard=None, evaluation=None):
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
-        story = []
-        def p(text, style='body'):
-            safe_text = arabic_processor.fix_arabic_text(str(text))
-            return Paragraph(safe_text, self.styles.get(style, self.styles['body']))
-        story.append(p("🔬 تقرير التحليل المخبري المتقدم - تاور نولجي Tawornology", 'title'))
-        story.append(p(f"👨‍💻 المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور", 'subtitle'))
-        story.append(p(f"🐾 الحيوان: {animal_type} | المرحلة: {stage}"))
-        story.append(p(f"📅 تاريخ التحليل: {datetime.now().strftime('%Y-%m-%d %H:%M')}"))
-        story.append(Spacer(1, 15))
-        if analysis_results:
-            tdata = [['🧪 العنصر', '📊 القيمة']]
-            for key, val in analysis_results.items():
-                if key != 'components':
-                    tdata.append([key, f"{val:.2f}" if isinstance(val, (int, float)) else str(val)])
-            if 'components' in analysis_results:
-                comp_str = ', '.join([f"{k}:{v:.1f}" for k, v in analysis_results['components'].items() if v > 0])
-                tdata.append(['📦 المكونات', comp_str])
-            t = Table([[arabic_processor.fix_arabic_text(cell) for cell in row] for row in tdata], colWidths=[250, 250])
-            t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),HexColor('#1565C0')),('TEXTCOLOR',(0,0),(-1,0),white),('ALIGN',(0,0),(-1,-1),'CENTER'),('FONTNAME',(0,0),(-1,-1),self.font_name),('FONTSIZE',(0,0),(-1,-1),11),('GRID',(0,0),(-1,-1),1,HexColor('#1565C0'))]))
-            story.append(t)
-            story.append(Spacer(1, 15))
-            
-            if standard:
-                story.append(p("📊 مقارنة مع المعايير القياسية:", 'heading'))
-                comp_data = [['📏 المقياس', '📈 المحسوب', '📐 القياسي', '📉 الانحراف %']]
-                if 'dp' in analysis_results and 'dp' in standard:
-                    dev = ((analysis_results['dp'] - standard['dp']) / standard['dp']) * 100 if standard['dp'] > 0 else 0
-                    comp_data.append(['البروتين المهضوم (DP)', f"{analysis_results['dp']:.2f}", f"{standard['dp']:.2f}", f"{dev:.1f}"])
-                if 'se' in analysis_results and 'se' in standard:
-                    dev = ((analysis_results['se'] - standard['se']) / standard['se']) * 100 if standard['se'] > 0 else 0
-                    comp_data.append(['معادل النشاء (SE)', f"{analysis_results['se']:.2f}", f"{standard['se']:.2f}", f"{dev:.1f}"])
-                if 'cp' in analysis_results and 'cp' in standard:
-                    dev = ((analysis_results['cp'] - standard['cp']) / standard['cp']) * 100 if standard['cp'] > 0 else 0
-                    comp_data.append(['البروتين الخام (CP)', f"{analysis_results['cp']:.2f}", f"{standard['cp']:.2f}", f"{dev:.1f}"])
-                t_comp = Table([[arabic_processor.fix_arabic_text(cell) for cell in row] for row in comp_data], colWidths=[150, 120, 120, 120])
-                t_comp.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),HexColor('#2e7d32')),('TEXTCOLOR',(0,0),(-1,0),white),('ALIGN',(0,0),(-1,-1),'CENTER'),('FONTNAME',(0,0),(-1,-1),self.font_name),('FONTSIZE',(0,0),(-1,-1),10),('GRID',(0,0),(-1,-1),1,HexColor('#bdbdbd'))]))
-                story.append(t_comp)
-                story.append(Spacer(1, 10))
-            
-            if evaluation:
-                story.append(p("⭐ التقييم النهائي:", 'heading'))
-                eval_data = [['🏷️ المقياس', '📌 التقييم']]
-                for item, grade in evaluation.items():
-                    if grade:
-                        eval_data.append([item, grade])
-                t_eval = Table([[arabic_processor.fix_arabic_text(cell) for cell in row] for row in eval_data], colWidths=[200, 200])
-                t_eval.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),HexColor('#1b5e20')),('TEXTCOLOR',(0,0),(-1,0),white),('ALIGN',(0,0),(-1,-1),'CENTER'),('FONTNAME',(0,0),(-1,-1),self.font_name),('FONTSIZE',(0,0),(-1,-1),10),('GRID',(0,0),(-1,-1),1,HexColor('#bdbdbd'))]))
-                story.append(t_eval)
-                story.append(Spacer(1, 10))
-            
-            story.append(Spacer(1, 15))
-            story.append(p("📌 التوصيات المخبرية:", 'heading'))
-            for rec in ["• يوصى بإعادة التحليل بعد أي تعديل على الخلطة.", "• يجب مراجعة نسب البروتين والطاقة حسب احتياجات الحيوان.", "• يوصى بالتواصل مع أخصائي التغذية لتعديل الخلطة حسب النتائج."]:
-                story.append(p(rec))
-        story.append(Spacer(1, 25))
-        story.append(p("تم التوليد بواسطة تاور نولجي Tawornology العلمية © 2026", 'footer'))
+        
         doc.build(story)
         buffer.seek(0)
         return buffer.getvalue()
@@ -1868,7 +2070,7 @@ if not st.session_state["approved"]:
         st.markdown(f'<img src="data:image/jpeg;base64,{img_base64}" style="width:100px; height:100px; border-radius:50%; border:3px solid #d4af37; display:block; margin:0 auto;">', unsafe_allow_html=True)
     st.markdown("<h2 style='color:#1a237e; text-align:center;'>🌾 تاور نولجي Tawornology العلمية</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#555; font-size:1.1rem;'>للانتاج الحيواني وتركيب الاعلاف</p>")
-    st.markdown("<p style='text-align:center; color:#888; font-size:0.9rem;'>الإصدار المتكامل 12.0 - النظام الشامل</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#888; font-size:0.9rem;'>الإصدار المتكامل 13.0 - PDF مطابق للشاشة</p>", unsafe_allow_html=True)
     
     # أزرار الصوت (يدوية)
     col_s1, col_s2 = st.columns(2)
@@ -2065,7 +2267,6 @@ st.markdown("---")
 # =====================================================================
 # تحديد التبويبات حسب الصلاحية
 # =====================================================================
-# جميع المستخدمين لديهم نفس التبويبات، لكن بعض الوظائف مقيدة حسب الدور
 tabs_titles = [
     "🐾 القطاع الحيواني",
     "🐔 إدارة المزارع",
@@ -2080,7 +2281,6 @@ tabs_titles = [
     "📖 دليل المستخدم"
 ]
 
-# إضافة تبويب إرسال الكود للمالك فقط
 if st.session_state["user_role"] == "owner":
     tabs_titles.append("📧 إرسال الكود")
 
@@ -2305,6 +2505,7 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
                                 }
                                 st.success("✅ تم إرسال العينة إلى المختبر. انتقل إلى تبويب المختبر.")
                                 voice_guide("تم إرسال العينة إلى المختبر.")
+                            # تحميل PDF مع توقيع المشرف
                             try:
                                 pdf_data = pdf_generator.generate_comprehensive_report(
                                     formula_results, actual_dp_target, f"{breed} - {stage} ({physiological_state})", 
@@ -2349,7 +2550,7 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
 # التبويب 0: القطاع الحيواني (يشمل جميع الأنواع)
 # =====================================================================
 with tabs[0]:
-    guide_section("القطاع الحيواني", "هنا يمكنك تركيب أعلاف لجميع أنواع الحيوانات: الأبقار، الأغنام، الماعز، الخيول، الإبل، الدواجن، والأسماك. اختر النوع، ثم المرحلة، والعمر، والحالة الفسيولوجية، والمكونات.")
+    guide_section("القطاع الحيواني", "هنا يمكنك تركيب أعلاف لجميع أنواع الحيوانات: الأبقار، الأغنام، الماعز، الخيول، الإبل، الدواجن، والأسماك.")
     animal_tabs = st.tabs(["🐄 أبقار", "🐏 أغنام", "🐐 ماعز", "🐴 خيول", "🐫 إبل", "🐔 دواجن", "🐟 أسماك", "🔬 المختبر المتقدم"])
     
     with animal_tabs[0]:
@@ -2388,7 +2589,7 @@ with tabs[0]:
             ["زريعة/بادئ", "نمو", "تسمين نهائي", "زريعة متقدمة"], 
             28.0, 68.0, "أسماك", has_measurements=False)
     
-    # ===== المختبر المتقدم =====
+    # ===== المختبر المتقدم (مع PDF مطابق للشاشة) =====
     with animal_tabs[7]:
         st.markdown('<div class="section-title">🔬 المختبر المتقدم - تحليل ومقارنة الخلطات</div>', unsafe_allow_html=True)
         st.info("أدخل أوزان المكونات لتحليل خلطتك، أو استخدم العينة المرسلة من التركيب.")
@@ -2407,6 +2608,7 @@ with tabs[0]:
         standard = STANDARD_VALUES.get(lab_animal, {}).get(lab_stage, {})
         if standard:
             st.info(f"📊 المعايير القياسية لـ {lab_animal} - {lab_stage}: DP={standard.get('DP','-')}%, SE={standard.get('SE','-')} وحدة, CP={standard.get('CP','-')}%")
+        
         lab_inputs = {}
         cols = st.columns(3)
         all_ings = list(FLAT_FEED_DB.keys())
@@ -2434,22 +2636,29 @@ with tabs[0]:
                         cp_total += pct * cp
                         dp_total += pct * (cp * dc)
                         se_total += pct * se
-                        comps.append({"المادة": ing, "الوزن (كجم)": weight, "النسبة %": f"{pct*100:.2f}"})
+                        comps.append({"المادة": ing, "الوزن": weight, "النسبة %": f"{pct*100:.2f}"})
+                
                 st.session_state["analysis_results"] = {'components': lab_inputs, 'cp': cp_total, 'dp': dp_total, 'se': se_total}
                 st.session_state["analysis_animal"] = lab_animal
                 st.session_state["analysis_stage"] = lab_stage
                 st.success("🔬 تم تحليل العينة بنجاح!")
                 voice_guide("تم تحليل العينة بنجاح. النتائج معروضة أدناه.")
+                
+                # عرض المكونات (مطابق للصورة)
                 st.markdown(f"### ⚖️ إجمالي الوزن: **{total:.1f} كجم**")
-                st.table(pd.DataFrame(comps))
+                comp_df = pd.DataFrame(comps)
+                st.dataframe(comp_df, use_container_width=True, hide_index=True)
+                
+                # النتائج المحسوبة
                 st.write("#### 🔬 النتائج المحسوبة:")
                 results_df = pd.DataFrame([
                     {"العنصر": "البروتين الخام (CP)", "القيمة": f"{cp_total:.2f}%"},
                     {"العنصر": "البروتين المهضوم (DP)", "القيمة": f"{dp_total:.2f}%"},
                     {"العنصر": "معادل النشاء (SE)", "القيمة": f"{se_total:.2f} وحدة"}
                 ])
-                st.table(results_df)
+                st.dataframe(results_df, use_container_width=True, hide_index=True)
                 
+                # المقارنة والتقييم (مطابق للصورة)
                 if standard:
                     dp_dev = ((dp_total - standard.get('DP', 0)) / standard.get('DP', 1)) * 100 if standard.get('DP', 0) > 0 else 0
                     se_dev = ((se_total - standard.get('SE', 0)) / standard.get('SE', 1)) * 100 if standard.get('SE', 0) > 0 else 0
@@ -2465,8 +2674,9 @@ with tabs[0]:
                         {"المقياس": "SE", "المحسوب": f"{se_total:.2f}", "القياسي": f"{standard.get('SE', 0):.2f}", "الانحراف": f"{se_dev:.1f}%", "التقييم": se_grade},
                         {"المقياس": "CP", "المحسوب": f"{cp_total:.2f}%", "القياسي": f"{standard.get('CP', 0):.2f}%", "الانحراف": f"{cp_dev:.1f}%", "التقييم": cp_grade}
                     ])
-                    st.table(eval_df)
+                    st.dataframe(eval_df, use_container_width=True, hide_index=True)
                     
+                    # ملاحظات
                     notes = []
                     if abs(dp_dev) > 10:
                         if dp_dev > 0:
@@ -2484,40 +2694,50 @@ with tabs[0]:
                         else:
                             notes.append("⚠️ البروتين الخام أقل من المعيار.")
                     if not notes:
-                        notes.append("✅ الخلطة متوازنة وتتوافق مع المعايير القياسية.")
+                        notes.append("✅ الخلطة متوازنة وتتوافق مع المعايير القياسية بشكل ممتاز.")
                     for note in notes:
                         st.markdown(f'<div class="warning-card">{note}</div>', unsafe_allow_html=True)
                     
                     total_grade = "ممتاز" if all([x.startswith("✅") for x in [dp_grade, se_grade, cp_grade]]) else "جيد" if all([x.startswith("✅") or x.startswith("👍") for x in [dp_grade, se_grade, cp_grade]]) else "متوسط"
                     st.metric("⭐ التقدير العام", total_grade)
                     
+                    # رسم بياني للمقارنة
                     fig = go.Figure()
                     fig.add_trace(go.Bar(x=['DP', 'SE', 'CP'], y=[dp_total, se_total, cp_total], name='المحسوب', marker_color='#2e7d32'))
                     fig.add_trace(go.Bar(x=['DP', 'SE', 'CP'], y=[standard.get('DP',0), standard.get('SE',0), standard.get('CP',0)], name='القياسي', marker_color='#1565C0'))
                     fig.update_layout(title="مقارنة القيم المحسوبة مع المعايير القياسية", barmode='group')
                     st.plotly_chart(fig, use_container_width=True)
-                
-                try:
-                    pdf_data = pdf_generator.generate_lab_report(
-                        st.session_state["analysis_results"], 
-                        lab_animal, lab_stage, 
-                        st.session_state.get("user", {}).get("full_name", "مستخدم"),
-                        standard,
-                        {'DP': dp_grade, 'SE': se_grade, 'CP': cp_grade} if standard else None
-                    )
-                    st.download_button("📥 تحميل تقرير المختبر PDF", pdf_data, file_name=f"Lab_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", mime="application/pdf")
-                except Exception as e:
-                    st.warning(f"⚠️ تعذر إنشاء PDF للمختبر: {e}")
+                    
+                    # === زر تحميل PDF مطابق للشاشة مع توقيع المشرف ===
+                    try:
+                        pdf_data = pdf_generator.generate_lab_report(
+                            analysis_results=st.session_state["analysis_results"],
+                            animal_type=lab_animal,
+                            stage=lab_stage,
+                            user_name=st.session_state.get("user", {}).get("full_name", "مستخدم"),
+                            standard=standard,
+                            evaluation={'DP': dp_grade, 'SE': se_grade, 'CP': cp_grade},
+                            comps=comps,
+                            total_weight=total
+                        )
+                        st.download_button(
+                            "📥 تحميل تقرير المختبر PDF (مطابق للشاشة)",
+                            pdf_data,
+                            file_name=f"Lab_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+                    except Exception as e:
+                        st.warning(f"⚠️ تعذر إنشاء PDF للمختبر: {e}")
 
 # =====================================================================
-# التبويب 1: إدارة المزارع (جميع المستخدمين يمكنهم العرض، ولكن الإضافة فقط للمالك والمختصين)
+# التبويب 1: إدارة المزارع
 # =====================================================================
 with tabs[1]:
     guide_section("إدارة المزارع", "نظام متكامل لإدارة مزارع الدجاج.")
     st.markdown('<div class="section-title">🐔 إدارة مزارع الدجاج</div>', unsafe_allow_html=True)
     st.info("نظام متكامل لإدارة مزارع الدجاج مع حفظ دائم للبيانات.")
     
-    # السماح بإضافة مزرعة فقط للمالك والمختصين
     if st.session_state["user_role"] in ["owner", "specialist", "veterinarian", "nutritionist", "breeder"]:
         with st.expander("➕ إضافة دورة جديدة"):
             col1, col2 = st.columns(2)
@@ -2560,7 +2780,6 @@ with tabs[1]:
                     mortality = (farm['dead_count'] / farm['initial_birds']) * 100 if farm['initial_birds'] > 0 else 0
                     st.metric("النفوق %", f"{mortality:.1f}")
                     st.metric("النافق", farm['dead_count'])
-                # التحديث مسموح للمالك والمختصين فقط
                 if st.session_state["user_role"] in ["owner", "specialist", "veterinarian", "nutritionist", "breeder"]:
                     col_up1, col_up2 = st.columns(2)
                     with col_up1:
@@ -2580,7 +2799,7 @@ with tabs[1]:
                     st.caption("🔒 التحديث متاح للمالك والمختصين فقط.")
 
 # =====================================================================
-# التبويب 2: بورصة الأسعار (عرض للجميع، تعديل للمالك والمختصين)
+# التبويب 2: بورصة الأسعار
 # =====================================================================
 with tabs[2]:
     guide_section("بورصة الأسعار", "متابعة أسعار المواشي والمنتجات.")
@@ -2611,7 +2830,7 @@ with tabs[2]:
             st.write(f"- {name}: ${price:.2f}")
 
 # =====================================================================
-# التبويب 3: المستودعات (عرض للجميع، تعديل للمالك والمختصين)
+# التبويب 3: المستودعات
 # =====================================================================
 with tabs[3]:
     guide_section("المستودعات", "إدارة المخزون.")
@@ -2644,7 +2863,7 @@ with tabs[4]:
         st.info("🔒 هذه الخاصية متاحة للمالك فقط.")
 
 # =====================================================================
-# التبويب 5: الإنتاج اليومي (عرض للجميع، إضافة للمالك والمختصين)
+# التبويب 5: الإنتاج اليومي
 # =====================================================================
 with tabs[5]:
     guide_section("الإنتاج اليومي", "تسجيل بيانات الإنتاج اليومي.")
@@ -2689,7 +2908,7 @@ with tabs[6]:
         st.info("🔒 هذه الخاصية متاحة للمالك فقط.")
 
 # =====================================================================
-# التبويب 7: التنبيهات (عرض للجميع)
+# التبويب 7: التنبيهات
 # =====================================================================
 with tabs[7]:
     guide_section("التنبيهات", "تنبيهات المخزون والإنتاج.")
@@ -2702,7 +2921,7 @@ with tabs[7]:
         st.success("✅ لا توجد تنبيهات")
 
 # =====================================================================
-# التبويب 8: المراجع العلمية (للجميع)
+# التبويب 8: المراجع العلمية
 # =====================================================================
 with tabs[8]:
     guide_section("المراجع العلمية", "مصادر معتمدة في تغذية الحيوان.")
@@ -2727,7 +2946,7 @@ with tabs[8]:
             st.info(f"🔹 تبسيط: {answer['simplified']}")
 
 # =====================================================================
-# التبويب 9: المساعدة (للجميع)
+# التبويب 9: المساعدة
 # =====================================================================
 with tabs[9]:
     guide_section("المساعدة", "دليل سريع للمنصة.")
@@ -2744,7 +2963,7 @@ with tabs[9]:
         voice_guide("مرحباً، هذا دليل استخدام منصة تاور نولجي العلمية. اختر نوع الحيوان، ثم المرحلة، والعمر، والحالة الفسيولوجية، واختر المكونات، ثم اضغط على زر التشغيل.")
 
 # =====================================================================
-# التبويب 10: دليل المستخدم (للجميع)
+# التبويب 10: دليل المستخدم
 # =====================================================================
 with tabs[10]:
     guide_section("دليل المستخدم", "شرح مفصل للمنصة.")
