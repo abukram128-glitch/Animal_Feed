@@ -1,14 +1,12 @@
 # ============================================================================
-# تاور نولجي Tawornology العلمية - الإصدار النهائي المتكامل 9.0
+# تاور نولجي Tawornology العلمية - الإصدار النهائي المتكامل 10.0
 # ============================================================================
 # 🕊️ إهداء إلى روح والدي إسماعيل تاور وأختي ابتسام - رحمهما الله
 # 🕊️ اللهم اجعل قبرهما روضة من رياض الجنة واجمعنا بهما في الفردوس الأعلى
 # ============================================================================
 # هذا الإصدار يحتوي على أكثر من 4500 سطر من الكود المتكامل
-# يشمل: تركيب الأعلاف المتقدم (مع العمر والحالة الفسيولوجية)،
-# المختبر المتقدم مع تقارير PDF منسقة، إدارة المزارع، المخزون،
-# الفواتير، التنبؤ بالأسعار، التقارير، العملاء، الموردين،
-# المراجع العلمية، وشريط الدعاء المتحرك الدائم.
+# جميع المشاكل السابقة تم حلها: تبويبات الزائر، توقيع المشرف في PDF،
+# مطابقة جداول PDF للشاشة، فخامة التصميم، وإرسال الكود إلى البريد.
 # المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور
 # ============================================================================
 
@@ -195,13 +193,13 @@ def voice_dua():
     voice_guide("اللهم اغفر لإسماعيل تاور وابتسام وارحمهما وأدخلهما فسيح جناتك")
 
 # =====================================================================
-# دوال إرسال الكود
+# دوال إرسال الكود (مع طلب كلمة المرور إذا لزم الأمر)
 # =====================================================================
 def send_code_to_email(receiver_email):
     if receiver_email.strip().lower() != OWNER_EMAIL.strip().lower():
         return False, "❌ عذراً، الإرسال مسموح فقط للبريد: " + OWNER_EMAIL
     if not st.session_state.get("email_password"):
-        st.session_state["email_password"] = st.text_input("🔑 كلمة مرور البريد الإلكتروني:", type="password")
+        st.session_state["email_password"] = st.text_input("🔑 كلمة مرور البريد الإلكتروني (App Password):", type="password")
         if not st.session_state["email_password"]:
             return False, "⚠️ يرجى إدخال كلمة المرور."
     try:
@@ -235,9 +233,9 @@ def send_code_to_email(receiver_email):
         server.login(SENDER_EMAIL, st.session_state["email_password"])
         server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
         server.quit()
-        return True, "✅ تم إرسال الكود بنجاح"
+        return True, "✅ تم إرسال الكود بنجاح إلى " + receiver_email
     except Exception as e:
-        return False, f"❌ فشل الإرسال: {str(e)}"
+        return False, f"❌ فشل الإرسال: {str(e)}. تأكد من كلمة المرور وتفعيل تطبيق البريد."
 
 # =====================================================================
 # معالج النصوص العربية
@@ -1047,7 +1045,7 @@ class ScientificReferenceSystem:
         return None
 
 # =====================================================================
-# مولد PDF (مع دعم العربية والألوان والرموز)
+# مولد PDF (مع دعم العربية والألوان والرموز وتوقيع المشرف)
 # =====================================================================
 class ProfessionalPDFGenerator:
     def __init__(self):
@@ -1084,6 +1082,7 @@ class ProfessionalPDFGenerator:
         story.append(p("🌾 تاور نولجي Tawornology العلمية - للانتاج الحيواني وتركيب الاعلاف", 'title'))
         story.append(p("📄 تقرير فني شامل - تقرير التركيب", 'subtitle'))
         story.append(Spacer(1, 10))
+        # توقيع المشرف دائماً
         for line in [f"👨‍💻 المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور", f"📌 الموقع الجغرافي: {city}", f"🐾 الفصيل المستهدف: {breed}", f"📅 تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %H:%M')}"]:
             story.append(p(line))
         story.append(Spacer(1, 15))
@@ -1149,7 +1148,8 @@ class ProfessionalPDFGenerator:
             safe_text = arabic_processor.fix_arabic_text(str(text))
             return Paragraph(safe_text, self.styles.get(style, self.styles['body']))
         story.append(p("🔬 تقرير التحليل المخبري المتقدم - تاور نولجي Tawornology", 'title'))
-        story.append(p(f"👨‍💻 المشرف: {user_name}", 'subtitle'))
+        # توقيع المشرف دائماً
+        story.append(p(f"👨‍💻 المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور", 'subtitle'))
         story.append(p(f"🐾 الحيوان: {animal_type} | المرحلة: {stage}"))
         story.append(p(f"📅 تاريخ التحليل: {datetime.now().strftime('%Y-%m-%d %H:%M')}"))
         story.append(Spacer(1, 15))
@@ -1334,7 +1334,7 @@ for category, items in BIG_FEEDS_LIBRARY.items():
         FLAT_FEED_DB[feed_name] = nutrition
 
 # =====================================================================
-# المعايير القياسية للعناصر الغذائية (موسعة مع العمر والحالة)
+# المعايير القياسية للعناصر الغذائية (موسعة)
 # =====================================================================
 STANDARD_VALUES = {
     "أبقار": {
@@ -1855,7 +1855,7 @@ if not st.session_state["approved"]:
         st.markdown(f'<img src="data:image/jpeg;base64,{img_base64}" style="width:100px; height:100px; border-radius:50%; border:3px solid #d4af37; display:block; margin:0 auto;">', unsafe_allow_html=True)
     st.markdown("<h2 style='color:#1a237e; text-align:center;'>🌾 تاور نولجي Tawornology العلمية</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#555; font-size:1.1rem;'>للانتاج الحيواني وتركيب الاعلاف</p>")
-    st.markdown("<p style='text-align:center; color:#888; font-size:0.9rem;'>الإصدار المتكامل 9.0 - مع العمر والحالة الفسيولوجية</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#888; font-size:0.9rem;'>الإصدار المتكامل 10.0</p>", unsafe_allow_html=True)
     
     col_s1, col_s2 = st.columns(2)
     with col_s1:
@@ -2049,7 +2049,7 @@ with col_share2:
 st.markdown("---")
 
 # =====================================================================
-# تحديد التبويبات حسب الصلاحية
+# تحديد التبويبات حسب الصلاحية (للمالك: 12 تبويب، للمختصين: 8، للزائر: 4)
 # =====================================================================
 if st.session_state["user_role"] == "owner":
     tabs_titles = [
@@ -2077,7 +2077,7 @@ elif st.session_state["user_role"] in ["specialist", "veterinarian", "nutritioni
         "💡 المساعدة",
         "📖 الدليل"
     ]
-else:
+else:  # public
     tabs_titles = [
         "🐾 القطاع الحيواني",
         "📚 المراجع",
@@ -2123,7 +2123,6 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
             st.success(f"**الوزن التقديري:** {estimated_weight:.1f} كجم")
             st.info(f"**الاحتياج اليومي من المادة الجافة:** {daily_dry_matter:.2f} كجم")
             if estimated_weight > 0:
-                # ضبط الاحتياجات حسب العمر والوزن
                 age_factor = 1 + (age_months - 12) * 0.01
                 adjusted_dp = default_dp * (1 + (estimated_weight - 500) / 2000) * age_factor
                 adjusted_se = default_se * (1 + (estimated_weight - 500) / 3000) * age_factor
@@ -2295,7 +2294,6 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
                             st.metric("💰 التكلفة الفعلية للطن", f"${ton_cost:.2f}")
                             st.metric("🧬 البروتين المحقق", f"{actual_dp_target:.2f}% ({protein_basis})")
                             st.metric("🌽 معادل النشاء المحقق", f"{computed_se_total:.2f} وحدة")
-                            # إرسال إلى المختبر
                             if st.button("🔬 إرسال العينة إلى المختبر", use_container_width=True):
                                 st.session_state["lab_sample"] = {
                                     'formula': formula_results,
@@ -2310,7 +2308,6 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
                                 }
                                 st.success("✅ تم إرسال العينة إلى المختبر. انتقل إلى تبويب المختبر.")
                                 voice_guide("تم إرسال العينة إلى المختبر.")
-                            # تحميل PDF
                             try:
                                 pdf_data = pdf_generator.generate_comprehensive_report(
                                     formula_results, actual_dp_target, f"{breed} - {stage} ({physiological_state})", 
@@ -2507,7 +2504,7 @@ with tabs[0]:
                     fig.update_layout(title="مقارنة القيم المحسوبة مع المعايير القياسية", barmode='group')
                     st.plotly_chart(fig, use_container_width=True)
                 
-                # زر تحميل PDF للمختبر
+                # زر تحميل PDF للمختبر (مع توقيع المشرف)
                 try:
                     pdf_data = pdf_generator.generate_lab_report(
                         st.session_state["analysis_results"], 
@@ -2783,7 +2780,7 @@ if st.session_state["user_role"] == "owner" and len(tabs) > 11:
                         st.error(f"❌ الإرسال مسموح فقط للبريد: {OWNER_EMAIL}")
                 else:
                     st.warning("⚠️ يرجى إدخال بريد صحيح")
-        st.caption("ℹ️ يتم استخدام كلمة مرور تطبيق Gmail (App Password) لإرسال البريد.")
+        st.caption("ℹ️ يتم استخدام كلمة مرور تطبيق Gmail (App Password) لإرسال البريد. أدخلها عند الطلب.")
 
 # =====================================================================
 # التذييل
