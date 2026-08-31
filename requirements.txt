@@ -13,3 +13,4 @@ Pillow
 matplotlib
 gTTS
 requests
+pip install streamlit numpy pandas scipy scikit-learn plotly altair reportlab arabic-reshaper python-bidi gTTS qrcode Pillow matplotlib requests
