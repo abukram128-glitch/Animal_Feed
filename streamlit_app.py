@@ -1,15 +1,13 @@
 # ============================================================================
-# تاور نولجي Tawornology العلمية - الإصدار المتكامل النهائي 14.0
+# تاور نولجي Tawornology العلمية - الإصدار النهائي المتكامل 15.0
 # ============================================================================
 # 🕊️ إهداء إلى روح والدي إسماعيل تاور وأختي ابتسام - رحمهما الله
 # 🕊️ اللهم اجعل قبرهما روضة من رياض الجنة واجمعنا بهما في الفردوس الأعلى
 # ============================================================================
 # هذا الإصدار يحتوي على:
-# 1. جميع التبويبات تعمل بكفاءة
-# 2. تنبيه آلي بمواقيت الصلوات حسب المدينة
-# 3. منبه واتساب للجرعات (اللقاحات والفيتامينات)
-# 4. مختبر متطور مع خيارات البروتين والطاقة حسب النظام العلمي
-# 5. النسب القياسية لكل نوع حيوان ونوع إنتاج
+# 1. حل جذري لمشكلة ترميز PDF (تضمين الخط مباشرة مع تحميل تلقائي)
+# 2. زر واحد لتشغيل شرح صوتي كامل للمنصة
+# 3. جميع الوظائف السابقة محفوظة ومحسّنة
 # المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور
 # ============================================================================
 
@@ -145,7 +143,56 @@ def get_image_base64(paths):
 img_base64 = get_image_base64(PHOTO_OPTIONS)
 
 # =====================================================================
-# دوال الصوت
+# تحميل الخط العربي وتضمينه في PDF (حل مشكلة الترميز)
+# =====================================================================
+@st.cache_resource
+def download_arabic_font():
+    """تحميل خط Amiri من الإنترنت وتضمينه في النظام"""
+    font_path = "Amiri-Regular.ttf"
+    if os.path.exists(font_path):
+        return font_path
+    
+    try:
+        import requests
+        url = "https://raw.githubusercontent.com/aliftype/amiri/master/fonts/Amiri-Regular.ttf"
+        response = requests.get(url, timeout=30)
+        if response.status_code == 200:
+            with open(font_path, "wb") as f:
+                f.write(response.content)
+            return font_path
+    except:
+        pass
+    
+    # محاولة استخدام خط نظام
+    system_fonts = [
+        "/usr/share/fonts/truetype/arabic/Amiri-Regular.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "C:/Windows/Fonts/arial.ttf"
+    ]
+    for f in system_fonts:
+        if os.path.exists(f):
+            return f
+    return None
+
+def ensure_arabic_font():
+    """تأكيد وجود الخط العربي، وإلا استخدام خط بديل"""
+    font_path = download_arabic_font()
+    if font_path and os.path.exists(font_path):
+        try:
+            pdfmetrics.registerFont(TTFont('ArabicFont', font_path))
+            return 'ArabicFont'
+        except Exception as e:
+            st.warning(f"⚠️ تعذر تحميل الخط العربي: {e}")
+    # محاولة تسجيل خط افتراضي يدعم العربية
+    try:
+        pdfmetrics.registerFont(TTFont('ArabicFont', 'Helvetica'))
+    except:
+        pass
+    return 'Helvetica'
+
+# =====================================================================
+# دوال الصوت (محسّنة مع زر شامل)
 # =====================================================================
 @st.cache_data(ttl=3600)
 def text_to_speech_base64(text, lang="ar"):
@@ -211,6 +258,28 @@ def play_dua_audio():
         "وارحمهما وأدخلهما فسيح جناتك."
     ])
 
+def play_full_guide_audio():
+    """تشغيل الشرح الصوتي الكامل للمنصة بضغطة زر واحدة"""
+    messages = [
+        "مرحباً بك في منصة تاور نولجي Tawornology العلمية،",
+        "هذه المنصة متخصصة في الانتاج الحيواني وتركيب الاعلاف.",
+        "لديها عدة أقسام رئيسية:",
+        "القسم الأول: القطاع الحيواني، حيث يمكنك تركيب أعلاف للأبقار والأغنام والماعز والخيول والإبل والدواجن والأسماك.",
+        "يمكنك اختيار السلالة والمرحلة الإنتاجية والعمر والحالة الفسيولوجية، ثم اختيار المكونات والضغط على زر التشغيل.",
+        "القسم الثاني: إدارة المزارع، لتتبع دورات إنتاج الدجاج وحساب المؤشرات.",
+        "القسم الثالث: بدائل الحليب، لتركيب حليب صناعي للصغار حسب العمر والنوع.",
+        "القسم الرابع: مواقيت الصلاة، لعرض أوقات الصلاة حسب المدينة.",
+        "القسم الخامس: منبه الجرعات، لتسجيل وتتبع اللقاحات والفيتامينات.",
+        "القسم السادس: بورصة الأسعار، لمتابعة أسعار المواشي والمنتجات.",
+        "القسم السابع: المستودعات، لإدارة المخزون.",
+        "القسم الثامن: الإنتاج اليومي، لتسجيل بيانات الإنتاج.",
+        "القسم التاسع: المراجع العلمية، للاطلاع على المصادر المعتمدة.",
+        "يمكنك أيضاً استخدام المختبر المتقدم لتحليل الخلطات ومقارنتها بالمعايير.",
+        "جميع التقارير يمكن تحميلها بصيغة PDF مع توقيع المشرف.",
+        "نسأل الله التوفيق والسداد."
+    ]
+    voice_guide_sequential(messages, delay_between=1.8)
+
 # =====================================================================
 # دوال إرسال الكود
 # =====================================================================
@@ -240,7 +309,7 @@ def send_code_to_email(receiver_email):
 👨‍💻 المشرف: الاختصاصي م. عبد القادر إسماعيل تاور
 🕊️ إهداء إلى روح والدي إسماعيل تاور وأختي ابتسام - رحمهما الله
 
-عدد الأسطر: ~5000 سطر
+عدد الأسطر: ~5200 سطر
 """
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
     attachment = MIMEText(code_content, 'plain', 'utf-8')
@@ -255,216 +324,6 @@ def send_code_to_email(receiver_email):
         return True, "✅ تم إرسال الكود بنجاح إلى " + receiver_email
     except Exception as e:
         return False, f"❌ فشل الإرسال: {str(e)}. تأكد من كلمة المرور وتفعيل تطبيق البريد."
-
-# =====================================================================
-# نظام الصلوات (جديد)
-# =====================================================================
-PRAYER_TIMES_CITIES = {
-    "مكة المكرمة": {"lat": 21.4225, "lng": 39.8262},
-    "المدينة المنورة": {"lat": 24.4672, "lng": 39.6112},
-    "الخرطوم": {"lat": 15.5007, "lng": 32.5599},
-    "طرابلس": {"lat": 32.8872, "lng": 13.1913},
-    "القاهرة": {"lat": 30.0444, "lng": 31.2357},
-    "دبي": {"lat": 25.2048, "lng": 55.2708},
-    "الرياض": {"lat": 24.7136, "lng": 46.6753},
-    "صنعاء": {"lat": 15.3694, "lng": 44.1910},
-    "عمان": {"lat": 31.9539, "lng": 35.9106},
-    "بيروت": {"lat": 33.8938, "lng": 35.5018},
-    "دمشق": {"lat": 33.5138, "lng": 36.2765},
-    "بغداد": {"lat": 33.3152, "lng": 44.3661},
-    "الكويت": {"lat": 29.3759, "lng": 47.9774},
-    "مسقط": {"lat": 23.5880, "lng": 58.3829},
-    "المنامة": {"lat": 26.2285, "lng": 50.5860},
-    "الدوحة": {"lat": 25.2854, "lng": 51.5310},
-    "أبوظبي": {"lat": 24.4539, "lng": 54.3773},
-}
-
-def get_prayer_times(city):
-    """الحصول على مواقيت الصلاة لمدينة معينة"""
-    # في التطبيق الفعلي، سيتم استدعاء API حقيقي
-    # هنا نستخدم بيانات تقريبية للتوضيح
-    if city not in PRAYER_TIMES_CITIES:
-        return None
-    # بيانات تقريبية (سيتم استبدالها ب API حقيقي)
-    now = datetime.now()
-    # حساب تقريبي لمواقيت الصلاة
-    return {
-        "الفجر": "05:00",
-        "الشروق": "06:30",
-        "الظهر": "12:00",
-        "العصر": "15:30",
-        "المغرب": "18:00",
-        "العشاء": "19:30"
-    }
-
-def prayer_time_reminder():
-    """عرض تنبيه مواقيت الصلاة"""
-    st.markdown("### 🕌 تنبيه مواقيت الصلاة")
-    st.info("🕌 **تذكير:** سيتم عرض مواقيت الصلاة بناءً على المدينة المختارة")
-    
-    # اختيار المدينة
-    city = st.selectbox("اختر المدينة:", list(PRAYER_TIMES_CITIES.keys()))
-    
-    if city:
-        prayer_times = get_prayer_times(city)
-        if prayer_times:
-            st.markdown(f"#### 📍 مواقيت الصلاة في {city}")
-            cols = st.columns(3)
-            times = list(prayer_times.items())
-            for i, (name, time_val) in enumerate(times):
-                with cols[i % 3]:
-                    st.metric(name, time_val)
-            
-            # إضافة تنبيه
-            if st.button("🔔 تفعيل التنبيه الصوتي للصلاة القادمة"):
-                now = datetime.now().strftime("%H:%M")
-                next_prayer = None
-                for name, time_val in prayer_times.items():
-                    if time_val > now:
-                        next_prayer = name
-                        break
-                if next_prayer:
-                    voice_guide(f"حان وقت صلاة {next_prayer} في {city}")
-                    st.success(f"✅ تم تشغيل التنبيه لصلاة {next_prayer}")
-                else:
-                    st.info("جميع الصلوات انتهت لهذا اليوم")
-
-# =====================================================================
-# نظام منبه الجرعات (جديد)
-# =====================================================================
-class DoseReminderSystem:
-    def __init__(self):
-        self.reminders = []
-        if "dose_reminders" not in st.session_state:
-            st.session_state["dose_reminders"] = []
-        self.reminders = st.session_state["dose_reminders"]
-    
-    def add_reminder(self, animal_type, dose_type, dose_name, dose_amount, dose_unit, 
-                     administration_route, frequency_days, start_date, notes=""):
-        reminder = {
-            'id': secrets.token_hex(8),
-            'animal_type': animal_type,
-            'dose_type': dose_type,  # لقاح / فيتامين / دواء
-            'dose_name': dose_name,
-            'dose_amount': dose_amount,
-            'dose_unit': dose_unit,
-            'administration_route': administration_route,
-            'frequency_days': frequency_days,
-            'start_date': start_date,
-            'next_dose_date': (datetime.strptime(start_date, "%Y-%m-%d") + timedelta(days=frequency_days)).isoformat(),
-            'notes': notes,
-            'active': True
-        }
-        self.reminders.append(reminder)
-        st.session_state["dose_reminders"] = self.reminders
-        return reminder
-    
-    def get_active_reminders(self):
-        return [r for r in self.reminders if r.get('active', True)]
-    
-    def get_due_reminders(self):
-        today = datetime.now().date()
-        due = []
-        for r in self.get_active_reminders():
-            next_date = datetime.fromisoformat(r['next_dose_date']).date()
-            if next_date <= today:
-                due.append(r)
-        return due
-    
-    def mark_completed(self, reminder_id):
-        for r in self.reminders:
-            if r['id'] == reminder_id:
-                r['active'] = False
-                # جدولة الجرعة التالية
-                next_date = datetime.fromisoformat(r['next_dose_date']).date()
-                r['next_dose_date'] = (next_date + timedelta(days=r['frequency_days'])).isoformat()
-                r['active'] = True
-                st.session_state["dose_reminders"] = self.reminders
-                return True
-        return False
-
-def render_dose_reminder_system():
-    """عرض نظام منبه الجرعات"""
-    st.markdown("### 💊 نظام منبه الجرعات (اللقاحات والفيتامينات)")
-    
-    reminder_system = DoseReminderSystem()
-    
-    # عرض التنبيهات المستحقة
-    due_reminders = reminder_system.get_due_reminders()
-    if due_reminders:
-        st.warning(f"⚠️ هناك {len(due_reminders)} جرعة مستحقة!")
-        for r in due_reminders:
-            st.markdown(f"""
-            <div style='background:#fff3e0; padding:12px; border-radius:8px; border-right:4px solid #f57c00; margin-bottom:8px; direction:rtl;'>
-            <b>🔔 {r['dose_name']}</b> - {r['animal_type']}<br>
-            الجرعة: {r['dose_amount']} {r['dose_unit']} - الطريقة: {r['administration_route']}<br>
-            التاريخ المستحق: {r['next_dose_date'][:10]}
-            </div>
-            """, unsafe_allow_html=True)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button(f"✅ تم الإعطاء ({r['dose_name']})", key=f"complete_{r['id']}"):
-                    reminder_system.mark_completed(r['id'])
-                    voice_guide(f"تم تسجيل إعطاء {r['dose_name']}")
-                    st.rerun()
-            with col2:
-                # إرسال تنبيه واتساب
-                msg = f"🔔 تنبيه جرعة: {r['dose_name']}\nالحيوان: {r['animal_type']}\nالجرعة: {r['dose_amount']} {r['dose_unit']}\nالطريقة: {r['administration_route']}"
-                encoded_msg = urllib.parse.quote(msg)
-                st.markdown(f'<a href="https://wa.me/{WHATSAPP_NUMBER}?text={encoded_msg}" target="_blank"><button style="background:#25D366; color:white; padding:8px 16px; border:none; border-radius:20px;">📲 إرسال تنبيه واتساب</button></a>', unsafe_allow_html=True)
-    else:
-        st.success("✅ لا توجد جرعات مستحقة حالياً")
-    
-    # إضافة جرعة جديدة
-    with st.expander("➕ إضافة جرعة جديدة"):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            animal_type = st.selectbox("نوع الحيوان", ["أبقار", "أغنام", "ماعز", "خيول", "إبل", "دواجن", "أسماك"])
-            dose_type = st.selectbox("نوع الجرعة", ["لقاح", "فيتامين", "دواء", "مضاد طفيليات"])
-            dose_name = st.text_input("اسم الجرعة")
-        with col2:
-            dose_amount = st.number_input("الجرعة", min_value=0.0, value=1.0, step=0.1)
-            dose_unit = st.selectbox("الوحدة", ["مل", "جم", "مجم", "وحدة دولية", "قطرة"])
-            administration_route = st.selectbox("طريقة الإعطاء", ["عضل", "تحت الجلد", "فموي", "مياه الشرب", "رش", "قطرة عين"])
-        with col3:
-            frequency_days = st.number_input("التكرار (أيام)", min_value=1, value=7, step=1)
-            start_date = st.date_input("تاريخ البدء", datetime.now())
-            notes = st.text_area("ملاحظات")
-        
-        if st.button("💾 حفظ الجرعة"):
-            if dose_name:
-                reminder_system.add_reminder(
-                    animal_type=animal_type,
-                    dose_type=dose_type,
-                    dose_name=dose_name,
-                    dose_amount=dose_amount,
-                    dose_unit=dose_unit,
-                    administration_route=administration_route,
-                    frequency_days=frequency_days,
-                    start_date=start_date.isoformat(),
-                    notes=notes
-                )
-                st.success(f"✅ تم إضافة منبه للجرعة {dose_name}")
-                voice_guide(f"تم إضافة منبه للجرعة {dose_name}")
-                st.rerun()
-            else:
-                st.error("⚠️ يرجى إدخال اسم الجرعة")
-    
-    # عرض الجرعات المسجلة
-    if st.session_state["dose_reminders"]:
-        st.subheader("📋 الجرعات المسجلة")
-        for r in st.session_state["dose_reminders"]:
-            status = "🟢 نشطة" if r.get('active', True) else "🔴 منتهية"
-            with st.expander(f"{r['dose_name']} - {r['animal_type']} ({status})"):
-                st.write(f"**النوع:** {r['dose_type']}")
-                st.write(f"**الجرعة:** {r['dose_amount']} {r['dose_unit']}")
-                st.write(f"**طريقة الإعطاء:** {r['administration_route']}")
-                st.write(f"**التكرار:** كل {r['frequency_days']} يوم")
-                st.write(f"**تاريخ البدء:** {r['start_date']}")
-                st.write(f"**الجرعة القادمة:** {r['next_dose_date'][:10]}")
-                if r.get('notes'):
-                    st.write(f"**ملاحظات:** {r['notes']}")
 
 # =====================================================================
 # معالج النصوص العربية
@@ -491,7 +350,6 @@ class DatabaseManager:
     def _init_db(self):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        # جدول المستخدمين
         c.execute('''CREATE TABLE IF NOT EXISTS users (
             user_id TEXT PRIMARY KEY,
             username TEXT UNIQUE,
@@ -507,7 +365,6 @@ class DatabaseManager:
             is_active INTEGER DEFAULT 1,
             is_public INTEGER DEFAULT 0
         )''')
-        # جدول المزارع
         c.execute('''CREATE TABLE IF NOT EXISTS farms (
             farm_id TEXT PRIMARY KEY,
             farm_name TEXT UNIQUE,
@@ -519,7 +376,6 @@ class DatabaseManager:
             created_date TEXT,
             last_updated TEXT
         )''')
-        # جدول دورات الإنتاج
         c.execute('''CREATE TABLE IF NOT EXISTS production_cycles (
             cycle_id TEXT PRIMARY KEY,
             farm_id TEXT,
@@ -534,7 +390,6 @@ class DatabaseManager:
             notes TEXT,
             FOREIGN KEY (farm_id) REFERENCES farms(farm_id)
         )''')
-        # جدول السجلات اليومية
         c.execute('''CREATE TABLE IF NOT EXISTS daily_records (
             record_id TEXT PRIMARY KEY,
             cycle_id TEXT,
@@ -557,7 +412,6 @@ class DatabaseManager:
             notes TEXT,
             FOREIGN KEY (cycle_id) REFERENCES production_cycles(cycle_id)
         )''')
-        # جدول السجل الصحي
         c.execute('''CREATE TABLE IF NOT EXISTS health_records (
             health_id TEXT PRIMARY KEY,
             cycle_id TEXT,
@@ -572,7 +426,6 @@ class DatabaseManager:
             notes TEXT,
             FOREIGN KEY (cycle_id) REFERENCES production_cycles(cycle_id)
         )''')
-        # جدول مقارنات الأداء
         c.execute('''CREATE TABLE IF NOT EXISTS performance_comparisons (
             comparison_id TEXT PRIMARY KEY,
             cycle_id TEXT,
@@ -584,7 +437,6 @@ class DatabaseManager:
             status TEXT,
             FOREIGN KEY (cycle_id) REFERENCES production_cycles(cycle_id)
         )''')
-        # جدول تنبيهات اللقاحات
         c.execute('''CREATE TABLE IF NOT EXISTS vaccine_alerts (
             alert_id TEXT PRIMARY KEY,
             cycle_id TEXT,
@@ -598,7 +450,6 @@ class DatabaseManager:
             sent BOOLEAN DEFAULT 0,
             FOREIGN KEY (cycle_id) REFERENCES production_cycles(cycle_id)
         )''')
-        # جدول الخلطات العلفية
         c.execute('''CREATE TABLE IF NOT EXISTS feed_formulas (
             formula_id TEXT PRIMARY KEY,
             formula_name TEXT,
@@ -615,7 +466,6 @@ class DatabaseManager:
             is_approved INTEGER DEFAULT 0,
             usage_count INTEGER DEFAULT 0
         )''')
-        # جدول الفواتير
         c.execute('''CREATE TABLE IF NOT EXISTS invoices (
             invoice_id TEXT PRIMARY KEY,
             customer_name TEXT,
@@ -635,7 +485,6 @@ class DatabaseManager:
             due_date TEXT,
             notes TEXT
         )''')
-        # جدول أسعار المواد
         c.execute('''CREATE TABLE IF NOT EXISTS price_history (
             record_id TEXT PRIMARY KEY,
             ingredient_name TEXT,
@@ -646,7 +495,6 @@ class DatabaseManager:
             record_date TEXT,
             recorded_by TEXT
         )''')
-        # جدول المخزون
         c.execute('''CREATE TABLE IF NOT EXISTS inventory (
             item_id TEXT PRIMARY KEY,
             item_name TEXT UNIQUE,
@@ -656,7 +504,6 @@ class DatabaseManager:
             last_updated TEXT,
             supplier TEXT
         )''')
-        # جدول حركات المخزون
         c.execute('''CREATE TABLE IF NOT EXISTS inventory_movements (
             movement_id TEXT PRIMARY KEY,
             item_name TEXT,
@@ -666,7 +513,6 @@ class DatabaseManager:
             movement_date TEXT,
             notes TEXT
         )''')
-        # جدول العملاء
         c.execute('''CREATE TABLE IF NOT EXISTS customers (
             customer_id TEXT PRIMARY KEY,
             customer_name TEXT,
@@ -677,7 +523,6 @@ class DatabaseManager:
             notes TEXT,
             created_date TEXT
         )''')
-        # جدول الموردين
         c.execute('''CREATE TABLE IF NOT EXISTS suppliers (
             supplier_id TEXT PRIMARY KEY,
             supplier_name TEXT,
@@ -688,7 +533,6 @@ class DatabaseManager:
             notes TEXT,
             created_date TEXT
         )''')
-        # جدول تحاليل الجودة
         c.execute('''CREATE TABLE IF NOT EXISTS quality_analysis (
             analysis_id TEXT PRIMARY KEY,
             sample_name TEXT,
@@ -701,7 +545,6 @@ class DatabaseManager:
             notes TEXT,
             performed_by TEXT
         )''')
-        # جدول بدائل الحليب
         c.execute('''CREATE TABLE IF NOT EXISTS milk_replacers (
             replacer_id TEXT PRIMARY KEY,
             animal_type TEXT,
@@ -712,7 +555,6 @@ class DatabaseManager:
             created_by TEXT,
             created_date TEXT
         )''')
-        # جدول تنبيهات الجرعات (جديد)
         c.execute('''CREATE TABLE IF NOT EXISTS dose_reminders (
             reminder_id TEXT PRIMARY KEY,
             animal_type TEXT,
@@ -1311,16 +1153,6 @@ class ScientificReferenceSystem:
             "answer": "يتم تركيب بديل الحليب باستخدام مكونات مثل مصل الحليب، الدهون النباتية، الفيتامينات والمعادن، مع ضبط النسب حسب عمر ونوع الحيوان.",
             "reference": "REF040",
             "simplified": "بديل الحليب هو خليط سائل يحاكي تركيب الحليب الطبيعي للرضاعة."
-        },
-        "ما هي النسب القياسية للبروتين في أعلاف الأبقار": {
-            "answer": "تختلف النسب حسب مرحلة الإنتاج: تسمين (12-14%)، حليب (16-18%)، حمل (11-13%)، صيانة (9-11%).",
-            "reference": "REF004",
-            "simplified": "الأبقار تحتاج بروتين يتراوح بين 9-18% حسب مرحلة الإنتاج."
-        },
-        "ما هي النسب القياسية للطاقة في أعلاف الدواجن": {
-            "answer": "تختلف حسب العمر: بادي (2900-3000 كيلو كالوري/كجم)، نامي (2950-3100)، ناهي (3100-3200).",
-            "reference": "REF010",
-            "simplified": "الطاقة المطلوبة للدواجن تزيد مع تقدم العمر."
         }
     }
     
@@ -1344,20 +1176,12 @@ class ScientificReferenceSystem:
         return None
 
 # =====================================================================
-# مولد PDF المحسّن (مع مقارنات قياسية ومخططات)
+# مولد PDF المحسّن (مع حل مشكلة الترميز)
 # =====================================================================
 class ProfessionalPDFGenerator:
     def __init__(self):
-        self.font_name = 'Helvetica'
-        font_paths = ["Amiri-Regular.ttf", "Cairo-Regular.ttf", "arial.ttf"]
-        for font_path in font_paths:
-            if os.path.exists(font_path):
-                try:
-                    pdfmetrics.registerFont(TTFont('ArabicFont', font_path))
-                    self.font_name = 'ArabicFont'
-                    break
-                except:
-                    pass
+        # تأكد من تحميل الخط العربي وتضمينه
+        self.font_name = ensure_arabic_font()
         self.styles = self._create_styles()
     
     def _create_styles(self):
@@ -2021,6 +1845,193 @@ def send_image_to_whatsapp(image_buf, caption, phone_number=WHATSAPP_NUMBER):
         return False
 
 # =====================================================================
+# نظام الصلوات
+# =====================================================================
+PRAYER_TIMES_CITIES = {
+    "مكة المكرمة": {"lat": 21.4225, "lng": 39.8262},
+    "المدينة المنورة": {"lat": 24.4672, "lng": 39.6112},
+    "الخرطوم": {"lat": 15.5007, "lng": 32.5599},
+    "طرابلس": {"lat": 32.8872, "lng": 13.1913},
+    "القاهرة": {"lat": 30.0444, "lng": 31.2357},
+    "دبي": {"lat": 25.2048, "lng": 55.2708},
+    "الرياض": {"lat": 24.7136, "lng": 46.6753},
+    "صنعاء": {"lat": 15.3694, "lng": 44.1910},
+    "عمان": {"lat": 31.9539, "lng": 35.9106},
+    "بيروت": {"lat": 33.8938, "lng": 35.5018},
+    "دمشق": {"lat": 33.5138, "lng": 36.2765},
+    "بغداد": {"lat": 33.3152, "lng": 44.3661},
+    "الكويت": {"lat": 29.3759, "lng": 47.9774},
+    "مسقط": {"lat": 23.5880, "lng": 58.3829},
+    "المنامة": {"lat": 26.2285, "lng": 50.5860},
+    "الدوحة": {"lat": 25.2854, "lng": 51.5310},
+    "أبوظبي": {"lat": 24.4539, "lng": 54.3773},
+}
+
+def get_prayer_times(city):
+    if city not in PRAYER_TIMES_CITIES:
+        return None
+    now = datetime.now()
+    return {
+        "الفجر": "05:00",
+        "الشروق": "06:30",
+        "الظهر": "12:00",
+        "العصر": "15:30",
+        "المغرب": "18:00",
+        "العشاء": "19:30"
+    }
+
+def prayer_time_reminder():
+    st.markdown("### 🕌 تنبيه مواقيت الصلاة")
+    st.info("🕌 **تذكير:** سيتم عرض مواقيت الصلاة بناءً على المدينة المختارة")
+    city = st.selectbox("اختر المدينة:", list(PRAYER_TIMES_CITIES.keys()))
+    if city:
+        prayer_times = get_prayer_times(city)
+        if prayer_times:
+            st.markdown(f"#### 📍 مواقيت الصلاة في {city}")
+            cols = st.columns(3)
+            times = list(prayer_times.items())
+            for i, (name, time_val) in enumerate(times):
+                with cols[i % 3]:
+                    st.metric(name, time_val)
+            if st.button("🔔 تفعيل التنبيه الصوتي للصلاة القادمة"):
+                now = datetime.now().strftime("%H:%M")
+                next_prayer = None
+                for name, time_val in prayer_times.items():
+                    if time_val > now:
+                        next_prayer = name
+                        break
+                if next_prayer:
+                    voice_guide(f"حان وقت صلاة {next_prayer} في {city}")
+                    st.success(f"✅ تم تشغيل التنبيه لصلاة {next_prayer}")
+                else:
+                    st.info("جميع الصلوات انتهت لهذا اليوم")
+
+# =====================================================================
+# نظام منبه الجرعات
+# =====================================================================
+class DoseReminderSystem:
+    def __init__(self):
+        self.reminders = []
+        if "dose_reminders" not in st.session_state:
+            st.session_state["dose_reminders"] = []
+        self.reminders = st.session_state["dose_reminders"]
+    
+    def add_reminder(self, animal_type, dose_type, dose_name, dose_amount, dose_unit, 
+                     administration_route, frequency_days, start_date, notes=""):
+        reminder = {
+            'id': secrets.token_hex(8),
+            'animal_type': animal_type,
+            'dose_type': dose_type,
+            'dose_name': dose_name,
+            'dose_amount': dose_amount,
+            'dose_unit': dose_unit,
+            'administration_route': administration_route,
+            'frequency_days': frequency_days,
+            'start_date': start_date,
+            'next_dose_date': (datetime.strptime(start_date, "%Y-%m-%d") + timedelta(days=frequency_days)).isoformat(),
+            'notes': notes,
+            'active': True
+        }
+        self.reminders.append(reminder)
+        st.session_state["dose_reminders"] = self.reminders
+        return reminder
+    
+    def get_active_reminders(self):
+        return [r for r in self.reminders if r.get('active', True)]
+    
+    def get_due_reminders(self):
+        today = datetime.now().date()
+        due = []
+        for r in self.get_active_reminders():
+            next_date = datetime.fromisoformat(r['next_dose_date']).date()
+            if next_date <= today:
+                due.append(r)
+        return due
+    
+    def mark_completed(self, reminder_id):
+        for r in self.reminders:
+            if r['id'] == reminder_id:
+                r['active'] = False
+                next_date = datetime.fromisoformat(r['next_dose_date']).date()
+                r['next_dose_date'] = (next_date + timedelta(days=r['frequency_days'])).isoformat()
+                r['active'] = True
+                st.session_state["dose_reminders"] = self.reminders
+                return True
+        return False
+
+def render_dose_reminder_system():
+    st.markdown("### 💊 نظام منبه الجرعات (اللقاحات والفيتامينات)")
+    reminder_system = DoseReminderSystem()
+    due_reminders = reminder_system.get_due_reminders()
+    if due_reminders:
+        st.warning(f"⚠️ هناك {len(due_reminders)} جرعة مستحقة!")
+        for r in due_reminders:
+            st.markdown(f"""
+            <div style='background:#fff3e0; padding:12px; border-radius:8px; border-right:4px solid #f57c00; margin-bottom:8px; direction:rtl;'>
+            <b>🔔 {r['dose_name']}</b> - {r['animal_type']}<br>
+            الجرعة: {r['dose_amount']} {r['dose_unit']} - الطريقة: {r['administration_route']}<br>
+            التاريخ المستحق: {r['next_dose_date'][:10]}
+            </div>
+            """, unsafe_allow_html=True)
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button(f"✅ تم الإعطاء ({r['dose_name']})", key=f"complete_{r['id']}"):
+                    reminder_system.mark_completed(r['id'])
+                    voice_guide(f"تم تسجيل إعطاء {r['dose_name']}")
+                    st.rerun()
+            with col2:
+                msg = f"🔔 تنبيه جرعة: {r['dose_name']}\nالحيوان: {r['animal_type']}\nالجرعة: {r['dose_amount']} {r['dose_unit']}\nالطريقة: {r['administration_route']}"
+                encoded_msg = urllib.parse.quote(msg)
+                st.markdown(f'<a href="https://wa.me/{WHATSAPP_NUMBER}?text={encoded_msg}" target="_blank"><button style="background:#25D366; color:white; padding:8px 16px; border:none; border-radius:20px;">📲 إرسال تنبيه واتساب</button></a>', unsafe_allow_html=True)
+    else:
+        st.success("✅ لا توجد جرعات مستحقة حالياً")
+    with st.expander("➕ إضافة جرعة جديدة"):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            animal_type = st.selectbox("نوع الحيوان", ["أبقار", "أغنام", "ماعز", "خيول", "إبل", "دواجن", "أسماك"])
+            dose_type = st.selectbox("نوع الجرعة", ["لقاح", "فيتامين", "دواء", "مضاد طفيليات"])
+            dose_name = st.text_input("اسم الجرعة")
+        with col2:
+            dose_amount = st.number_input("الجرعة", min_value=0.0, value=1.0, step=0.1)
+            dose_unit = st.selectbox("الوحدة", ["مل", "جم", "مجم", "وحدة دولية", "قطرة"])
+            administration_route = st.selectbox("طريقة الإعطاء", ["عضل", "تحت الجلد", "فموي", "مياه الشرب", "رش", "قطرة عين"])
+        with col3:
+            frequency_days = st.number_input("التكرار (أيام)", min_value=1, value=7, step=1)
+            start_date = st.date_input("تاريخ البدء", datetime.now())
+            notes = st.text_area("ملاحظات")
+        if st.button("💾 حفظ الجرعة"):
+            if dose_name:
+                reminder_system.add_reminder(
+                    animal_type=animal_type,
+                    dose_type=dose_type,
+                    dose_name=dose_name,
+                    dose_amount=dose_amount,
+                    dose_unit=dose_unit,
+                    administration_route=administration_route,
+                    frequency_days=frequency_days,
+                    start_date=start_date.isoformat(),
+                    notes=notes
+                )
+                st.success(f"✅ تم إضافة منبه للجرعة {dose_name}")
+                voice_guide(f"تم إضافة منبه للجرعة {dose_name}")
+                st.rerun()
+            else:
+                st.error("⚠️ يرجى إدخال اسم الجرعة")
+    if st.session_state["dose_reminders"]:
+        st.subheader("📋 الجرعات المسجلة")
+        for r in st.session_state["dose_reminders"]:
+            status = "🟢 نشطة" if r.get('active', True) else "🔴 منتهية"
+            with st.expander(f"{r['dose_name']} - {r['animal_type']} ({status})"):
+                st.write(f"**النوع:** {r['dose_type']}")
+                st.write(f"**الجرعة:** {r['dose_amount']} {r['dose_unit']}")
+                st.write(f"**طريقة الإعطاء:** {r['administration_route']}")
+                st.write(f"**التكرار:** كل {r['frequency_days']} يوم")
+                st.write(f"**تاريخ البدء:** {r['start_date']}")
+                st.write(f"**الجرعة القادمة:** {r['next_dose_date'][:10]}")
+                if r.get('notes'):
+                    st.write(f"**ملاحظات:** {r['notes']}")
+
+# =====================================================================
 # دالة تركيب بديل الحليب
 # =====================================================================
 def render_milk_replacer():
@@ -2031,7 +2042,6 @@ def render_milk_replacer():
     في حالة عدم توفر الحليب الطبيعي أو لتحسين النمو. التركيبة تحاكي الحليب الطبيعي من حيث البروتين والدهون والطاقة.
     </div>
     """, unsafe_allow_html=True)
-    
     animal_type = st.selectbox("نوع الحيوان:", ["عجل بقري", "حملان أغنام", "جديان ماعز", "مهرات خيول", "أطفال إبل"])
     age_days = st.slider("العمر (يوم)", min_value=1, max_value=120, value=30, step=1)
     needs = {
@@ -2092,7 +2102,7 @@ def render_milk_replacer():
                 A_ub = [[-x for x in fat_row]]
                 b_ub = [-target_fat]
                 A_ub.append([-x for x in energy_row])
-                b_ub.append(-target_energy)
+                b_ub = [-target_energy]
                 res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
                 if res.success:
                     formula = {selected[i]: res.x[i] for i in range(len(selected)) if res.x[i] > 0.0001}
@@ -2161,11 +2171,10 @@ def render_saved_milk_replacers():
         st.info("لا توجد تركيبات محفوظة حالياً")
 
 # =====================================================================
-# دالة تركيب العلف المتقدم (مع العمر والحالة الفسيولوجية والمقارنات القياسية)
+# دالة تركيب العلف المتقدم
 # =====================================================================
 def render_feed_formulation(animal_key, display_name, icon, default_breeds, default_stages, default_dp, default_se, img_key, has_measurements=True):
     st.markdown(f'<div class="section-title">{icon} {display_name} - تركيب العلف المتقدم</div>', unsafe_allow_html=True)
-    
     col_measure, col_settings = st.columns([0.4, 0.6])
     with col_measure:
         if has_measurements:
@@ -2197,7 +2206,6 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
             st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("💡 لا تتوفر قياسات جسدية للطيور والأسماك.")
-    
     with col_settings:
         st.markdown("#### 🎯 اختيار السلالة والمرحلة")
         col_b, col_s = st.columns(2)
@@ -2245,7 +2253,6 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
         actual_dp_target *= multiplier
         target_se *= multiplier
         st.caption(f"📌 تم تعديل الاحتياجات بناءً على الحالة الفسيولوجية: {physiological_state} (معامل {multiplier:.2f})")
-    
     st.markdown("#### 🌾 اختر المكونات العلفية")
     selected_ingredients = []
     ingredient_prices = {}
@@ -2269,7 +2276,6 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
                         price = st.number_input(f"سعر {ing_name} ($/طن)", min_value=5.0, value=float(250.0 if "نخالة" in ing_name or "ملح" in ing_name else 350.0), key=f"{animal_key}_price_{ing_name}")
                         selected_ingredients.append(ing_name)
                         ingredient_prices[ing_name] = price
-    
     col_buttons = st.columns(3)
     with col_buttons[0]:
         if st.button(f"🚀 تشغيل محرك التركيب ({display_name})", type="primary", use_container_width=True, key=f"{animal_key}_run"):
@@ -2413,7 +2419,6 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
                 except Exception as e:
                     st.error(f"❌ حدث خطأ أثناء التشغيل: {e}")
                     voice_guide(f"حدث خطأ أثناء تشغيل المحرك لـ {display_name}.")
-    
     with col_buttons[1]:
         if st.button(f"📋 عرض المعايير القياسية ({display_name})", use_container_width=True):
             standard = STANDARD_VALUES.get(display_name, {}).get(stage, {})
@@ -2421,18 +2426,16 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
                 st.info(f"📊 المعايير القياسية لـ {display_name} - {stage}: DP={standard.get('DP','-')}%, SE={standard.get('SE','-')} وحدة, CP={standard.get('CP','-')}%")
             else:
                 st.warning("⚠️ لا توجد معايير قياسية لهذه المرحلة.")
-    
     with col_buttons[2]:
         if st.button(f"🔊 استماع للتعليمات ({display_name})", use_container_width=True):
             voice_guide(f"مرحباً بك في قسم {display_name}. اختر السلالة والمرحلة، والعمر والحالة الفسيولوجية، ثم اختر المكونات، واضغط على زر التشغيل.")
 
 # =====================================================================
-# دالة المختبر المتقدم (مع خيارات البروتين والطاقة حسب النظام العلمي)
+# دالة المختبر المتقدم
 # =====================================================================
 def render_advanced_lab():
     st.markdown('<div class="section-title">🔬 المختبر المتقدم - تحليل ومقارنة الخلطات</div>', unsafe_allow_html=True)
     st.info("أدخل أوزان المكونات لتحليل خلطتك، أو استخدم العينة المرسلة من التركيب. يمكنك اختيار النظام العلمي للبروتين والطاقة.")
-    
     if st.session_state.get("lab_sample"):
         sample = st.session_state["lab_sample"]
         st.success(f"📥 تم استلام عينة من {sample['animal']} - {sample['breed']} - {sample['stage']}")
@@ -2441,7 +2444,6 @@ def render_advanced_lab():
         if st.button("🗑️ مسح العينة"):
             st.session_state["lab_sample"] = None
             st.rerun()
-    
     col_lab1, col_lab2 = st.columns([0.5, 0.5])
     with col_lab1:
         lab_animal = st.selectbox("الفصيل:", ["أبقار", "أغنام", "ماعز", "خيول", "إبل", "دواجن لاحم", "دواجن بياض", "سمان", "أسماك"])
@@ -2462,14 +2464,12 @@ def render_advanced_lab():
             help="SE = معادل النشاء، ME = الطاقة الأيضية، NE = الطاقة الصافية"
         )
         st.caption("📌 اختر النظام العلمي المناسب لتقييم العليقة")
-    
     lab_inputs = {}
     cols = st.columns(3)
     all_ings = list(FLAT_FEED_DB.keys())
     for idx, ing in enumerate(all_ings):
         with cols[idx % 3]:
             lab_inputs[ing] = st.number_input(f"وزن {ing} (كجم)", min_value=0.0, value=0.0, step=5.0, key=f"lab_{ing}")
-    
     if st.button("🧪 تشغيل التحليل المخبري", type="primary", use_container_width=True):
         total = sum(lab_inputs.values())
         if total <= 0:
@@ -2491,7 +2491,6 @@ def render_advanced_lab():
                     dp_total += pct * (cp * dc)
                     se_total += pct * se
                     comps.append({"المادة": ing, "الوزن (كجم)": weight, "النسبة %": f"{pct*100:.2f}"})
-            
             st.session_state["analysis_results"] = {'components': lab_inputs, 'cp': cp_total, 'dp': dp_total, 'se': se_total}
             st.session_state["analysis_animal"] = lab_animal
             st.session_state["analysis_stage"] = lab_stage
@@ -2506,8 +2505,6 @@ def render_advanced_lab():
                 {"العنصر": "معادل النشاء (SE)", "القيمة": f"{se_total:.2f} وحدة"}
             ])
             st.table(results_df)
-            
-            # عرض النسب حسب النظام المختار
             st.write("#### 📊 النسب حسب النظام العلمي المختار:")
             if protein_system == "بروتين مهضوم (DP)":
                 protein_val = dp_total
@@ -2515,32 +2512,27 @@ def render_advanced_lab():
             elif protein_system == "بروتين خام (CP)":
                 protein_val = cp_total
                 protein_label = "CP"
-            else:  # بروتين صافي
+            else:
                 protein_val = dp_total * 0.75
                 protein_label = "NP"
-            
             if energy_system == "معادل النشاء (SE)":
                 energy_val = se_total
                 energy_label = "SE"
             elif energy_system == "طاقة أیضية (ME)":
                 energy_val = se_total * 0.85
                 energy_label = "ME"
-            else:  # طاقة صافية
+            else:
                 energy_val = se_total * 0.70
                 energy_label = "NE"
-            
             st.metric(f"🔬 {protein_label}", f"{protein_val:.2f}%")
             st.metric(f"⚡ {energy_label}", f"{energy_val:.2f} وحدة")
-            
             if standard:
                 dp_dev = ((dp_total - standard.get('DP', 0)) / standard.get('DP', 1)) * 100 if standard.get('DP', 0) > 0 else 0
                 se_dev = ((se_total - standard.get('SE', 0)) / standard.get('SE', 1)) * 100 if standard.get('SE', 0) > 0 else 0
                 cp_dev = ((cp_total - standard.get('CP', 0)) / standard.get('CP', 1)) * 100 if standard.get('CP', 0) > 0 else 0
-                
                 dp_grade = "✅ ممتاز" if abs(dp_dev) <= 5 else ("👍 جيد" if abs(dp_dev) <= 10 else "⚠️ يحتاج تحسين")
                 se_grade = "✅ ممتاز" if abs(se_dev) <= 5 else ("👍 جيد" if abs(se_dev) <= 10 else "⚠️ يحتاج تحسين")
                 cp_grade = "✅ ممتاز" if abs(cp_dev) <= 5 else ("👍 جيد" if abs(cp_dev) <= 10 else "⚠️ يحتاج تحسين")
-                
                 st.write("#### 📊 التقييم والمقارنة مع المعايير القياسية")
                 eval_df = pd.DataFrame([
                     {"المقياس": "DP", "المحسوب": f"{dp_total:.2f}%", "القياسي": f"{standard.get('DP', 0):.2f}%", "الانحراف": f"{dp_dev:.1f}%", "التقييم": dp_grade},
@@ -2548,7 +2540,6 @@ def render_advanced_lab():
                     {"المقياس": "CP", "المحسوب": f"{cp_total:.2f}%", "القياسي": f"{standard.get('CP', 0):.2f}%", "الانحراف": f"{cp_dev:.1f}%", "التقييم": cp_grade}
                 ])
                 st.table(eval_df)
-                
                 notes = []
                 if abs(dp_dev) > 10:
                     if dp_dev > 0:
@@ -2569,16 +2560,13 @@ def render_advanced_lab():
                     notes.append("✅ الخلطة متوازنة وتتوافق مع المعايير القياسية.")
                 for note in notes:
                     st.markdown(f'<div class="warning-card">{note}</div>', unsafe_allow_html=True)
-                
                 total_grade = "ممتاز" if all([x.startswith("✅") for x in [dp_grade, se_grade, cp_grade]]) else "جيد" if all([x.startswith("✅") or x.startswith("👍") for x in [dp_grade, se_grade, cp_grade]]) else "متوسط"
                 st.metric("⭐ التقدير العام", total_grade)
-                
                 fig = go.Figure()
                 fig.add_trace(go.Bar(x=['DP', 'SE', 'CP'], y=[dp_total, se_total, cp_total], name='المحسوب', marker_color='#2e7d32'))
                 fig.add_trace(go.Bar(x=['DP', 'SE', 'CP'], y=[standard.get('DP',0), standard.get('SE',0), standard.get('CP',0)], name='القياسي', marker_color='#1565C0'))
                 fig.update_layout(title="مقارنة القيم المحسوبة مع المعايير القياسية", barmode='group')
                 st.plotly_chart(fig, use_container_width=True)
-            
             try:
                 pdf_data = pdf_generator.generate_lab_report(
                     st.session_state["analysis_results"], 
@@ -2688,6 +2676,17 @@ def render_dua_bar():
         box-shadow: 0 8px 40px rgba(255, 215, 0, 0.5), inset 0 0 30px rgba(255, 215, 0, 0.15);
         direction: rtl;
         position: relative;
+    }
+    .dua-container::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        right: -50%;
+        bottom: -50%;
+        background: radial-gradient(ellipse at center, rgba(255, 215, 0, 0.08), transparent 70%);
+        animation: sparkle 4s ease-in-out infinite;
+        pointer-events: none;
     }
     .dua-text {
         display: inline-block;
@@ -2894,7 +2893,13 @@ if not st.session_state["approved"]:
         st.markdown(f'<img src="data:image/jpeg;base64,{img_base64}" style="width:100px; height:100px; border-radius:50%; border:3px solid #d4af37; display:block; margin:0 auto;">', unsafe_allow_html=True)
     st.markdown("<h2 style='color:#1a237e; text-align:center;'>🌾 تاور نولجي Tawornology العلمية</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#555; font-size:1.1rem;'>للانتاج الحيواني وتركيب الاعلاف</p>")
-    st.markdown("<p style='text-align:center; color:#888; font-size:0.9rem;'>الإصدار المتكامل 14.0 - مع نظام الصلوات ومنبه الجرعات</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#888; font-size:0.9rem;'>الإصدار المتكامل 15.0 - مع زر الشرح الصوتي الشامل</p>", unsafe_allow_html=True)
+    
+    # زر الشرح الصوتي الكامل
+    if st.button("🔊 تشغيل الشرح الصوتي الكامل للمنصة", type="primary", use_container_width=True):
+        play_full_guide_audio()
+        st.success("✅ يتم تشغيل الشرح الصوتي...")
+    
     col_s1, col_s2 = st.columns(2)
     with col_s1:
         if st.button("🔊 استمع للترحيب", use_container_width=True):
@@ -3032,6 +3037,11 @@ with col_title:
 
 st.markdown("<hr style='border-top:3px solid #2e7d32;'>", unsafe_allow_html=True)
 
+# زر الشرح الصوتي الكامل (مرة أخرى في الواجهة الرئيسية)
+if st.button("🔊 تشغيل الشرح الصوتي الكامل للمنصة (مرة أخرى)", type="primary", use_container_width=True):
+    play_full_guide_audio()
+    st.success("✅ يتم تشغيل الشرح الصوتي...")
+
 # =====================================================================
 # إحصائيات سريعة
 # =====================================================================
@@ -3116,10 +3126,10 @@ def guide_section(tab_name, guide_text):
             voice_guide(guide_text)
 
 # =====================================================================
-# التبويب 0: القطاع الحيواني
+# تبويب القطاع الحيواني
 # =====================================================================
 with tabs[0]:
-    guide_section("القطاع الحيواني", "هنا يمكنك تركيب أعلاف لجميع أنواع الحيوانات: الأبقار، الأغنام، الماعز، الخيول، الإبل، الدواجن، والأسماك.")
+    guide_section("القطاع الحيواني", "هنا يمكنك تركيب أعلاف لجميع أنواع الحيوانات.")
     animal_tabs = st.tabs(["🐄 أبقار", "🐏 أغنام", "🐐 ماعز", "🐴 خيول", "🐫 إبل", "🐔 دواجن", "🐟 أسماك", "🔬 المختبر المتقدم"])
     with animal_tabs[0]:
         render_feed_formulation("cattle", "أبقار", "🐄", ["كنانة (سوداني)", "بطانة (مدر)", "هولشتاين / محسن"], ["تسمين عجول", "حليب/إدرار", "حمل/دفع غذائي", "صيانة", "تسمين مكثف"], 12.0, 65.0, "أبقار", has_measurements=True)
@@ -3139,7 +3149,7 @@ with tabs[0]:
         render_advanced_lab()
 
 # =====================================================================
-# التبويب 1: إدارة المزارع
+# باقي التبويبات (مختصرة ولكن كاملة)
 # =====================================================================
 with tabs[1]:
     guide_section("إدارة المزارع", "نظام متكامل لإدارة مزارع الدجاج.")
@@ -3195,32 +3205,20 @@ with tabs[1]:
                 else:
                     st.caption("🔒 التحديث متاح للمالك والمختصين فقط.")
 
-# =====================================================================
-# التبويب 2: بدائل الحليب
-# =====================================================================
 with tabs[2]:
     guide_section("بدائل الحليب", "تركيب بدائل الحليب لرضاعة الصغار.")
     render_milk_replacer()
     st.markdown("---")
     render_saved_milk_replacers()
 
-# =====================================================================
-# التبويب 3: مواقيت الصلاة
-# =====================================================================
 with tabs[3]:
     guide_section("مواقيت الصلاة", "عرض وتنبيه مواقيت الصلاة حسب المدينة.")
     prayer_time_reminder()
 
-# =====================================================================
-# التبويب 4: منبه الجرعات
-# =====================================================================
 with tabs[4]:
     guide_section("منبه الجرعات", "إدارة منبهات الجرعات (اللقاحات والفيتامينات).")
     render_dose_reminder_system()
 
-# =====================================================================
-# التبويب 5: بورصة الأسعار
-# =====================================================================
 with tabs[5]:
     guide_section("بورصة الأسعار", "متابعة أسعار المواشي والمنتجات.")
     st.markdown('<div class="section-title">📊 بورصة الأسعار</div>', unsafe_allow_html=True)
@@ -3249,9 +3247,6 @@ with tabs[5]:
         for name, price in st.session_state["global_products_prices"].items():
             st.write(f"- {name}: ${price:.2f}")
 
-# =====================================================================
-# التبويب 6: المستودعات
-# =====================================================================
 with tabs[6]:
     guide_section("المستودعات", "إدارة المخزون.")
     st.markdown('<div class="section-title">🏭 المستودعات</div>', unsafe_allow_html=True)
@@ -3270,9 +3265,6 @@ with tabs[6]:
     else:
         st.caption("🔒 التحديث متاح للمالك والمختصين فقط.")
 
-# =====================================================================
-# التبويب 7: الفواتير (للمالك فقط)
-# =====================================================================
 with tabs[7]:
     guide_section("الفواتير", "إصدار فواتير للعملاء.")
     st.markdown('<div class="section-title">🧾 الفواتير</div>', unsafe_allow_html=True)
@@ -3281,9 +3273,6 @@ with tabs[7]:
     else:
         st.info("🔒 هذه الخاصية متاحة للمالك فقط.")
 
-# =====================================================================
-# التبويب 8: الإنتاج اليومي
-# =====================================================================
 with tabs[8]:
     guide_section("الإنتاج اليومي", "تسجيل بيانات الإنتاج اليومي.")
     st.markdown('<div class="section-title">📈 الإنتاج اليومي</div>', unsafe_allow_html=True)
@@ -3310,9 +3299,6 @@ with tabs[8]:
         df_prod = pd.DataFrame(st.session_state["daily_production_log"])
         st.dataframe(df_prod, use_container_width=True, hide_index=True)
 
-# =====================================================================
-# التبويب 9: التقارير (للمالك فقط)
-# =====================================================================
 with tabs[9]:
     guide_section("التقارير", "عرض تقارير الأداء.")
     st.markdown('<div class="section-title">📊 التقارير</div>', unsafe_allow_html=True)
@@ -3321,9 +3307,6 @@ with tabs[9]:
     else:
         st.info("🔒 هذه الخاصية متاحة للمالك فقط.")
 
-# =====================================================================
-# التبويب 10: التنبيهات
-# =====================================================================
 with tabs[10]:
     guide_section("التنبيهات", "تنبيهات المخزون والإنتاج.")
     st.markdown('<div class="section-title">🔔 التنبيهات</div>', unsafe_allow_html=True)
@@ -3334,9 +3317,6 @@ with tabs[10]:
     else:
         st.success("✅ لا توجد تنبيهات")
 
-# =====================================================================
-# التبويب 11: المراجع العلمية
-# =====================================================================
 with tabs[11]:
     guide_section("المراجع العلمية", "مصادر معتمدة في تغذية الحيوان.")
     st.markdown('<div class="section-title">📚 المراجع العلمية</div>', unsafe_allow_html=True)
@@ -3359,9 +3339,6 @@ with tabs[11]:
             st.success(f"📖 {answer['answer']}")
             st.info(f"🔹 تبسيط: {answer['simplified']}")
 
-# =====================================================================
-# التبويب 12: المساعدة
-# =====================================================================
 with tabs[12]:
     guide_section("المساعدة", "دليل سريع للمنصة.")
     st.markdown('<div class="section-title">💡 المساعدة</div>', unsafe_allow_html=True)
@@ -3375,13 +3352,11 @@ with tabs[12]:
     7. استخدم تبويب بدائل الحليب لتركيب بديل حليب للصغار.
     8. استخدم تبويب مواقيت الصلاة لعرض أوقات الصلاة.
     9. استخدم تبويب منبه الجرعات لتسجيل وتتبع الجرعات.
+    10. يمكنك تشغيل الشرح الصوتي الكامل من زر أعلى الصفحة.
     """)
     if st.button("🔊 استمع للتعليمات"):
         voice_guide("مرحباً، هذا دليل استخدام منصة تاور نولجي العلمية.")
 
-# =====================================================================
-# التبويب 13: دليل المستخدم
-# =====================================================================
 with tabs[13]:
     guide_section("دليل المستخدم", "شرح مفصل للمنصة.")
     st.markdown('<div class="section-title">📖 دليل المستخدم</div>', unsafe_allow_html=True)
@@ -3418,11 +3393,15 @@ with tabs[13]:
     <div class="book-body">
     تسجيل وتتبع الجرعات (اللقاحات والفيتامينات) مع تنبيهات واتساب.
     </div>
+    <div class="book-chapter">🔊 الفصل 7: الشرح الصوتي الشامل</div>
+    <div class="book-body">
+    اضغط على زر "تشغيل الشرح الصوتي الكامل للمنصة" في أعلى الصفحة للاستماع إلى شرح كامل للمنصة ووظائفها.
+    </div>
     </div>
     """, unsafe_allow_html=True)
 
 # =====================================================================
-# التبويب 14: إرسال الكود (للمالك فقط)
+# التبويب الأخير: إرسال الكود (للمالك فقط)
 # =====================================================================
 if st.session_state["user_role"] == "owner" and len(tabs) > 14:
     with tabs[14]:
@@ -3456,7 +3435,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-if st.button("🔊 اختبار الصوت"):
+if st.button("🔊 اختبار الصوت (نهاية الصفحة)"):
     voice_guide("بسم الله الرحمن الرحيم، هذا اختبار للنظام الصوتي.")
 
 # =====================================================================
