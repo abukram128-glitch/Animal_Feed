@@ -1,14 +1,18 @@
 # ============================================================================
-# تاور نولجي Tawornology العلمية - الإصدار النهائي المتكامل 15.0
+# تاور نولجي Tawornology العلمية - الإصدار النهائي المتكامل 16.0
 # ============================================================================
 # 🕊️ إهداء إلى روح والدي إسماعيل تاور وأختي ابتسام - رحمهما الله
 # 🕊️ اللهم اجعل قبرهما روضة من رياض الجنة واجمعنا بهما في الفردوس الأعلى
 # ============================================================================
-# هذا الإصدار يحتوي على:
-# 1. حل جذري لمشكلة ترميز PDF (تضمين الخط مباشرة مع تحميل تلقائي)
-# 2. زر واحد لتشغيل شرح صوتي كامل للمنصة
-# 3. جميع الوظائف السابقة محفوظة ومحسّنة
-# المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور
+# جميع المشاكل السابقة تم حلها:
+# - ازدواجية الصوت (تم منع التشغيل المتزامن)
+# - تقييد التركيب بنسبة 75% من المواصفات العالمية
+# - إضافة خانة اسم طالب العلف
+# - تفعيل جميع التبويبات
+# - تعديل اللقب إلى "اختصاصي تغذية الحيوان"
+# - إضافة مواد علفية جديدة لبدائل الحليب مع شرح طريقة الخلط
+# - إضافة ختم/علامة مميزة في نهاية كل ملف PDF
+# المشرف العام: اختصاصي تغذية الحيوان - م. عبد القادر إسماعيل تاور
 # ============================================================================
 
 import streamlit as st
@@ -60,7 +64,7 @@ from reportlab.lib.colors import HexColor, black, white, grey, blue, red, green,
 from reportlab.platypus import Table, TableStyle, Paragraph, Spacer, Image, SimpleDocTemplate, PageBreak, KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT, TA_JUSTIFY
-from reportlab.graphics.shapes import Drawing
+from reportlab.graphics.shapes import Drawing, String, Line
 from reportlab.graphics.charts.barcharts import VerticalBarChart
 from reportlab.graphics.charts.piecharts import Pie
 import arabic_reshaper
@@ -106,7 +110,7 @@ CACHE_SYSTEM = init_caching_system()
 # أكواد الدخول
 # =====================================================================
 CODES_DB = {
-    "202687": {"role": "owner", "name": "الاختصاصي م. عبد القادر إسماعيل تاور", "level": 3},
+    "202687": {"role": "owner", "name": "اختصاصي تغذية الحيوان - م. عبد القادر إسماعيل تاور", "level": 3},
     "2020": {"role": "specialist", "name": "المختص والزملاء", "level": 2},
     "2024": {"role": "veterinarian", "name": "الطبيب البيطري", "level": 2},
     "2025": {"role": "nutritionist", "name": "أخصائي التغذية", "level": 2},
@@ -143,56 +147,13 @@ def get_image_base64(paths):
 img_base64 = get_image_base64(PHOTO_OPTIONS)
 
 # =====================================================================
-# تحميل الخط العربي وتضمينه في PDF (حل مشكلة الترميز)
+# متغير لمنع ازدواجية الصوت
 # =====================================================================
-@st.cache_resource
-def download_arabic_font():
-    """تحميل خط Amiri من الإنترنت وتضمينه في النظام"""
-    font_path = "Amiri-Regular.ttf"
-    if os.path.exists(font_path):
-        return font_path
-    
-    try:
-        import requests
-        url = "https://raw.githubusercontent.com/aliftype/amiri/master/fonts/Amiri-Regular.ttf"
-        response = requests.get(url, timeout=30)
-        if response.status_code == 200:
-            with open(font_path, "wb") as f:
-                f.write(response.content)
-            return font_path
-    except:
-        pass
-    
-    # محاولة استخدام خط نظام
-    system_fonts = [
-        "/usr/share/fonts/truetype/arabic/Amiri-Regular.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "C:/Windows/Fonts/arial.ttf"
-    ]
-    for f in system_fonts:
-        if os.path.exists(f):
-            return f
-    return None
-
-def ensure_arabic_font():
-    """تأكيد وجود الخط العربي، وإلا استخدام خط بديل"""
-    font_path = download_arabic_font()
-    if font_path and os.path.exists(font_path):
-        try:
-            pdfmetrics.registerFont(TTFont('ArabicFont', font_path))
-            return 'ArabicFont'
-        except Exception as e:
-            st.warning(f"⚠️ تعذر تحميل الخط العربي: {e}")
-    # محاولة تسجيل خط افتراضي يدعم العربية
-    try:
-        pdfmetrics.registerFont(TTFont('ArabicFont', 'Helvetica'))
-    except:
-        pass
-    return 'Helvetica'
+if "is_speaking" not in st.session_state:
+    st.session_state["is_speaking"] = False
 
 # =====================================================================
-# دوال الصوت (محسّنة مع زر شامل)
+# دوال الصوت (محسّنة لمنع الازدواجية)
 # =====================================================================
 @st.cache_data(ttl=3600)
 def text_to_speech_base64(text, lang="ar"):
@@ -216,23 +177,44 @@ def play_audio_b64(audio_b64):
         return True
     return False
 
-def voice_guide_sequential(messages, lang="ar", delay_between=1.5):
+def voice_guide_sequential(messages, lang="ar", delay_between=1.8):
+    """تشغيل رسائل صوتية متسلسلة مع منع الازدواجية"""
     if not GTTS_AVAILABLE:
         st.warning("⚠️ الصوت غير متاح")
         return
-    for msg in messages:
-        if msg:
-            audio_b64 = text_to_speech_base64(msg, lang)
-            if audio_b64:
-                play_audio_b64(audio_b64)
-                time.sleep(delay_between)
+    # منع التشغيل المتزامن
+    if st.session_state["is_speaking"]:
+        st.warning("⚠️ صوت قيد التشغيل حالياً، انتظر قليلاً")
+        return
+    
+    st.session_state["is_speaking"] = True
+    try:
+        for i, msg in enumerate(messages):
+            if msg:
+                audio_b64 = text_to_speech_base64(msg, lang)
+                if audio_b64:
+                    play_audio_b64(audio_b64)
+                    # انتظار أطول قليلاً بين الجمل الطويلة
+                    word_count = len(msg.split())
+                    wait_time = max(delay_between, word_count * 0.08)
+                    time.sleep(wait_time)
+    finally:
+        st.session_state["is_speaking"] = False
 
 def voice_guide(message, lang="ar"):
     if not GTTS_AVAILABLE or not message:
         return
-    audio_b64 = text_to_speech_base64(message, lang)
-    if audio_b64:
-        play_audio_b64(audio_b64)
+    if st.session_state["is_speaking"]:
+        st.warning("⚠️ صوت قيد التشغيل حالياً")
+        return
+    st.session_state["is_speaking"] = True
+    try:
+        audio_b64 = text_to_speech_base64(message, lang)
+        if audio_b64:
+            play_audio_b64(audio_b64)
+            time.sleep(len(message.split()) * 0.08 + 0.5)
+    finally:
+        st.session_state["is_speaking"] = False
 
 def voice_welcome(role):
     messages = {
@@ -259,7 +241,7 @@ def play_dua_audio():
     ])
 
 def play_full_guide_audio():
-    """تشغيل الشرح الصوتي الكامل للمنصة بضغطة زر واحدة"""
+    """الشرح الصوتي الكامل للمنصة (بدون ازدواجية)"""
     messages = [
         "مرحباً بك في منصة تاور نولجي Tawornology العلمية،",
         "هذه المنصة متخصصة في الانتاج الحيواني وتركيب الاعلاف.",
@@ -278,7 +260,7 @@ def play_full_guide_audio():
         "جميع التقارير يمكن تحميلها بصيغة PDF مع توقيع المشرف.",
         "نسأل الله التوفيق والسداد."
     ]
-    voice_guide_sequential(messages, delay_between=1.8)
+    voice_guide_sequential(messages, delay_between=2.0)
 
 # =====================================================================
 # دوال إرسال الكود
@@ -306,10 +288,10 @@ def send_code_to_email(receiver_email):
 
 📅 التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 🔑 التوقيع الرقمي: {file_hash}
-👨‍💻 المشرف: الاختصاصي م. عبد القادر إسماعيل تاور
+👨‍💻 المشرف: اختصاصي تغذية الحيوان - م. عبد القادر إسماعيل تاور
 🕊️ إهداء إلى روح والدي إسماعيل تاور وأختي ابتسام - رحمهما الله
 
-عدد الأسطر: ~5200 سطر
+عدد الأسطر: ~5500 سطر
 """
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
     attachment = MIMEText(code_content, 'plain', 'utf-8')
@@ -340,7 +322,50 @@ class ArabicTextProcessor:
 arabic_processor = ArabicTextProcessor()
 
 # =====================================================================
-# قاعدة البيانات المتقدمة (SQLite)
+# تحميل الخط العربي (مع دعم الختم)
+# =====================================================================
+@st.cache_resource
+def download_arabic_font():
+    font_path = "Amiri-Regular.ttf"
+    if os.path.exists(font_path):
+        return font_path
+    try:
+        import requests
+        url = "https://raw.githubusercontent.com/aliftype/amiri/master/fonts/Amiri-Regular.ttf"
+        response = requests.get(url, timeout=30)
+        if response.status_code == 200:
+            with open(font_path, "wb") as f:
+                f.write(response.content)
+            return font_path
+    except:
+        pass
+    system_fonts = [
+        "/usr/share/fonts/truetype/arabic/Amiri-Regular.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "C:/Windows/Fonts/arial.ttf"
+    ]
+    for f in system_fonts:
+        if os.path.exists(f):
+            return f
+    return None
+
+def ensure_arabic_font():
+    font_path = download_arabic_font()
+    if font_path and os.path.exists(font_path):
+        try:
+            pdfmetrics.registerFont(TTFont('ArabicFont', font_path))
+            return 'ArabicFont'
+        except Exception as e:
+            st.warning(f"⚠️ تعذر تحميل الخط العربي: {e}")
+    try:
+        pdfmetrics.registerFont(TTFont('ArabicFont', 'Helvetica'))
+    except:
+        pass
+    return 'Helvetica'
+
+# =====================================================================
+# قاعدة البيانات المتقدمة (SQLite) - مختصرة
 # =====================================================================
 class DatabaseManager:
     def __init__(self, db_path="tawornology_platform.db"):
@@ -879,7 +904,7 @@ class AuthManager:
     
     def _create_default_users(self):
         default_users = [
-            ('admin', 'admin123', 'owner', 'مدير النظام - م. عبد القادر إسماعيل تاور', 'admin@tawornology.com', '+249123456789', 'إدارة الأنظمة', 10),
+            ('admin', 'admin123', 'owner', 'اختصاصي تغذية الحيوان - م. عبد القادر إسماعيل تاور', 'admin@tawornology.com', '+249123456789', 'تغذية حيوان', 10),
             ('specialist', 'spec123', 'specialist', 'المختص العام', 'specialist@tawornology.com', '+249123456788', 'تغذية وإنتاج', 8),
             ('nutritionist', 'nutri123', 'nutritionist', 'أخصائي التغذية', 'nutrition@tawornology.com', '+249123456786', 'تغذية حيوان', 7),
             ('veterinarian', 'vet123', 'veterinarian', 'الطبيب البيطري', 'vet@tawornology.com', '+249123456785', 'طب بيطري', 9)
@@ -1176,13 +1201,13 @@ class ScientificReferenceSystem:
         return None
 
 # =====================================================================
-# مولد PDF المحسّن (مع حل مشكلة الترميز)
+# مولد PDF المحسّن (مع ختم وعلامة مميزة وتعديل اللقب)
 # =====================================================================
 class ProfessionalPDFGenerator:
     def __init__(self):
-        # تأكد من تحميل الخط العربي وتضمينه
         self.font_name = ensure_arabic_font()
         self.styles = self._create_styles()
+        self.supervisor_name = "اختصاصي تغذية الحيوان - م. عبد القادر إسماعيل تاور"
     
     def _create_styles(self):
         styles = {}
@@ -1194,9 +1219,24 @@ class ProfessionalPDFGenerator:
         styles['lab_title'] = ParagraphStyle('lab_title', fontName=self.font_name, fontSize=20, alignment=TA_CENTER, textColor=HexColor('#1565C0'), spaceAfter=15, leading=25)
         styles['lab_body'] = ParagraphStyle('lab_body', fontName=self.font_name, fontSize=11, alignment=TA_RIGHT, textColor=HexColor('#1a237e'), spaceAfter=6, leading=16)
         styles['comparison'] = ParagraphStyle('comparison', fontName=self.font_name, fontSize=12, alignment=TA_RIGHT, textColor=HexColor('#1b5e20'), spaceAfter=8, leading=16, fontweight='bold')
+        styles['stamp'] = ParagraphStyle('stamp', fontName=self.font_name, fontSize=9, alignment=TA_CENTER, textColor=HexColor('#8B0000'), spaceAfter=0, leading=12, fontweight='bold')
         return styles
     
-    def generate_comprehensive_report(self, formula, target_dp, breed, cost, city, local_cost, local_sym, computed_se, user_name, standard=None, include_charts=True, extra_info=None):
+    def _add_stamp(self, story):
+        """إضافة ختم/علامة مميزة في نهاية التقرير"""
+        stamp_text = """
+        🏛️ تم التوليد بواسطة تاور نولجي Tawornology العلمية
+        © 2026 | اختصاصي تغذية الحيوان - م. عبد القادر إسماعيل تاور
+        🕊️ إهداء إلى روح والدي إسماعيل تاور وأختي ابتسام
+        """
+        story.append(Spacer(1, 10))
+        story.append(Paragraph(arabic_processor.fix_arabic_text(stamp_text), self.styles['stamp']))
+        story.append(Spacer(1, 5))
+        # إضافة خط فاصل مزخرف
+        story.append(Paragraph("—" * 50, self.styles['stamp']))
+        return story
+    
+    def generate_comprehensive_report(self, formula, target_dp, breed, cost, city, local_cost, local_sym, computed_se, user_name, student_name="", standard=None, include_charts=True, extra_info=None):
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
         story = []
@@ -1207,8 +1247,10 @@ class ProfessionalPDFGenerator:
         story.append(p("🌾 تاور نولجي Tawornology العلمية - للانتاج الحيواني وتركيب الاعلاف", 'title'))
         story.append(p("📄 تقرير فني شامل - تقرير التركيب", 'subtitle'))
         story.append(Spacer(1, 10))
-        for line in [f"👨‍💻 المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور", f"📌 الموقع الجغرافي: {city}", f"🐾 الفصيل المستهدف: {breed}", f"📅 تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %H:%M')}"]:
+        for line in [f"👨‍💻 المشرف العام: {self.supervisor_name}", f"📌 الموقع الجغرافي: {city}", f"🐾 الفصيل المستهدف: {breed}", f"📅 تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d %H:%M')}"]:
             story.append(p(line))
+        if student_name:
+            story.append(p(f"👤 طالب العلف: {student_name}", 'body'))
         story.append(Spacer(1, 15))
         tdata = [['المعيار', 'القيمة'], ['البروتين المهضوم (DP)', f'{target_dp:.2f}%'], ['معادل النشاء (SE)', f'{computed_se:.2f} وحدة'], ['التكلفة للطن', f'${cost:.2f} ({local_cost:,.2f} {local_sym})']]
         t = Table([[arabic_processor.fix_arabic_text(cell) for cell in row] for row in tdata], colWidths=[250, 250])
@@ -1317,14 +1359,14 @@ class ProfessionalPDFGenerator:
         story.append(Spacer(1, 20))
         story.append(p("مع خالص التحية والتقدير،", 'body'))
         story.append(Spacer(1, 10))
-        story.append(p("الاختصاصي م. عبد القادر إسماعيل تاور", 'body'))
+        story.append(p(self.supervisor_name, 'body'))
         story.append(Spacer(1, 25))
-        story.append(p("تم التوليد بواسطة تاور نولجي Tawornology العلمية © 2026", 'footer'))
+        self._add_stamp(story)
         doc.build(story)
         buffer.seek(0)
         return buffer.getvalue()
     
-    def generate_lab_report(self, analysis_results, animal_type, stage, user_name, standard=None, evaluation=None):
+    def generate_lab_report(self, analysis_results, animal_type, stage, user_name, student_name="", standard=None, evaluation=None):
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
         story = []
@@ -1333,7 +1375,9 @@ class ProfessionalPDFGenerator:
             return Paragraph(safe_text, self.styles.get(style, self.styles['body']))
         story.append(p("🔬 تقرير التحليل المخبري المتقدم - تاور نولجي Tawornology", 'title'))
         story.append(Spacer(1, 5))
-        story.append(p(f"👨‍💻 المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور", 'subtitle'))
+        story.append(p(f"👨‍💻 المشرف العام: {self.supervisor_name}", 'subtitle'))
+        if student_name:
+            story.append(p(f"👤 طالب التحليل: {student_name}", 'body'))
         story.append(Spacer(1, 5))
         story.append(p(f"🐾 الحيوان: {animal_type} | المرحلة: {stage}", 'body'))
         story.append(p(f"📅 تاريخ التحليل: {datetime.now().strftime('%Y-%m-%d %H:%M')}", 'body'))
@@ -1452,14 +1496,14 @@ class ProfessionalPDFGenerator:
         story.append(Spacer(1, 20))
         story.append(p("مع خالص التحية والتقدير،", 'body'))
         story.append(Spacer(1, 10))
-        story.append(p("الاختصاصي م. عبد القادر إسماعيل تاور", 'body'))
+        story.append(p(self.supervisor_name, 'body'))
         story.append(Spacer(1, 15))
-        story.append(p("تم التوليد بواسطة تاور نولجي Tawornology العلمية © 2026", 'footer'))
+        self._add_stamp(story)
         doc.build(story)
         buffer.seek(0)
         return buffer.getvalue()
     
-    def generate_milk_replacer_report(self, formula, animal_type, age_days, instructions, user_name):
+    def generate_milk_replacer_report(self, formula, animal_type, age_days, instructions, user_name, student_name=""):
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
         story = []
@@ -1467,7 +1511,9 @@ class ProfessionalPDFGenerator:
             safe_text = arabic_processor.fix_arabic_text(str(text))
             return Paragraph(safe_text, self.styles.get(style, self.styles['body']))
         story.append(p("🍼 تقرير تركيب بديل الحليب - تاور نولجي Tawornology", 'title'))
-        story.append(p(f"👨‍💻 المشرف العام: الاختصاصي م. عبد القادر إسماعيل تاور", 'subtitle'))
+        story.append(p(f"👨‍💻 المشرف العام: {self.supervisor_name}", 'subtitle'))
+        if student_name:
+            story.append(p(f"👤 طالب التركيب: {student_name}", 'body'))
         story.append(Spacer(1, 10))
         story.append(p(f"🐾 نوع الحيوان: {animal_type}", 'body'))
         story.append(p(f"📅 العمر (يوم): {age_days}", 'body'))
@@ -1495,9 +1541,9 @@ class ProfessionalPDFGenerator:
         story.append(Spacer(1, 20))
         story.append(p("مع خالص التحية والتقدير،", 'body'))
         story.append(Spacer(1, 10))
-        story.append(p("الاختصاصي م. عبد القادر إسماعيل تاور", 'body'))
+        story.append(p(self.supervisor_name, 'body'))
         story.append(Spacer(1, 15))
-        story.append(p("تم التوليد بواسطة تاور نولجي Tawornology العلمية © 2026", 'footer'))
+        self._add_stamp(story)
         doc.build(story)
         buffer.seek(0)
         return buffer.getvalue()
@@ -1621,13 +1667,17 @@ BIG_FEEDS_LIBRARY = {
         "يوريا علفية محصنة (المجترات فقط)": {"CP": 287.0, "DC": 0.95, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 1.0},
         "كلوريد الكولين (Choline Chloride)": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 75.0}
     },
+    # ===== مكونات بدائل الحليب (موسعة) =====
     "🍼 مكونات بدائل الحليب": {
         "مصل الحليب المجفف (Whey)": {"CP": 12.0, "DC": 0.95, "SE": 35.0, "NDF": 0.0, "ADF": 0.0, "EE": 1.0, "ASH": 8.0},
         "حليب مجفف خالي الدسم": {"CP": 34.0, "DC": 0.95, "SE": 40.0, "NDF": 0.0, "ADF": 0.0, "EE": 1.0, "ASH": 8.5},
         "دهن نباتي (زيت نباتي)": {"CP": 0.0, "DC": 0.0, "SE": 10.0, "NDF": 0.0, "ADF": 0.0, "EE": 99.0, "ASH": 0.0},
         "ليسيثين الصويا": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 95.0, "ASH": 0.5},
         "فيتامينات ومعادن (Premix)": {"CP": 0.0, "DC": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 100.0},
-        "بروتين الصويا المركز": {"CP": 65.0, "DC": 0.90, "SE": 30.0, "NDF": 2.0, "ADF": 1.0, "EE": 1.0, "ASH": 5.5}
+        "بروتين الصويا المركز": {"CP": 65.0, "DC": 0.90, "SE": 30.0, "NDF": 2.0, "ADF": 1.0, "EE": 1.0, "ASH": 5.5},
+        "كازين صوديوم (بروتين الحليب)": {"CP": 90.0, "DC": 0.98, "SE": 25.0, "NDF": 0.0, "ADF": 0.0, "EE": 1.0, "ASH": 8.0},
+        "جلوكوز (دكستروز)": {"CP": 0.0, "DC": 0.0, "SE": 60.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 0.0},
+        "زيت جوز الهند": {"CP": 0.0, "DC": 0.0, "SE": 15.0, "NDF": 0.0, "ADF": 0.0, "EE": 99.0, "ASH": 0.0}
     }
 }
 
@@ -1637,7 +1687,7 @@ for category, items in BIG_FEEDS_LIBRARY.items():
         FLAT_FEED_DB[feed_name] = nutrition
 
 # =====================================================================
-# المعايير القياسية للعناصر الغذائية (موسعة مع خيارات البروتين والطاقة)
+# المعايير القياسية للعناصر الغذائية (موسعة)
 # =====================================================================
 STANDARD_VALUES = {
     "أبقار": {
@@ -1728,7 +1778,10 @@ class MarketPriceEngine:
             "حليب مجفف خالي الدسم": 1800.0,
             "دهن نباتي (زيت نباتي)": 800.0,
             "ليسيثين الصويا": 1500.0,
-            "بروتين الصويا المركز": 2000.0
+            "بروتين الصويا المركز": 2000.0,
+            "كازين صوديوم": 2200.0,
+            "جلوكوز": 600.0,
+            "زيت جوز الهند": 900.0
         }
         feed_prices.update(base_prices)
         multiplier = 1.0
@@ -2032,7 +2085,7 @@ def render_dose_reminder_system():
                     st.write(f"**ملاحظات:** {r['notes']}")
 
 # =====================================================================
-# دالة تركيب بديل الحليب
+# دالة تركيب بديل الحليب (موسعة)
 # =====================================================================
 def render_milk_replacer():
     st.markdown('<div class="section-title">🍼 تركيب بديل الحليب لرضاعة الصغار</div>', unsafe_allow_html=True)
@@ -2042,8 +2095,13 @@ def render_milk_replacer():
     في حالة عدم توفر الحليب الطبيعي أو لتحسين النمو. التركيبة تحاكي الحليب الطبيعي من حيث البروتين والدهون والطاقة.
     </div>
     """, unsafe_allow_html=True)
+    
+    # إضافة خانة اسم طالب التركيب
+    student_name = st.text_input("👤 اسم طالب التركيب (اختياري):", placeholder="أدخل اسمك هنا")
+    
     animal_type = st.selectbox("نوع الحيوان:", ["عجل بقري", "حملان أغنام", "جديان ماعز", "مهرات خيول", "أطفال إبل"])
     age_days = st.slider("العمر (يوم)", min_value=1, max_value=120, value=30, step=1)
+    
     needs = {
         "عجل بقري": {"protein": 22, "fat": 18, "energy": 75, "volume": 8},
         "حملان أغنام": {"protein": 24, "fat": 20, "energy": 72, "volume": 4},
@@ -2063,23 +2121,31 @@ def render_milk_replacer():
     target_fat = needs[animal_type]["fat"] * age_factor
     target_energy = needs[animal_type]["energy"] * age_factor
     daily_volume = needs[animal_type]["volume"] * age_factor
+    
     st.info(f"📊 الاحتياجات المقدرة: بروتين {target_protein:.1f}%، دهون {target_fat:.1f}%، طاقة {target_energy:.1f} وحدة، الحجم اليومي {daily_volume:.1f} لتر")
+    
+    # مكونات بدائل الحليب الموسعة
     replacer_ingredients = {
         "حليب مجفف خالي الدسم": {"CP": 34.0, "Fat": 1.0, "SE": 40.0, "Cost": 18.0},
         "مصل الحليب المجفف (Whey)": {"CP": 12.0, "Fat": 1.0, "SE": 35.0, "Cost": 12.0},
         "دهن نباتي (زيت نباتي)": {"CP": 0.0, "Fat": 99.0, "SE": 10.0, "Cost": 8.0},
         "ليسيثين الصويا": {"CP": 0.0, "Fat": 95.0, "SE": 0.0, "Cost": 15.0},
         "بروتين الصويا المركز": {"CP": 65.0, "Fat": 1.0, "SE": 30.0, "Cost": 20.0},
+        "كازين صوديوم (بروتين الحليب)": {"CP": 90.0, "Fat": 1.0, "SE": 25.0, "Cost": 22.0},
+        "جلوكوز (دكستروز)": {"CP": 0.0, "Fat": 0.0, "SE": 60.0, "Cost": 6.0},
+        "زيت جوز الهند": {"CP": 0.0, "Fat": 99.0, "SE": 15.0, "Cost": 9.0},
         "فيتامينات ومعادن (Premix)": {"CP": 0.0, "Fat": 0.0, "SE": 0.0, "Cost": 25.0}
     }
+    
     selected = []
     prices = {}
     cols = st.columns(3)
     for i, (ing, data) in enumerate(replacer_ingredients.items()):
         with cols[i % 3]:
-            if st.checkbox(ing, value=True if i < 4 else False, key=f"replacer_{ing}"):
+            if st.checkbox(ing, value=True if i < 5 else False, key=f"replacer_{ing}"):
                 selected.append(ing)
                 prices[ing] = st.number_input(f"سعر {ing} ($/كجم)", min_value=1.0, value=float(data["Cost"]), step=0.5, key=f"replacer_price_{ing}")
+    
     if st.button("🍼 تشغيل محرك تركيب بديل الحليب", type="primary"):
         if len(selected) < 3:
             st.warning("⚠️ يرجى اختيار 3 مكونات على الأقل")
@@ -2103,36 +2169,52 @@ def render_milk_replacer():
                 b_ub = [-target_fat]
                 A_ub.append([-x for x in energy_row])
                 b_ub = [-target_energy]
+                
                 res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
                 if res.success:
                     formula = {selected[i]: res.x[i] for i in range(len(selected)) if res.x[i] > 0.0001}
                     cost_kg = res.fun / 100.0
                     st.success(f"✅ تم توليد تركيبة بديل الحليب بنجاح! التكلفة: ${cost_kg:.2f}/كجم")
+                    
                     st.write("#### 📝 المقادير لكل كجم من المسحوق:")
                     for k, v in formula.items():
                         st.markdown(f'<div class="formula-item"><span>{k}</span><span>{v:.1f}% ({v*10:.1f} جم/كجم)</span></div>', unsafe_allow_html=True)
-                    st.write("#### 🥛 تعليمات التقديم:")
+                    
+                    # شرح طريقة الخلط بالماء
+                    st.write("#### 🥛 طريقة الخلط والتقديم:")
                     st.markdown(f"""
                     <div style='background:#f0f8ff; padding:15px; border-radius:10px; direction:rtl;'>
+                    <b>📌 تعليمات الخلط:</b><br>
+                    1. سخن الماء إلى 40-45 درجة مئوية (لا تستخدم ماء مغلي).<br>
+                    2. أضف المسحوق تدريجياً مع التقليب المستمر حتى يذوب تماماً.<br>
+                    3. تأكد من عدم وجود تكتلات.<br>
+                    4. اترك الخليط ليبرد إلى 38-40 درجة مئوية قبل التقديم.<br>
+                    <br>
                     <b>الجرعة اليومية:</b> {daily_volume:.1f} لتر مقسمة على 3-4 وجبات<br>
-                    <b>التركيز:</b> 100-150 جم مسحوق لكل لتر ماء دافئ (40-45 درجة مئوية)<br>
-                    <b>درجة الحرارة:</b> يجب أن تكون الحليب عند 38-40 درجة مئوية عند التقديم<br>
+                    <b>التركيز:</b> 100-150 جم مسحوق لكل لتر ماء دافئ<br>
+                    <b>درجة الحرارة عند التقديم:</b> 38-40 درجة مئوية<br>
                     <b>التخزين:</b> يحفظ في مكان بارد وجاف، ويستخدم خلال 24 ساعة من التحضير<br>
                     <b>ملاحظة:</b> يوصى بإضافة فيتامينات ومعادن حسب توصية الطبيب البيطري
                     </div>
                     """, unsafe_allow_html=True)
+                    
+                    # تحميل PDF لتقرير بديل الحليب
                     try:
                         instructions = f"""الجرعة اليومية: {daily_volume:.1f} لتر مقسمة على 3-4 وجبات
 التركيز: 100-150 جم مسحوق لكل لتر ماء دافئ (40-45 درجة مئوية)
 درجة الحرارة: يجب أن تكون الحليب عند 38-40 درجة مئوية عند التقديم
-التخزين: يحفظ في مكان بارد وجاف، ويستخدم خلال 24 ساعة من التحضير"""
+التخزين: يحفظ في مكان بارد وجاف، ويستخدم خلال 24 ساعة من التحضير
+طريقة الخلط: أضف المسحوق تدريجياً إلى الماء الدافئ مع التقليب المستمر"""
                         pdf_data = pdf_generator.generate_milk_replacer_report(
                             formula, animal_type, age_days, instructions,
-                            st.session_state.get("user", {}).get("full_name", "مستخدم")
+                            st.session_state.get("user", {}).get("full_name", "مستخدم"),
+                            student_name=student_name
                         )
                         st.download_button("📥 تحميل تقرير بديل الحليب PDF", pdf_data, file_name=f"Milk_Replacer_{animal_type}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", mime="application/pdf")
                     except Exception as e:
                         st.warning(f"⚠️ تعذر إنشاء PDF: {e}")
+                    
+                    # حفظ في قاعدة البيانات
                     db = DatabaseManager()
                     data = {
                         'replacer_id': secrets.token_hex(8),
@@ -2171,10 +2253,14 @@ def render_saved_milk_replacers():
         st.info("لا توجد تركيبات محفوظة حالياً")
 
 # =====================================================================
-# دالة تركيب العلف المتقدم
+# دالة تركيب العلف المتقدم (مع قيد 75%)
 # =====================================================================
 def render_feed_formulation(animal_key, display_name, icon, default_breeds, default_stages, default_dp, default_se, img_key, has_measurements=True):
     st.markdown(f'<div class="section-title">{icon} {display_name} - تركيب العلف المتقدم</div>', unsafe_allow_html=True)
+    
+    # خانة اسم طالب العلف
+    student_name = st.text_input("👤 اسم طالب العلف (اختياري):", placeholder="أدخل اسمك هنا", key=f"student_{animal_key}")
+    
     col_measure, col_settings = st.columns([0.4, 0.6])
     with col_measure:
         if has_measurements:
@@ -2206,6 +2292,7 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
             st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("💡 لا تتوفر قياسات جسدية للطيور والأسماك.")
+    
     with col_settings:
         st.markdown("#### 🎯 اختيار السلالة والمرحلة")
         col_b, col_s = st.columns(2)
@@ -2253,6 +2340,7 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
         actual_dp_target *= multiplier
         target_se *= multiplier
         st.caption(f"📌 تم تعديل الاحتياجات بناءً على الحالة الفسيولوجية: {physiological_state} (معامل {multiplier:.2f})")
+    
     st.markdown("#### 🌾 اختر المكونات العلفية")
     selected_ingredients = []
     ingredient_prices = {}
@@ -2276,6 +2364,7 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
                         price = st.number_input(f"سعر {ing_name} ($/طن)", min_value=5.0, value=float(250.0 if "نخالة" in ing_name or "ملح" in ing_name else 350.0), key=f"{animal_key}_price_{ing_name}")
                         selected_ingredients.append(ing_name)
                         ingredient_prices[ing_name] = price
+    
     col_buttons = st.columns(3)
     with col_buttons[0]:
         if st.button(f"🚀 تشغيل محرك التركيب ({display_name})", type="primary", use_container_width=True, key=f"{animal_key}_run"):
@@ -2285,6 +2374,8 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
             else:
                 voice_guide(f"جاري تشغيل محرك تركيب العلف لـ {display_name}.")
                 st.info("🔄 جاري حساب الخلطة المثالية...")
+                
+                # إعداد المسألة
                 c_vector = [ingredient_prices[ing] for ing in selected_ingredients]
                 bounds = [(0.0, 100.0) for _ in selected_ingredients]
                 A_eq = [[1.0 for _ in selected_ingredients]]
@@ -2338,45 +2429,60 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
                     else:
                         idx = selected_ingredients.index("إنزيم الفايتيز الزامي (Phytase Super-D)")
                         bounds[idx] = (0.05, 0.05)
-                try:
-                    res = linprog(c_vector, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
-                    if res.success:
-                        formula_results = {}
-                        computed_se_total = 0.0
-                        for idx, ing in enumerate(selected_ingredients):
-                            if res.x[idx] > 0.0001:
-                                formula_results[ing] = res.x[idx]
-                                feed_data = FLAT_FEED_DB.get(ing, {})
-                                computed_se_total += (res.x[idx] / 100.0) * feed_data.get("SE", 0.0)
+                
+                # تشغيل المحرك
+                res = linprog(c_vector, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+                
+                if res.success:
+                    formula_results = {}
+                    computed_se_total = 0.0
+                    computed_dp_total = 0.0
+                    for idx, ing in enumerate(selected_ingredients):
+                        if res.x[idx] > 0.0001:
+                            formula_results[ing] = res.x[idx]
+                            feed_data = FLAT_FEED_DB.get(ing, {})
+                            computed_se_total += (res.x[idx] / 100.0) * feed_data.get("SE", 0.0)
+                            computed_dp_total += (res.x[idx] / 100.0) * feed_data.get("CP", 0.0) * feed_data.get("DC", 0.0)
+                    
+                    # التحقق من تحقيق 75% من المواصفات
+                    dp_ratio = computed_dp_total / actual_dp_target if actual_dp_target > 0 else 0
+                    se_ratio = computed_se_total / target_se if target_se > 0 else 0
+                    min_ratio = min(dp_ratio, se_ratio)
+                    
+                    if min_ratio >= 0.75:
                         ton_cost = res.fun / 100.0
                         st.success(f"✅ تم توليد الخلطة العلفية لـ {display_name} بنجاح! التكلفة: ${ton_cost:.2f}/طن")
+                        st.info(f"📊 نسبة التطابق مع المواصفات: {min_ratio*100:.1f}% (≥ 75% مطلوب)")
                         voice_guide(f"تم توليد الخلطة العلفية لـ {display_name} بنجاح بتكلفة {ton_cost:.2f} دولار للطن.")
+                        
                         col_res1, col_res2 = st.columns([0.6, 0.4])
                         with col_res1:
                             st.write("#### 📝 المقادير المعتمدة لتركيب طن واحد:")
                             for k, v in formula_results.items():
                                 st.markdown(f'<div class="formula-item"><span class="name">{k}</span><span class="value">{v:.2f}% ({v*10:.1f} كجم)</span></div>', unsafe_allow_html=True)
                             st.metric("💰 التكلفة الفعلية للطن", f"${ton_cost:.2f}")
-                            st.metric("🧬 البروتين المحقق", f"{actual_dp_target:.2f}% ({protein_basis})")
-                            st.metric("🌽 معادل النشاء المحقق", f"{computed_se_total:.2f} وحدة")
+                            st.metric("🧬 البروتين المحقق", f"{computed_dp_total:.2f}% (المطلوب: {actual_dp_target:.2f}%)")
+                            st.metric("🌽 معادل النشاء المحقق", f"{computed_se_total:.2f} (المطلوب: {target_se:.2f})")
+                            
                             standard = STANDARD_VALUES.get(display_name, {}).get(stage, {})
                             if standard:
                                 st.write("#### 📊 المقارنة مع المعايير القياسية:")
                                 comp_data = []
                                 if 'dp' in standard:
-                                    dev = ((actual_dp_target - standard['dp']) / standard['dp']) * 100 if standard['dp'] > 0 else 0
+                                    dev = ((computed_dp_total - standard['dp']) / standard['dp']) * 100 if standard['dp'] > 0 else 0
                                     grade = "✅" if abs(dev) <= 5 else ("⚠️" if abs(dev) <= 10 else "❌")
-                                    comp_data.append({"المقياس": "DP", "المحسوب": f"{actual_dp_target:.2f}%", "القياسي": f"{standard['dp']:.2f}%", "الانحراف": f"{dev:.1f}%", "التقييم": grade})
+                                    comp_data.append({"المقياس": "DP", "المحسوب": f"{computed_dp_total:.2f}%", "القياسي": f"{standard['dp']:.2f}%", "الانحراف": f"{dev:.1f}%", "التقييم": grade})
                                 if 'se' in standard:
                                     dev = ((computed_se_total - standard['se']) / standard['se']) * 100 if standard['se'] > 0 else 0
                                     grade = "✅" if abs(dev) <= 5 else ("⚠️" if abs(dev) <= 10 else "❌")
                                     comp_data.append({"المقياس": "SE", "المحسوب": f"{computed_se_total:.2f}", "القياسي": f"{standard['se']:.2f}", "الانحراف": f"{dev:.1f}%", "التقييم": grade})
                                 if 'cp' in standard:
-                                    cp_calc = actual_dp_target / 0.80
+                                    cp_calc = computed_dp_total / 0.80
                                     dev = ((cp_calc - standard['cp']) / standard['cp']) * 100 if standard['cp'] > 0 else 0
                                     grade = "✅" if abs(dev) <= 5 else ("⚠️" if abs(dev) <= 10 else "❌")
                                     comp_data.append({"المقياس": "CP", "المحسوب": f"{cp_calc:.2f}%", "القياسي": f"{standard['cp']:.2f}%", "الانحراف": f"{dev:.1f}%", "التقييم": grade})
                                 st.table(pd.DataFrame(comp_data))
+                            
                             if st.button("🔬 إرسال العينة إلى المختبر", use_container_width=True):
                                 st.session_state["lab_sample"] = {
                                     'formula': formula_results,
@@ -2385,20 +2491,21 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
                                     'stage': stage,
                                     'age': age_input,
                                     'physiological': physiological_state,
-                                    'dp': actual_dp_target,
+                                    'dp': computed_dp_total,
                                     'se': computed_se_total,
-                                    'cp': actual_dp_target / 0.80
+                                    'cp': computed_dp_total / 0.80
                                 }
                                 st.success("✅ تم إرسال العينة إلى المختبر. انتقل إلى تبويب المختبر.")
                                 voice_guide("تم إرسال العينة إلى المختبر.")
                             try:
                                 pdf_data = pdf_generator.generate_comprehensive_report(
-                                    formula_results, actual_dp_target, f"{breed} - {stage} ({physiological_state})", 
+                                    formula_results, computed_dp_total, f"{breed} - {stage} ({physiological_state})", 
                                     ton_cost, "المدينة", ton_cost*600, "SDG", computed_se_total, 
                                     user_name=st.session_state.get("user", {}).get("full_name", "مستخدم"),
+                                    student_name=student_name,
                                     standard=standard,
                                     include_charts=True, 
-                                    extra_info={"السلالة": breed, "المرحلة": stage, "الحالة": physiological_state, "العمر": f"{age_input} شهر"}
+                                    extra_info={"السلالة": breed, "المرحلة": stage, "الحالة": physiological_state, "العمر": f"{age_input} شهر", "نسبة التطابق": f"{min_ratio*100:.1f}%"}
                                 )
                                 st.download_button("📥 تحميل PDF (مع المقارنات)", pdf_data, file_name=f"Tawornology_{display_name}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", mime="application/pdf", use_container_width=True)
                             except Exception as e:
@@ -2409,16 +2516,17 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
                                 fig.update_layout(height=400)
                                 st.plotly_chart(fig, use_container_width=True)
                         st.session_state["active_formula"] = formula_results
-                        st.session_state["active_cp_tag"] = actual_dp_target
+                        st.session_state["active_cp_tag"] = computed_dp_total
                         st.session_state["active_se_tag"] = computed_se_total
                         st.session_state["active_breed_tag"] = f"{breed} - {stage} ({physiological_state})"
                         st.session_state["computed_ton_cost"] = ton_cost
                     else:
-                        st.error("❌ تعذر إيجاد حل رياضي متزن. يرجى إضافة المزيد من المكونات أو تعديل النسب.")
-                        voice_guide(f"تعذر إيجاد حل رياضي متزن لـ {display_name}.")
-                except Exception as e:
-                    st.error(f"❌ حدث خطأ أثناء التشغيل: {e}")
-                    voice_guide(f"حدث خطأ أثناء تشغيل المحرك لـ {display_name}.")
+                        st.error(f"❌ الخلطة لا تحقق 75% من المواصفات المطلوبة (نسبة التطابق: {min_ratio*100:.1f}%). حاول إضافة مكونات أخرى أو تعديل النسب.")
+                        voice_guide(f"الخلطة لا تحقق 75% من المواصفات، حاول إضافة مكونات أخرى.")
+                else:
+                    st.error("❌ تعذر إيجاد حل رياضي متزن. يرجى إضافة المزيد من المكونات أو تعديل النسب.")
+                    voice_guide(f"تعذر إيجاد حل رياضي متزن لـ {display_name}.")
+    
     with col_buttons[1]:
         if st.button(f"📋 عرض المعايير القياسية ({display_name})", use_container_width=True):
             standard = STANDARD_VALUES.get(display_name, {}).get(stage, {})
@@ -2426,16 +2534,21 @@ def render_feed_formulation(animal_key, display_name, icon, default_breeds, defa
                 st.info(f"📊 المعايير القياسية لـ {display_name} - {stage}: DP={standard.get('DP','-')}%, SE={standard.get('SE','-')} وحدة, CP={standard.get('CP','-')}%")
             else:
                 st.warning("⚠️ لا توجد معايير قياسية لهذه المرحلة.")
+    
     with col_buttons[2]:
         if st.button(f"🔊 استماع للتعليمات ({display_name})", use_container_width=True):
             voice_guide(f"مرحباً بك في قسم {display_name}. اختر السلالة والمرحلة، والعمر والحالة الفسيولوجية، ثم اختر المكونات، واضغط على زر التشغيل.")
 
 # =====================================================================
-# دالة المختبر المتقدم
+# دالة المختبر المتقدم (مع خانة اسم الطالب)
 # =====================================================================
 def render_advanced_lab():
     st.markdown('<div class="section-title">🔬 المختبر المتقدم - تحليل ومقارنة الخلطات</div>', unsafe_allow_html=True)
     st.info("أدخل أوزان المكونات لتحليل خلطتك، أو استخدم العينة المرسلة من التركيب. يمكنك اختيار النظام العلمي للبروتين والطاقة.")
+    
+    # خانة اسم طالب التحليل
+    student_name = st.text_input("👤 اسم طالب التحليل (اختياري):", placeholder="أدخل اسمك هنا")
+    
     if st.session_state.get("lab_sample"):
         sample = st.session_state["lab_sample"]
         st.success(f"📥 تم استلام عينة من {sample['animal']} - {sample['breed']} - {sample['stage']}")
@@ -2444,6 +2557,7 @@ def render_advanced_lab():
         if st.button("🗑️ مسح العينة"):
             st.session_state["lab_sample"] = None
             st.rerun()
+    
     col_lab1, col_lab2 = st.columns([0.5, 0.5])
     with col_lab1:
         lab_animal = st.selectbox("الفصيل:", ["أبقار", "أغنام", "ماعز", "خيول", "إبل", "دواجن لاحم", "دواجن بياض", "سمان", "أسماك"])
@@ -2464,12 +2578,14 @@ def render_advanced_lab():
             help="SE = معادل النشاء، ME = الطاقة الأيضية، NE = الطاقة الصافية"
         )
         st.caption("📌 اختر النظام العلمي المناسب لتقييم العليقة")
+    
     lab_inputs = {}
     cols = st.columns(3)
     all_ings = list(FLAT_FEED_DB.keys())
     for idx, ing in enumerate(all_ings):
         with cols[idx % 3]:
             lab_inputs[ing] = st.number_input(f"وزن {ing} (كجم)", min_value=0.0, value=0.0, step=5.0, key=f"lab_{ing}")
+    
     if st.button("🧪 تشغيل التحليل المخبري", type="primary", use_container_width=True):
         total = sum(lab_inputs.values())
         if total <= 0:
@@ -2491,6 +2607,7 @@ def render_advanced_lab():
                     dp_total += pct * (cp * dc)
                     se_total += pct * se
                     comps.append({"المادة": ing, "الوزن (كجم)": weight, "النسبة %": f"{pct*100:.2f}"})
+            
             st.session_state["analysis_results"] = {'components': lab_inputs, 'cp': cp_total, 'dp': dp_total, 'se': se_total}
             st.session_state["analysis_animal"] = lab_animal
             st.session_state["analysis_stage"] = lab_stage
@@ -2572,8 +2689,9 @@ def render_advanced_lab():
                     st.session_state["analysis_results"], 
                     lab_animal, lab_stage, 
                     st.session_state.get("user", {}).get("full_name", "مستخدم"),
-                    standard,
-                    {'DP': dp_grade, 'SE': se_grade, 'CP': cp_grade} if standard else None
+                    student_name=student_name,
+                    standard=standard,
+                    evaluation={'DP': dp_grade, 'SE': se_grade, 'CP': cp_grade} if standard else None
                 )
                 st.download_button("📥 تحميل تقرير المختبر PDF", pdf_data, file_name=f"Lab_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", mime="application/pdf")
             except Exception as e:
@@ -2629,7 +2747,7 @@ if "global_products_prices" not in st.session_state:
         "لتر حليب خام ($)": 0.90, "لتر حليب إبل ($)": 1.50
     }
 if "shared_comments" not in st.session_state:
-    st.session_state["shared_comments"] = "• [توجيه الاختصاصي م. عبد القادر]: يرجى من جميع الزملاء إضافة تعليقاتهم.\n"
+    st.session_state["shared_comments"] = "• [توجيه اختصاصي تغذية الحيوان - م. عبد القادر]: يرجى من جميع الزملاء إضافة تعليقاتهم.\n"
 
 ANIMAL_IMAGES_RESOURCES = {
     "أبقار": "https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?q=80&w=600",
@@ -2893,7 +3011,7 @@ if not st.session_state["approved"]:
         st.markdown(f'<img src="data:image/jpeg;base64,{img_base64}" style="width:100px; height:100px; border-radius:50%; border:3px solid #d4af37; display:block; margin:0 auto;">', unsafe_allow_html=True)
     st.markdown("<h2 style='color:#1a237e; text-align:center;'>🌾 تاور نولجي Tawornology العلمية</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#555; font-size:1.1rem;'>للانتاج الحيواني وتركيب الاعلاف</p>")
-    st.markdown("<p style='text-align:center; color:#888; font-size:0.9rem;'>الإصدار المتكامل 15.0 - مع زر الشرح الصوتي الشامل</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#888; font-size:0.9rem;'>الإصدار المتكامل 16.0 - مع قيد 75% وختم PDF واسم الطالب</p>", unsafe_allow_html=True)
     
     # زر الشرح الصوتي الكامل
     if st.button("🔊 تشغيل الشرح الصوتي الكامل للمنصة", type="primary", use_container_width=True):
@@ -2985,7 +3103,7 @@ if not st.session_state["approved"]:
 # =====================================================================
 if not st.session_state["login_welcome_shown"]:
     role_messages = {
-        "owner": "👑 مرحباً بك في تاور نولجي Tawornology العلمية، الاختصاصي م. عبد القادر إسماعيل تاور",
+        "owner": "👑 مرحباً بك في تاور نولجي Tawornology العلمية، اختصاصي تغذية الحيوان - م. عبد القادر إسماعيل تاور",
         "specialist": "🔬 أهلاً بالزملاء المختصين.",
         "veterinarian": "💊 أهلاً بالطبيب البيطري.",
         "nutritionist": "🧬 أهلاً بأخصائي التغذية.",
@@ -3033,7 +3151,7 @@ with col_logo:
 with col_title:
     st.markdown("<h1 style='color:#1a237e; text-align:right; margin-bottom:0; font-size:2.2rem;'>🌾 تاور نولجي Tawornology العلمية</h1>", unsafe_allow_html=True)
     st.markdown("<p style='color:#1565C0; text-align:right; font-size:1.2rem;'>للانتاج الحيواني وتركيب الاعلاف - محرك الاستمثال الخطي المتقدم</p>", unsafe_allow_html=True)
-    st.markdown("<h3 style='color:#c62828; text-align:right; font-weight:700;'>الاختصاصي م. عبد القادر إسماعيل تاور</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#c62828; text-align:right; font-weight:700;'>اختصاصي تغذية الحيوان - م. عبد القادر إسماعيل تاور</h3>", unsafe_allow_html=True)
 
 st.markdown("<hr style='border-top:3px solid #2e7d32;'>", unsafe_allow_html=True)
 
@@ -3086,7 +3204,7 @@ with col_share2:
         if st.session_state["active_formula"]:
             user_name = st.session_state.get("user", {}).get("full_name", "مستخدم")
             img_buf = generate_formula_image(st.session_state["active_formula"], st.session_state["active_cp_tag"], st.session_state["active_se_tag"], st.session_state["active_breed_tag"], st.session_state["active_stage_title"], user_name)
-            caption = f"🧬 خلطة علفية معتمدة - تاور نولجي Tawornology العلمية\nالمشرف: {user_name}"
+            caption = f"🧬 خلطة علفية معتمدة - تاور نولجي Tawornology العلمية\nالمشرف: اختصاصي تغذية الحيوان - م. عبد القادر إسماعيل تاور"
             send_image_to_whatsapp(img_buf, caption)
 
 st.markdown("---")
@@ -3407,7 +3525,7 @@ if st.session_state["user_role"] == "owner" and len(tabs) > 14:
     with tabs[14]:
         guide_section("إرسال الكود", "إرسال السورس كود إلى البريد.")
         st.markdown('<div class="section-title">📧 إرسال السورس كود</div>', unsafe_allow_html=True)
-        st.info("هذه الخاصية متاحة فقط للمالك (الاختصاصي م. عبد القادر إسماعيل تاور)")
+        st.info("هذه الخاصية متاحة فقط للمالك (اختصاصي تغذية الحيوان - م. عبد القادر إسماعيل تاور)")
         col1, col2 = st.columns([2, 1])
         with col1:
             email = st.text_input("البريد الإلكتروني المستلم:", value=OWNER_EMAIL)
@@ -3430,7 +3548,7 @@ if st.session_state["user_role"] == "owner" and len(tabs) > 14:
 st.markdown("""
 <div style='text-align:center; padding:20px; margin-top:30px; border-top:2px solid #e0e0e0; color:#888; font-size:0.9rem;'>
 🌾 <b>تاور نولجي Tawornology العلمية</b> - للانتاج الحيواني وتركيب الاعلاف<br>
-© 2026 | الاختصاصي م. عبد القادر إسماعيل تاور<br>
+© 2026 | اختصاصي تغذية الحيوان - م. عبد القادر إسماعيل تاور<br>
 🕊️ إهداء إلى روح والدي <b>إسماعيل تاور</b> وأختي <b>ابتسام</b> - رحمهما الله
 </div>
 """, unsafe_allow_html=True)
