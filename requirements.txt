@@ -16,3 +16,4 @@ gTTS>=2.5.0
 easyocr>=1.7.0
 pytesseract>=0.3.10
 requests>=2.31.0
+pip install openpyxl xlsxwriter fastapi uvicorn[standard] sse-starlette
