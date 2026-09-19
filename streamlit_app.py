@@ -1,21 +1,9 @@
 # ============================================================================
-# منصة تاور نولجي Tawornology العلمية - الإصدار 19.2 النهائي المُصلَّح
+# منصة تاور نولجي Tawornology العلمية - الإصدار 19.3 النهائي
+# محرك التركيب التلقائي الشامل: طاقة + بروتين + أملاح + ألياف
 # ============================================================================
 # 🕊️ إهداء إلى روح والدي إسماعيل تاور وأختي ابتسام - رحمهما الله
 # المشرف: الاختصاصي م. عبد القادر إسماعيل تاور - اختصاصي تغذية الحيوان
-# ============================================================================
-# ✅ إصلاحات v19.2:
-#   ✅ معالج عربي موحد ar() - PDF صحيح 100%
-#   ✅ جداول HTML عربية مقروءة (show_arabic_table)
-#   ✅ قاعدة بيانات معزولة لكل مستخدم/جهاز
-#   ✅ Singleton لقاعدة البيانات
-#   ✅ BroilerFarmRepository حقيقي
-#   ✅ seed_price_history_if_empty() للتنبؤات
-#   ✅ validate_access_code مباشر
-#   ✅ get_or_create_device_id() من localStorage
-#   ✅ فتح النظام كمالك تلقائياً
-#   ✅ 🤖 الوضع التلقائي للتركيب حسب احتياجات الحيوان
-#   ✅ أزرار سريعة للاختيار
 # ============================================================================
 
 import streamlit as st
@@ -31,7 +19,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from functools import lru_cache
-from typing import Dict, List, Optional
 
 try:
     import pytesseract
@@ -68,11 +55,8 @@ try:
 except ImportError:
     GTTS_AVAILABLE = False
 
-# =====================================================================
-# إعدادات الصفحة
-# =====================================================================
 st.set_page_config(
-    page_title="تاور نولجي Tawornology v19.2",
+    page_title="تاور نولجي Tawornology v19.3",
     page_icon="🌾", layout="wide", initial_sidebar_state="collapsed"
 )
 
@@ -116,9 +100,6 @@ def _setup_matplotlib_arabic() -> str:
 _MAT_FONT = _setup_matplotlib_arabic()
 
 
-# =====================================================================
-# دوال آمنة
-# =====================================================================
 def get_current_user_name() -> str:
     user = st.session_state.get("user") or {}
     return user.get("full_name", "مستخدم غير معروف")
@@ -128,33 +109,15 @@ def get_current_user_role() -> str:
     return st.session_state.get("user_role", "public")
 
 
-def _safe_evaluate(calc_val, std_val):
-    if std_val is None or std_val <= 0 or calc_val is None:
-        return "-", "⚠️ غير محدد", 0.0
-    dev = ((calc_val - std_val) / std_val) * 100
-    if abs(dev) <= 5:
-        grade = "✅ ممتاز"
-    elif abs(dev) <= 10:
-        grade = "👍 جيد"
-    elif dev > 10:
-        grade = "🔺 مرتفع"
-    else:
-        grade = "🔻 منخفض"
-    return f"{dev:+.1f}%", grade, dev
-
-
 def get_or_create_device_id() -> str:
     if "device_id" not in st.session_state:
         st.session_state["device_id"] = secrets.token_hex(16)
     return st.session_state["device_id"]
 
 
-# =====================================================================
-# أكواد الدخول
-# =====================================================================
 CODES_DB = {
     "202687": {"role": "owner",
-               "name": "الاختصاصي م. عبد القادر إسماعيل تاور - اختصاصي تغذية الحيوان",
+               "name": "الاختصاصي م. عبد القادر إسماعيل تاور",
                "level": 3},
     "2020": {"role": "specialist", "name": "المختص والزملاء", "level": 2},
     "2024": {"role": "veterinarian", "name": "الطبيب البيطري", "level": 2},
@@ -163,24 +126,21 @@ CODES_DB = {
 }
 
 
-def validate_access_code(input_code: str):
+def validate_access_code(input_code):
     if not input_code:
         return None
     clean = input_code.strip()
     if len(clean) < 4:
         return None
-    for stored_code, data in CODES_DB.items():
+    for stored, data in CODES_DB.items():
         try:
-            if hmac.compare_digest(clean, stored_code):
+            if hmac.compare_digest(clean, stored):
                 return data
         except Exception:
             continue
     return None
 
 
-# =====================================================================
-# البريد
-# =====================================================================
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SENDER_EMAIL = "abukram128@gmail.com"
@@ -198,7 +158,7 @@ PHOTO_OPTIONS_TUPLE = ("14686.jpg", "1000069464.jpg",
 
 
 @st.cache_data(ttl=3600)
-def get_image_base64(paths_tuple: tuple):
+def get_image_base64(paths_tuple):
     for path in paths_tuple:
         if os.path.exists(path):
             try:
@@ -212,9 +172,6 @@ def get_image_base64(paths_tuple: tuple):
 img_base64 = get_image_base64(PHOTO_OPTIONS_TUPLE)
 
 
-# =====================================================================
-# الصوت
-# =====================================================================
 @st.cache_data(ttl=3600)
 def tts_base64(text, lang="ar"):
     if not GTTS_AVAILABLE or not text:
@@ -229,29 +186,27 @@ def tts_base64(text, lang="ar"):
         return None
 
 
-def play_audio_b64(audio_b64):
-    if audio_b64:
-        st.components.v1.html(
-            f'<audio autoplay><source src="data:audio/mp3;base64,'
-            f'{audio_b64}" type="audio/mpeg"></audio>', height=0)
-        return True
-    return False
-
-
-def voice_guide(message, lang="ar"):
-    if not GTTS_AVAILABLE or not message:
-        return
-    b64 = tts_base64(message, lang)
+def play_audio_b64(b64):
     if b64:
-        play_audio_b64(b64)
+        st.components.v1.html(
+            f'<audio autoplay><source src="data:audio/mp3;base64,{b64}" '
+            f'type="audio/mpeg"></audio>', height=0)
+
+
+def voice_guide(msg, lang="ar"):
+    if not GTTS_AVAILABLE or not msg:
+        return
+    b = tts_base64(msg, lang)
+    if b:
+        play_audio_b64(b)
 
 
 def voice_welcome(role):
     msgs = {
-        "owner": "مرحباً بك، أيها الاختصاصي م. عبد القادر إسماعيل تاور.",
+        "owner": "مرحباً بك، أيها الاختصاصي.",
         "specialist": "مرحباً أيها المختص.",
-        "veterinarian": "مرحباً أيها الطبيب البيطري.",
-        "nutritionist": "مرحباً أيها أخصائي التغذية.",
+        "veterinarian": "مرحباً أيها الطبيب.",
+        "nutritionist": "مرحباً أيها الأخصائي.",
         "breeder": "مرحباً أيها المربي.",
         "public": "مرحباً بك زائراً."}
     voice_guide(msgs.get(role, "مرحباً بك."))
@@ -262,73 +217,68 @@ def play_welcome_audio():
 
 
 def play_dua_audio():
-    voice_guide("اللهم اغفر لإسماعيل تاور وابتسام، وارحمهما.")
-
-
-def play_full_guide_audio():
-    voice_guide("مرحباً بك في منصة تاور نولجي العلمية v19.2.")
+    voice_guide("اللهم اغفر لإسماعيل تاور وابتسام.")
 
 
 def send_code_to_email(receiver_email):
     if receiver_email.strip().lower() != OWNER_EMAIL.strip().lower():
         return False, "❌ الإرسال مسموح فقط للبريد: " + OWNER_EMAIL
     if not st.session_state.get("email_password"):
-        return False, "⚠️ يرجى إعداد كلمة مرور البريد."
+        return False, "⚠️ أعد كلمة مرور البريد."
     try:
         with open(__file__, "r", encoding="utf-8") as f:
-            code_content = f.read()
+            code = f.read()
     except Exception:
-        code_content = "# تعذر قراءة الكود"
-    file_hash = hashlib.md5(code_content.encode()).hexdigest()
+        code = "# تعذر القراءة"
+    h = hashlib.md5(code.encode()).hexdigest()
     msg = MIMEMultipart()
     msg['From'] = SENDER_EMAIL
     msg['To'] = receiver_email
-    msg['Subject'] = "🌾 السورس كود - تاور نولجي v19.2"
-    body = f"السلام عليكم،\nمرفق السورس كود.\nالتوقيع: {file_hash}"
-    msg.attach(MIMEText(body, 'plain', 'utf-8'))
-    att = MIMEText(code_content, 'plain', 'utf-8')
+    msg['Subject'] = "🌾 تاور نولجي v19.3"
+    msg.attach(MIMEText(f"السلام عليكم\nالتوقيع: {h}", 'plain', 'utf-8'))
+    att = MIMEText(code, 'plain', 'utf-8')
     att.add_header('Content-Disposition', 'attachment',
-                    filename="tawornology_v19_2.py")
+                    filename="tawornology_v19_3.py")
     msg.attach(att)
     try:
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(SENDER_EMAIL, st.session_state["email_password"])
-        server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
-        server.quit()
-        return True, "✅ تم الإرسال إلى " + receiver_email
+        s = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        s.starttls()
+        s.login(SENDER_EMAIL, st.session_state["email_password"])
+        s.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
+        s.quit()
+        return True, "✅ تم الإرسال"
     except Exception as e:
-        return False, f"❌ فشل الإرسال: {str(e)}"
+        return False, f"❌ {e}"
 
 
 # =====================================================================
-# قاعدة البيانات المعزولة
+# قاعدة البيانات
 # =====================================================================
 class UserIsolatedDB:
-    _DATA_DIR = "tawor_user_data"
+    _DIR = "tawor_user_data"
 
     @staticmethod
-    def _ensure_dir():
-        os.makedirs(UserIsolatedDB._DATA_DIR, exist_ok=True)
+    def _ensure():
+        os.makedirs(UserIsolatedDB._DIR, exist_ok=True)
 
     @staticmethod
-    def get_db_path() -> str:
-        UserIsolatedDB._ensure_dir()
+    def get_path() -> str:
+        UserIsolatedDB._ensure()
         user = st.session_state.get("user") or {}
         uid = (user.get("user_id") or
-               st.session_state.get("device_id") or "guest_device")
+               st.session_state.get("device_id") or "guest")
         safe = re.sub(r'[^a-zA-Z0-9_\-]', '', str(uid))[:40] or "guest"
-        return os.path.join(UserIsolatedDB._DATA_DIR, f"tawor_{safe}.db")
+        return os.path.join(UserIsolatedDB._DIR, f"tawor_{safe}.db")
 
 
 class DatabaseManager:
     def __init__(self, db_path=None):
         if db_path is None:
-            db_path = UserIsolatedDB.get_db_path()
+            db_path = UserIsolatedDB.get_path()
         self.db_path = db_path
-        self._init_db()
+        self._init()
 
-    def _init_db(self):
+    def _init(self):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -336,22 +286,6 @@ class DatabaseManager:
             role TEXT, full_name TEXT, email TEXT, phone TEXT, specialty TEXT,
             experience_years INTEGER, created_date TEXT, last_login TEXT,
             is_active INTEGER DEFAULT 1, is_public INTEGER DEFAULT 0)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS farms (
-            farm_id TEXT PRIMARY KEY, farm_name TEXT UNIQUE, farm_type TEXT,
-            owner_name TEXT, owner_phone TEXT, location TEXT, area REAL,
-            created_date TEXT, last_updated TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS production_cycles (
-            cycle_id TEXT PRIMARY KEY, farm_id TEXT, cycle_type TEXT,
-            start_date TEXT, end_date TEXT, initial_count INTEGER, breed TEXT,
-            target_weight REAL, target_age INTEGER, status TEXT, notes TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS daily_records (
-            record_id TEXT PRIMARY KEY, cycle_id TEXT, record_date TEXT,
-            age_days INTEGER, live_birds INTEGER, avg_weight REAL,
-            min_weight REAL, max_weight REAL, feed_consumed REAL,
-            water_consumed REAL, dead_count INTEGER, culled_count INTEGER,
-            temperature REAL, humidity REAL, ventilation_status TEXT,
-            litter_quality TEXT, feed_conversion REAL, mortality_rate REAL,
-            notes TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS feed_formulas (
             formula_id TEXT PRIMARY KEY, formula_name TEXT, animal_type TEXT,
             breed TEXT, stage TEXT, target_dp REAL, target_se REAL,
@@ -359,22 +293,10 @@ class DatabaseManager:
             created_by TEXT, created_date TEXT, is_approved INTEGER DEFAULT 0,
             usage_count INTEGER DEFAULT 0, requester_name TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS lab_results (
-            result_id TEXT PRIMARY KEY, sample_name TEXT, sample_type TEXT,
-            cp REAL, dc REAL, se REAL, ndf REAL, adf REAL, ee REAL,
-            ash REAL, moisture REAL, analysis_date TEXT,
-            analyzed_by TEXT, notes TEXT, image_path TEXT,
-            requester_name TEXT,
-            calcium REAL, phosphorus REAL, sodium REAL, potassium REAL,
-            magnesium REAL, chlorine REAL, sulfur REAL, crude_fiber REAL)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS dose_reminders (
-            reminder_id TEXT PRIMARY KEY, animal_type TEXT, dose_type TEXT,
-            dose_name TEXT, dose_amount REAL, dose_unit TEXT,
-            administration_route TEXT, frequency_days INTEGER,
-            start_date TEXT, next_dose_date TEXT, notes TEXT,
-            active BOOLEAN DEFAULT 1, created_by TEXT, created_date TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS inventory (
-            item_id TEXT PRIMARY KEY, item_name TEXT UNIQUE, quantity REAL,
-            min_threshold REAL, unit TEXT, last_updated TEXT, supplier TEXT)''')
+            result_id TEXT PRIMARY KEY, sample_name TEXT, cp REAL, dc REAL,
+            se REAL, ndf REAL, adf REAL, ee REAL, ash REAL, moisture REAL,
+            analysis_date TEXT, analyzed_by TEXT, notes TEXT,
+            requester_name TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS price_history (
             record_id TEXT PRIMARY KEY, ingredient_name TEXT, price REAL,
             currency TEXT, country TEXT, city TEXT, record_date TEXT,
@@ -382,14 +304,14 @@ class DatabaseManager:
         conn.commit()
         conn.close()
 
-    def execute_query(self, query, params=()):
+    def execute_query(self, q, params=()):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        result = c.execute(query, params)
+        r = c.execute(q, params)
         conn.commit()
-        data = result.fetchall()
+        d = r.fetchall()
         conn.close()
-        return data
+        return d
 
     def insert_record(self, table, data):
         conn = sqlite3.connect(self.db_path)
@@ -405,45 +327,43 @@ class DatabaseManager:
     def update_record(self, table, data, condition):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        set_cl = ', '.join([f"{k}=?" for k in data.keys()])
-        where = ' AND '.join([f"{k}=?" for k in condition.keys()])
-        c.execute(f"UPDATE {table} SET {set_cl} WHERE {where}",
+        s = ', '.join([f"{k}=?" for k in data])
+        w = ' AND '.join([f"{k}=?" for k in condition])
+        c.execute(f"UPDATE {table} SET {s} WHERE {w}",
                   list(data.values()) + list(condition.values()))
         conn.commit()
         conn.close()
-        return True
 
 
 @st.cache_resource
-def get_db_manager() -> DatabaseManager:
+def get_db_manager():
     return DatabaseManager()
 
 
-def seed_price_history_if_empty():
+def seed_price_history():
     try:
         db = get_db_manager()
-        count = db.execute_query("SELECT COUNT(*) FROM price_history")[0][0]
-        if count > 0:
+        cnt = db.execute_query("SELECT COUNT(*) FROM price_history")[0][0]
+        if cnt > 0:
             return
-        base_prices = {
-            "ذرة صفراء": 230.0, "كسب فول صويا 44%": 440.0,
-            "نخالة قمح (ردة)": 150.0, "شعير مطحون": 210.0,
-            "كسب عباد الشمس 36%": 310.0,
-            "أمباز الفول السوداني (كسب)": 460.0,
-            "مسحوق أسماك (Fishmeal 60%)": 850.0,
-            "الحجر الجيري (بودرة بلاط)": 40.0,
-            "فوسفات ثنائي الكالسيوم (DCP)": 280.0,
-            "ملح الطعام": 30.0}
+        bases = {"ذرة صفراء": 230.0, "كسب فول صويا 44%": 440.0,
+                  "نخالة قمح (ردة)": 150.0, "شعير مطحون": 210.0,
+                  "كسب عباد الشمس 36%": 310.0,
+                  "أمباز الفول السوداني (كسب)": 460.0,
+                  "مسحوق أسماك (Fishmeal 60%)": 850.0,
+                  "الحجر الجيري (بودرة بلاط)": 40.0,
+                  "فوسفات ثنائي الكالسيوم (DCP)": 280.0,
+                  "ملح الطعام": 30.0}
         rng = random.Random(42)
-        for ing, base in base_prices.items():
+        for ing, b in bases.items():
             for d in range(30, 0, -1):
                 dt = (datetime.now() - timedelta(days=d)).isoformat()
-                noise = rng.uniform(-0.05, 0.05)
-                trend = (30 - d) * 0.003
-                price = base * (1 + noise + trend)
+                n = rng.uniform(-0.05, 0.05)
+                tr = (30 - d) * 0.003
+                p = b * (1 + n + tr)
                 db.insert_record('price_history', {
                     'record_id': secrets.token_hex(16),
-                    'ingredient_name': ing, 'price': round(price, 2),
+                    'ingredient_name': ing, 'price': round(p, 2),
                     'currency': 'USD', 'country': 'السودان',
                     'city': 'الخرطوم', 'record_date': dt,
                     'recorded_by': 'system'})
@@ -451,83 +371,65 @@ def seed_price_history_if_empty():
         pass
 
 
-# =====================================================================
-# المصادقة
-# =====================================================================
 class AuthManager:
     def __init__(self):
         self.db = get_db_manager()
-        self._create_default_users()
-        self._create_public_user()
+        self._defaults()
+        self._public()
 
-    def _create_default_users(self):
-        defaults = [
-            ('admin', 'admin123', 'owner',
-             'الاختصاصي م. عبد القادر إسماعيل تاور',
-             'admin@tawornology.com', '+249123456789', 'تغذية حيوان', 10),
-            ('specialist', 'spec123', 'specialist', 'المختص العام',
-             'spec@tawornology.com', '+249123456788', 'تغذية', 8),
-            ('nutritionist', 'nutri123', 'nutritionist', 'أخصائي التغذية',
-             'nutri@tawornology.com', '+249123456786', 'تغذية', 7),
-            ('veterinarian', 'vet123', 'veterinarian', 'الطبيب البيطري',
-             'vet@tawornology.com', '+249123456785', 'طب بيطري', 9)]
-        for u, p, r, fn, e, ph, sp, exp in defaults:
-            exist = self.db.execute_query(
-                "SELECT * FROM users WHERE username=?", (u,))
-            if not exist:
-                self.create_user(u, p, r, fn, e, ph, sp, exp)
+    def _defaults(self):
+        ds = [('admin', 'admin123', 'owner',
+               'الاختصاصي م. عبد القادر إسماعيل تاور',
+               'admin@tawornology.com', '+249123456789', 'تغذية', 10),
+              ('specialist', 'spec123', 'specialist', 'المختص',
+               'spec@tawornology.com', '+249123456788', 'تغذية', 8),
+              ('nutritionist', 'nutri123', 'nutritionist', 'الأخصائي',
+               'nutri@tawornology.com', '+249123456786', 'تغذية', 7),
+              ('veterinarian', 'vet123', 'veterinarian', 'الطبيب',
+               'vet@tawornology.com', '+249123456785', 'بيطري', 9)]
+        for u, p, r, fn, e, ph, sp, ex in ds:
+            if not self.db.execute_query(
+                    "SELECT * FROM users WHERE username=?", (u,)):
+                self.create(u, p, r, fn, e, ph, sp, ex)
 
-    def _create_public_user(self):
-        exist = self.db.execute_query(
-            "SELECT * FROM users WHERE username='public'")
-        if not exist:
-            self.create_user('public', 'public123', 'public', 'زائر',
-                             'public@tawornology.com', '+249123456780',
-                             'عام', 0)
-            self.db.update_record('users', {'is_public': 1},
-                                   {'username': 'public'})
+    def _public(self):
+        if not self.db.execute_query(
+                "SELECT * FROM users WHERE username='public'"):
+            self.create('public', 'public123', 'public', 'زائر',
+                        'public@tawornology.com', '+249123456780', 'عام', 0)
 
-    def create_user(self, username, password, role, full_name, email,
-                    phone, specialty="", experience=0):
+    def create(self, u, p, r, fn, e, ph, sp="", ex=0):
         uid = secrets.token_hex(16)
-        pwd_hash = hashlib.sha256(password.encode()).hexdigest()
+        h = hashlib.sha256(p.encode()).hexdigest()
         self.db.insert_record('users', {
-            'user_id': uid, 'username': username, 'password_hash': pwd_hash,
-            'role': role, 'full_name': full_name, 'email': email,
-            'phone': phone, 'specialty': specialty,
-            'experience_years': experience,
+            'user_id': uid, 'username': u, 'password_hash': h,
+            'role': r, 'full_name': fn, 'email': e, 'phone': ph,
+            'specialty': sp, 'experience_years': ex,
             'created_date': datetime.now().isoformat(), 'last_login': '',
-            'is_active': 1, 'is_public': 1 if role == 'public' else 0})
+            'is_active': 1, 'is_public': 1 if r == 'public' else 0})
         return uid
 
-    def authenticate(self, username, password):
+    def authenticate(self, u, p):
         rows = self.db.execute_query(
-            "SELECT * FROM users WHERE username=? AND is_active=1",
-            (username,))
+            "SELECT * FROM users WHERE username=? AND is_active=1", (u,))
         if not rows:
             return None
-        u = rows[0]
-        pwd_hash = hashlib.sha256(password.encode()).hexdigest()
-        if u[2] != pwd_hash:
+        user = rows[0]
+        if user[2] != hashlib.sha256(p.encode()).hexdigest():
             return None
         self.db.update_record('users',
-            {'last_login': datetime.now().isoformat()}, {'user_id': u[0]})
-        return {'user_id': u[0], 'username': u[1], 'role': u[3],
-                'full_name': u[4], 'email': u[5], 'phone': u[6],
-                'specialty': u[7], 'experience_years': u[8]}
+            {'last_login': datetime.now().isoformat()}, {'user_id': user[0]})
+        return {'user_id': user[0], 'username': user[1], 'role': user[3],
+                'full_name': user[4], 'email': user[5], 'phone': user[6]}
 
     def login_public(self):
         rows = self.db.execute_query(
             "SELECT * FROM users WHERE username='public' AND is_active=1")
         if rows:
             u = rows[0]
-            self.db.update_record('users',
-                {'last_login': datetime.now().isoformat()},
-                {'user_id': u[0]})
             return {'user_id': u[0], 'username': u[1], 'role': 'public',
-                    'full_name': 'زائر', 'email': u[5], 'phone': u[6],
-                    'specialty': 'عام', 'experience_years': 0}
-        self._create_public_user()
+                    'full_name': 'زائر', 'email': u[5], 'phone': u[6]}
+        self._public()
         return self.login_public()
 
 
@@ -671,18 +573,17 @@ MINERALS_FIBER_DB = {
 }
 
 
-def calculate_minerals_fibers(formula_dict):
-    totals = {"Ca":0.0,"P":0.0,"Na":0.0,"K":0.0,"Mg":0.0,"Cl":0.0,"S":0.0,
-              "NDF":0.0,"ADF":0.0,"CF":0.0,"Ash":0.0}
+def calculate_minerals_fibers(formula):
+    totals = {k: 0.0 for k in _DEFAULT_MF}
     missing = []
-    for ing, pct in formula_dict.items():
+    for ing, pct in formula.items():
         mf = MINERALS_FIBER_DB.get(ing)
         if mf is None:
             missing.append(ing)
             mf = _DEFAULT_MF
-        frac = pct / 100.0
+        f = pct / 100.0
         for k in totals:
-            totals[k] += frac * mf.get(k, 0.0)
+            totals[k] += f * mf.get(k, 0.0)
     ratios = {}
     if totals["P"] > 0:
         ratios["Ca_P_ratio"] = totals["Ca"] / totals["P"]
@@ -695,31 +596,31 @@ def calculate_minerals_fibers(formula_dict):
 def evaluate_against_standard(computed, standard):
     result = {}
     for key, std_val in standard.items():
-        calc_val = computed.get(key, 0.0)
+        calc = computed.get(key, 0.0)
         if std_val <= 0:
-            result[key] = {"calculated": calc_val, "standard": std_val,
+            result[key] = {"calculated": calc, "standard": std_val,
                            "deviation": 0.0, "grade": "-",
                            "status": "neutral"}
             continue
-        dev = ((calc_val - std_val) / std_val) * 100
+        dev = ((calc - std_val) / std_val) * 100
         tol = 10.0 if key in ["Ca","P","Na","Cl"] else 15.0
         if abs(dev) <= tol * 0.5:
-            grade, status = "✅ ممتاز", "excellent"
+            g, s = "✅ ممتاز", "excellent"
         elif abs(dev) <= tol:
-            grade, status = "👍 جيد", "good"
+            g, s = "👍 جيد", "good"
         elif dev > 0:
-            grade, status = "🔺 مرتفع", "high"
+            g, s = "🔺 مرتفع", "high"
         else:
-            grade, status = "🔻 منخفض", "low"
-        result[key] = {"calculated": calc_val, "standard": std_val,
-                       "deviation": dev, "grade": grade, "status": status}
+            g, s = "🔻 منخفض", "low"
+        result[key] = {"calculated": calc, "standard": std_val,
+                       "deviation": dev, "grade": g, "status": s}
     return result
 
 
-def get_ideal_ca_p_ratio(animal_type):
+def get_ideal_ca_p_ratio(animal):
     m = {"أبقار":1.5,"أغنام":2.0,"ماعز":2.0,"خيول":1.8,"إبل":1.5,
          "دواجن لاحم":2.0,"دواجن بياض":4.0,"سمان":2.0,"أسماك":1.2}
-    return m.get(animal_type, 2.0)
+    return m.get(animal, 2.0)
 
 
 # =====================================================================
@@ -830,12 +731,195 @@ MINERAL_FIBER_STANDARDS = {
 
 
 # =====================================================================
-# محرك الأسعار
+# 🆕 محرك التركيب الشامل التلقائي (v19.3) - قلب النظام
+# =====================================================================
+SUPPLEMENT_RANGES = {
+    "الحجر الجيري (بودرة بلاط)": (0.0, 3.5),
+    "فوسفات ثنائي الكالسيوم (DCP)": (0.0, 2.5),
+    "ملح الطعام": (0.20, 0.80),
+    "مضاد سموم فطرية": (0.10, 0.30),
+    "بيكربونات الصوديوم (الصودا)": (0.30, 1.20),
+    "يوريا علفية محصنة (المجترات فقط)": (0.0, 1.0),
+    "إنزيم الفايتيز الزامي (Phytase Super-D)": (0.03, 0.10),
+    "إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)": (0.05, 0.15),
+    "كبريتات الحديدوز (معادل الجوسيبول)": (0.05, 0.25),
+    "بريمكس تسمين دواجن (Premix)": (0.20, 0.50),
+    "بريمكس بياض وبشاير": (0.20, 0.50),
+    "بريمكس أبقار حلابة ومجترات": (0.20, 0.50),
+    "فيتامينات ومعادن (Premix)": (0.20, 1.00),
+    "خميرة الخبز (Yeast)": (0.0, 2.0),
+    "مولاس قصب السكر": (0.0, 10.0),
+    "أكسيد المغنيسيوم العلفي": (0.0, 0.30),
+    "كلوريد الكولين (Choline Chloride)": (0.0, 0.30),
+    "دهن نباتي (زيت نباتي)": (0.0, 5.0),
+    "ليسيثين الصويا": (0.0, 2.0),
+    "مسحوق أسماك (Fishmeal 60%)": (0.0, 10.0),
+    "مسحوق اللحم والعظم": (0.0, 8.0),
+    "كسب جلوتين الذرة 60%": (0.0, 15.0),
+    "ليسين نقي (L-Lysine)": (0.0, 0.40),
+    "ميثيونين نقي (DL-Methionine)": (0.0, 0.30),
+    "ثريونين نقي (L-Threonine)": (0.0, 0.20),
+    "كسب نواة النخيل": (0.0, 15.0),
+    "كسب بذور اللفت (كانولا)": (0.0, 10.0),
+    "تبن قمح ناعم": (0.0, 15.0),
+    "قشر فول سوداني مطحون": (0.0, 10.0),
+    "سرسة الأرز المطحونة": (0.0, 10.0),
+    "قش الأرز المعالج": (0.0, 10.0),
+    "مخلفات مصانع البسكويت": (0.0, 12.0),
+    "بروتين مصل الحليب (WPC)": (0.0, 5.0),
+    "حليب مجفف خالي الدسم": (0.0, 30.0),
+    "مصل الحليب المجفف (Whey)": (0.0, 30.0),
+    "بروتين الصويا المركز": (0.0, 15.0),
+    "جريش أرز رزاز": (0.0, 20.0),
+    "نخالة قمح (ردة)": (0.0, 25.0),
+    "البرسيم الجاف (الدريس)": (0.0, 30.0),
+}
+
+
+def _build_vectors(selected):
+    vecs = {k: [] for k in ["CP","DP","SE","Ca","P","Na","K","Mg","Cl","S",
+                             "NDF","ADF","CF","Ash"]}
+    for ing in selected:
+        fd = FLAT_FEED_DB.get(ing, {})
+        mf = MINERALS_FIBER_DB.get(ing, _DEFAULT_MF)
+        cp = fd.get("CP", 0.0)
+        dc = fd.get("DC", 0.0)
+        vecs["CP"].append(cp)
+        vecs["DP"].append(cp * dc)
+        vecs["SE"].append(fd.get("SE", 0.0))
+        for k in ["Ca","P","Na","K","Mg","Cl","S","NDF","ADF","CF","Ash"]:
+            vecs[k].append(mf.get(k, 0.0))
+    return vecs
+
+
+def _build_bounds(selected):
+    bounds = []
+    for ing in selected:
+        if ing in SUPPLEMENT_RANGES:
+            lo, hi = SUPPLEMENT_RANGES[ing]
+            bounds.append((max(0.0, lo), min(100.0, hi)))
+        else:
+            bounds.append((0.0, 100.0))
+    return bounds
+
+
+def auto_formulate_full(selected, prices, animal_key, display_name,
+                          stage, use_cp=False, tolerance=0.25):
+    """محرك LP يشمل كل القيود"""
+    n = len(selected)
+    if n < 3:
+        return None, "اختر 3 مواد على الأقل"
+
+    std = STANDARD_VALUES.get(display_name, {}).get(stage, {})
+    mf_std = MINERAL_FIBER_STANDARDS.get(display_name, {}).get(stage, {})
+    if not std and not mf_std:
+        return None, "لا توجد معايير لهذه المرحلة"
+
+    vecs = _build_vectors(selected)
+    bounds = _build_bounds(selected)
+
+    A_eq = [[1.0]*n]
+    b_eq = [100.0]
+    A_ub, b_ub = [], []
+
+    # 1. الطاقة
+    tgt_se = std.get("SE", 60.0)
+    A_ub.append([-x for x in vecs["SE"]])
+    b_ub.append(-tgt_se * 100.0)
+
+    # 2. البروتين
+    if use_cp:
+        tgt_p = std.get("CP", 15.0)
+        pv = vecs["CP"]
+    else:
+        tgt_p = std.get("DP", 12.0)
+        pv = vecs["DP"]
+    A_ub.append([-x for x in pv])
+    b_ub.append(-tgt_p * 100.0)
+
+    # 3. الأملاح
+    for key in ["Ca","P","Na","K","Mg","Cl","S"]:
+        if key not in mf_std or mf_std[key] <= 0:
+            continue
+        sv = mf_std[key]
+        tol = tolerance * 1.5 if key in ("Na","Cl") else tolerance
+        mn = max(0.0, sv * (1 - tol))
+        mx = sv * (1 + tol)
+        v = vecs[key]
+        A_ub.append([-x for x in v])
+        b_ub.append(-mn * 100.0)
+        A_ub.append([x for x in v])
+        b_ub.append(mx * 100.0)
+
+    # 4. نسبة Ca:P
+    if "Ca" in mf_std and "P" in mf_std:
+        ideal = get_ideal_ca_p_ratio(display_name)
+        rmin = max(0.8, ideal * 0.7)
+        rmax = ideal * 1.4
+        A_ub.append([-vecs["Ca"][i] + rmin * vecs["P"][i] for i in range(n)])
+        b_ub.append(0.0)
+        A_ub.append([vecs["Ca"][i] - rmax * vecs["P"][i] for i in range(n)])
+        b_ub.append(0.0)
+
+    # 5. الألياف
+    for key in ["NDF","ADF","CF","Ash"]:
+        if key not in mf_std or mf_std[key] <= 0:
+            continue
+        sv = mf_std[key]
+        mx = sv * (1 + tolerance)
+        A_ub.append([x for x in vecs[key]])
+        b_ub.append(mx * 100.0)
+        if animal_key in ("cattle","sheep","goat","camel","horse") \
+                and key in ("NDF","ADF","CF"):
+            mn = sv * (1 - tolerance)
+            A_ub.append([-x for x in vecs[key]])
+            b_ub.append(-mn * 100.0)
+
+    c = [prices[i] for i in selected]
+    try:
+        res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq,
+                       bounds=bounds, method='highs')
+    except Exception as e:
+        return None, f"خطأ: {e}"
+    ctx = {'std_vals': std, 'mf_std': mf_std, 'vecs': vecs}
+    return res, ctx
+
+
+def auto_formulate_relaxed(selected, prices, animal_key, display_name,
+                             stage, use_cp=False):
+    attempts = [(0.15, "دقيق ⭐"), (0.25, "متوسط ✅"),
+                (0.40, "مرن 🔄"), (0.60, "واسع ⚠️"),
+                (0.90, "شامل 🆘")]
+    last = "لم يُوجد حل"
+    for tol, label in attempts:
+        res, ctx = auto_formulate_full(selected, prices, animal_key,
+                                         display_name, stage, use_cp, tol)
+        if res is not None and getattr(res, 'success', False):
+            return res, ctx, label
+        if isinstance(ctx, str):
+            last = ctx
+    return None, last, None
+
+
+def compute_achieved(formula, selected, ctx):
+    vecs = ctx['vecs']
+    result = {k: 0.0 for k in vecs}
+    for i, ing in enumerate(selected):
+        if ing not in formula:
+            continue
+        p = formula[ing] / 100.0
+        for k in vecs:
+            result[k] += p * vecs[k][i]
+    return result
+
+
+# =====================================================================
+# الأسعار
 # =====================================================================
 class MarketPriceEngine:
     @staticmethod
     @lru_cache(maxsize=128)
-    def get_adjusted_market_data(country, state_or_region, city):
+    def get_adjusted_market_data(country, state, city):
         base = {
             "ذرة صفراء": 230.0, "ذرة بيضاء": 225.0, "شعير مطحون": 210.0,
             "سورجم (فتريتة)": 195.0, "قمح محلي مصنّع": 240.0,
@@ -873,7 +957,7 @@ class MarketPriceEngine:
             "كسب بذور اللفت (كانولا)": 380.0,
             "تبن قمح ناعم": 60.0,
             "قشر فول سوداني مطحون": 55.0,
-            "سرسة الأرز المطحنة": 50.0,
+            "سرسة الأرز المطحونة": 50.0,
             "مخلفات مصانع البسكويت": 180.0,
             "قش الأرز المعالج": 65.0,
             "مسحوق اللحم والعظم": 700.0,
@@ -886,14 +970,14 @@ class MarketPriceEngine:
             "كلوريد الكولين (Choline Chloride)": 900.0}
         prices = {ing: base.get(ing, 300.0)
                   for cat in BIG_FEEDS_LIBRARY.values() for ing in cat}
-        mult = 1.0
+        m = 1.0
         if country == "السودان":
-            mult = 1.15
+            m = 1.15
         elif country == "LIBYA":
-            mult = 1.10
+            m = 1.10
         elif country == "مصر":
-            mult = 1.04
-        return {k: v * mult for k, v in prices.items()}
+            m = 1.04
+        return {k: v*m for k, v in prices.items()}
 
 
 EXCHANGE_RATES = {
@@ -904,22 +988,22 @@ EXCHANGE_RATES = {
 
 
 # =====================================================================
-# الخط العربي للـ PDF
+# الخطوط والمولد
 # =====================================================================
 @st.cache_resource
 def download_arabic_font():
-    font_path = "Amiri-Regular.ttf"
-    if os.path.exists(font_path):
-        return font_path
+    fp = "Amiri-Regular.ttf"
+    if os.path.exists(fp):
+        return fp
     try:
         import requests
         url = ("https://raw.githubusercontent.com/aliftype/amiri/"
                "master/fonts/Amiri-Regular.ttf")
         r = requests.get(url, timeout=30)
         if r.status_code == 200:
-            with open(font_path, "wb") as f:
+            with open(fp, "wb") as f:
                 f.write(r.content)
-            return font_path
+            return fp
     except Exception:
         pass
     for f in ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -944,31 +1028,28 @@ def ensure_arabic_font():
     return 'Helvetica'
 
 
-# =====================================================================
-# مولد PDF
-# =====================================================================
 class ProfessionalPDFGenerator:
     def __init__(self):
-        self.font_name = ensure_arabic_font()
-        self.styles = self._create_styles()
+        self.fn = ensure_arabic_font()
+        self.styles = self._styles()
 
-    def _create_styles(self):
+    def _styles(self):
         s = {}
-        s['title'] = ParagraphStyle('title', fontName=self.font_name,
-            fontSize=22, alignment=TA_CENTER,
-            textColor=HexColor('#1b5e20'), spaceAfter=12, leading=28)
-        s['subtitle'] = ParagraphStyle('subtitle', fontName=self.font_name,
-            fontSize=15, alignment=TA_CENTER,
-            textColor=HexColor('#2e7d32'), spaceAfter=10, leading=20)
-        s['heading'] = ParagraphStyle('heading', fontName=self.font_name,
-            fontSize=13, alignment=TA_RIGHT,
-            textColor=HexColor('#1b5e20'), spaceAfter=8, leading=18)
-        s['body'] = ParagraphStyle('body', fontName=self.font_name,
-            fontSize=11, alignment=TA_RIGHT,
-            textColor=HexColor('#333333'), spaceAfter=5, leading=16)
-        s['footer'] = ParagraphStyle('footer', fontName=self.font_name,
-            fontSize=8, alignment=TA_CENTER,
-            textColor=HexColor('#999999'), spaceAfter=0, leading=10)
+        s['title'] = ParagraphStyle('t', fontName=self.fn, fontSize=22,
+            alignment=TA_CENTER, textColor=HexColor('#1b5e20'),
+            spaceAfter=12, leading=28)
+        s['subtitle'] = ParagraphStyle('st', fontName=self.fn, fontSize=15,
+            alignment=TA_CENTER, textColor=HexColor('#2e7d32'),
+            spaceAfter=10, leading=20)
+        s['heading'] = ParagraphStyle('h', fontName=self.fn, fontSize=13,
+            alignment=TA_RIGHT, textColor=HexColor('#1b5e20'),
+            spaceAfter=8, leading=18)
+        s['body'] = ParagraphStyle('b', fontName=self.fn, fontSize=11,
+            alignment=TA_RIGHT, textColor=HexColor('#333'),
+            spaceAfter=5, leading=16)
+        s['footer'] = ParagraphStyle('f', fontName=self.fn, fontSize=8,
+            alignment=TA_CENTER, textColor=HexColor('#999'),
+            spaceAfter=0, leading=10)
         return s
 
     def _p(self, text, style='body'):
@@ -976,10 +1057,10 @@ class ProfessionalPDFGenerator:
                          self.styles.get(style, self.styles['body']))
 
     def _bismala(self, story):
-        style = ParagraphStyle('bismala', fontName=self.font_name,
-            fontSize=22, alignment=TA_CENTER,
-            textColor=HexColor('#1b5e20'), spaceAfter=6, leading=30)
-        story.append(Paragraph(ar("﷽"), style))
+        st_ = ParagraphStyle('b', fontName=self.fn, fontSize=22,
+            alignment=TA_CENTER, textColor=HexColor('#1b5e20'),
+            spaceAfter=6, leading=30)
+        story.append(Paragraph(ar("﷽"), st_))
         story.append(Spacer(1, 6))
         bar = Table([[""]], colWidths=[520], rowHeights=[6])
         bar.setStyle(TableStyle([
@@ -988,25 +1069,25 @@ class ProfessionalPDFGenerator:
         story.append(Spacer(1, 12))
         return story
 
-    def _section(self, story, text, color_hex):
-        style = ParagraphStyle('sec', fontName=self.font_name,
-            fontSize=13, alignment=TA_CENTER, textColor=white,
-            backColor=HexColor(color_hex),
-            borderPadding=(8, 12, 8, 12), leading=20)
-        story.append(Paragraph(ar(text), style))
+    def _section(self, story, text, color):
+        st_ = ParagraphStyle('s', fontName=self.fn, fontSize=13,
+            alignment=TA_CENTER, textColor=white,
+            backColor=HexColor(color), borderPadding=(8, 12, 8, 12),
+            leading=20)
+        story.append(Paragraph(ar(text), st_))
         story.append(Spacer(1, 8))
         return story
 
-    def _table(self, rows, color_hex, widths=None):
+    def _table(self, rows, color, widths=None):
         if widths is None:
             widths = [110, 90, 90, 90, 120]
         t = Table(rows, colWidths=widths)
         t.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), HexColor(color_hex)),
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor(color)),
             ('TEXTCOLOR', (0, 0), (-1, 0), white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, -1), self.font_name),
+            ('FONTNAME', (0, 0), (-1, -1), self.fn),
             ('FONTSIZE', (0, 0), (-1, -1), 10),
             ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#bdbdbd')),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1),
@@ -1015,31 +1096,31 @@ class ProfessionalPDFGenerator:
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6)]))
         return t
 
-    def _recommendations(self, mf_eval):
+    def _recommendations(self, ev):
         recs = []
-        if not mf_eval:
-            return ["لا توجد معايير للمقارنة."]
-        for key, ev in mf_eval.items():
-            st_ = ev.get("status", "neutral")
-            dev = ev.get("deviation", 0)
-            if st_ == "high":
-                m = {"Ca":"الكالسيوم مرتفع - قلل الحجر الجيري",
-                     "P":"الفسفور مرتفع - راجع DCP",
-                     "Na":"الصوديوم مرتفع - قلل الملح",
-                     "NDF":"NDF مرتفع - يقلل الاستساغة",
-                     "ADF":"ADF مرتفع - انخفاض الهضم"}
-                recs.append(m.get(key, f"{key} مرتفع ({dev:+.1f}%)"))
-            elif st_ == "low":
-                m = {"Ca":"الكالسيوم منخفض - أضف الحجر الجيري",
-                     "P":"الفسفور منخفض - أضف DCP",
-                     "Na":"الصوديوم منخفض - أضف ملح الطعام",
-                     "K":"البوتاسيوم منخفض - أضف مولاس",
-                     "NDF":"NDF منخفض - قد يسبب اضطراب الكرش",
-                     "CF":"الألياف الخام منخفضة - زد الأعلاف الخشنة"}
-                recs.append(m.get(key, f"{key} منخفض ({dev:+.1f}%)"))
-        return recs[:10] if recs else ["✅ جميع القيم ضمن النطاق القياسي"]
+        if not ev:
+            return ["لا توجد معايير."]
+        for k, e in ev.items():
+            s = e.get("status", "neutral")
+            d = e.get("deviation", 0)
+            if s == "high":
+                m = {"Ca": "الكالسيوم مرتفع - قلل الحجر الجيري",
+                     "P": "الفسفور مرتفع - راجع DCP",
+                     "Na": "الصوديوم مرتفع - قلل الملح",
+                     "NDF": "NDF مرتفع - يقلل الاستساغة",
+                     "ADF": "ADF مرتفع - انخفاض الهضم"}
+                recs.append(m.get(k, f"{k} مرتفع ({d:+.1f}%)"))
+            elif s == "low":
+                m = {"Ca": "الكالسيوم منخفض - أضف الحجر الجيري",
+                     "P": "الفسفور منخفض - أضف DCP",
+                     "Na": "الصوديوم منخفض - أضف الملح",
+                     "K": "البوتاسيوم منخفض - أضف مولاس",
+                     "NDF": "NDF منخفض - قد يسبب اضطراب الكرش",
+                     "CF": "الألياف الخام منخفضة - زد الأعلاف الخشنة"}
+                recs.append(m.get(k, f"{k} منخفض ({d:+.1f}%)"))
+        return recs[:10] if recs else ["✅ جميع القيم ضمن النطاق"]
 
-    def _bar_chart(self, story, computed, standard, keys):
+    def _chart(self, story, computed, standard, keys):
         try:
             ck = [k for k in keys if k in standard]
             if not ck:
@@ -1047,15 +1128,13 @@ class ProfessionalPDFGenerator:
             fig, ax = plt.subplots(figsize=(7, 4))
             x = np.arange(len(ck))
             w = 0.35
-            ax.bar(x - w/2, [computed.get(k, 0) for k in ck],
-                   w, label=ar('المحسوب'), color='#2e7d32',
-                   edgecolor='#1b5e20')
-            ax.bar(x + w/2, [standard.get(k, 0) for k in ck],
-                   w, label=ar('القياسي'), color='#1565C0',
-                   edgecolor='#0d47a1')
+            ax.bar(x - w/2, [computed.get(k, 0) for k in ck], w,
+                   label=ar('المحقق'), color='#2e7d32')
+            ax.bar(x + w/2, [standard.get(k, 0) for k in ck], w,
+                   label=ar('القياسي'), color='#1565C0')
             ax.set_xticks(x)
             ax.set_xticklabels(ck, fontsize=10)
-            ax.set_ylabel(ar('النسبة %'), fontsize=10)
+            ax.set_ylabel(ar('النسبة %'))
             ax.set_title(ar('مقارنة الأملاح والألياف'),
                           fontsize=12, fontweight='bold')
             ax.legend(loc='upper right', fontsize=9,
@@ -1075,22 +1154,20 @@ class ProfessionalPDFGenerator:
     def _signature(self, story, requester=""):
         story.append(Spacer(1, 20))
         story.append(self._p("مع خالص التحية والتقدير،"))
-        sign = ParagraphStyle('sign', fontName=self.font_name,
-            fontSize=12, alignment=TA_RIGHT,
-            textColor=HexColor('#c62828'), spaceAfter=4, leading=18)
+        st_ = ParagraphStyle('s', fontName=self.fn, fontSize=12,
+            alignment=TA_RIGHT, textColor=HexColor('#c62828'),
+            spaceAfter=4, leading=18)
         story.append(Paragraph(
             ar("الاختصاصي م. عبد القادر إسماعيل تاور - "
-               "اختصاصي تغذية الحيوان"), sign))
+               "اختصاصي تغذية الحيوان"), st_))
         if requester:
             story.append(self._p(f"طالب العلفة: {requester}"))
         story.append(Spacer(1, 12))
-        story.append(self._p(
-            "🌾 تاور نولجي Tawornology v19.2 © 2026", 'footer'))
+        story.append(self._p("🌾 تاور نولجي v19.3 © 2026", 'footer'))
 
-    def generate_comprehensive_report(self, formula, target_dp, breed, cost,
-                                       city, local_cost, local_sym, computed_se,
-                                       user_name, requester_name="",
-                                       standard=None, include_charts=True,
+    def generate_comprehensive_report(self, formula, dp, breed, cost, city,
+                                       local_cost, local_sym, se, user,
+                                       requester="", standard=None,
                                        extra_info=None, mineral_data=None,
                                        mf_standard=None, mf_evaluation=None,
                                        ratios=None):
@@ -1099,23 +1176,22 @@ class ProfessionalPDFGenerator:
             leftMargin=45, topMargin=25, bottomMargin=35)
         story = []
         story = self._bismala(story)
-        story.append(self._p("🌾 تاور نولجي Tawornology العلمية", 'title'))
-        story.append(self._p("📄 تقرير فني شامل - v19.2", 'subtitle'))
+        story.append(self._p("🌾 تاور نولجي Tawornology", 'title'))
+        story.append(self._p("📄 تقرير فني شامل - v19.3", 'subtitle'))
         story.append(Spacer(1, 10))
 
-        info = [
-            [ar("👨‍💻 المشرف"),
-             ar("الاختصاصي م. عبد القادر إسماعيل تاور")],
-            [ar("👤 طالب العلفة"), ar(requester_name or 'غير محدد')],
-            [ar("🐾 الفصيل"), ar(breed)],
-            [ar("📌 الموقع"), ar(city)],
-            [ar("📅 التاريخ"),
-             ar(datetime.now().strftime('%Y-%m-%d %H:%M'))]]
+        info = [[ar("👨‍💻 المشرف"),
+                 ar("الاختصاصي م. عبد القادر إسماعيل تاور")],
+                [ar("👤 طالب العلفة"), ar(requester or '-')],
+                [ar("🐾 الفصيل"), ar(breed)],
+                [ar("📌 الموقع"), ar(city)],
+                [ar("📅 التاريخ"),
+                 ar(datetime.now().strftime('%Y-%m-%d %H:%M'))]]
         it = Table(info, colWidths=[140, 360])
         it.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (0, -1), HexColor('#e8f5e9')),
             ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-            ('FONTNAME', (0, 0), (-1, -1), self.font_name),
+            ('FONTNAME', (0, 0), (-1, -1), self.fn),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
             ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#a5d6a7')),
             ('TOPPADDING', (0, 0), (-1, -1), 8),
@@ -1123,48 +1199,46 @@ class ProfessionalPDFGenerator:
         story.append(it)
         story.append(Spacer(1, 15))
 
-        story = self._section(story, "📋 المقادير المعتمدة لطن واحد",
-                                '#2e7d32')
+        story = self._section(story, "📋 المقادير لطن واحد", '#2e7d32')
         rows = [[ar('المكون'), ar('النسبة %'), ar('كجم/طن')]]
-        for ing, pct in formula.items():
-            rows.append([ar(ing), f'{pct:.2f}%', f'{pct*10:.1f}'])
+        for i, p in formula.items():
+            rows.append([ar(i), f'{p:.2f}%', f'{p*10:.1f}'])
         story.append(self._table(rows, '#2e7d32', [220, 130, 130]))
 
         if mineral_data and mf_standard:
             story.append(PageBreak())
-            story = self._section(story, "🧂 تحليل الأملاح", '#00838f')
+            story = self._section(story, "🧂 الأملاح", '#00838f')
             names = {"Ca":"كالسيوم","P":"فسفور","Na":"صوديوم",
                       "K":"بوتاسيوم","Mg":"مغنيسيوم","Cl":"كلور","S":"كبريت"}
-            rows = [[ar('المعدن'), ar('المحسوب %'), ar('القياسي %'),
+            rows = [[ar('المعدن'), ar('المحقق %'), ar('القياسي %'),
                      ar('الانحراف %'), ar('التقييم')]]
-            for key, name in names.items():
-                if key in mf_standard:
-                    ev = mf_evaluation.get(key, {})
-                    rows.append([ar(f"{name} ({key})"),
-                        f"{ev.get('calculated', 0):.3f}",
-                        f"{ev.get('standard', 0):.3f}",
-                        f"{ev.get('deviation', 0):+.1f}",
-                        ev.get("grade", "-")])
+            for k, n in names.items():
+                if k in mf_standard:
+                    e = mf_evaluation.get(k, {})
+                    rows.append([ar(f"{n} ({k})"),
+                        f"{e.get('calculated', 0):.3f}",
+                        f"{e.get('standard', 0):.3f}",
+                        f"{e.get('deviation', 0):+.1f}",
+                        e.get("grade", "-")])
             story.append(self._table(rows, '#00838f'))
             story.append(Spacer(1, 15))
 
-            story = self._section(story, "🌾 تحليل الألياف", '#6a1b9a')
+            story = self._section(story, "🌾 الألياف", '#6a1b9a')
             fn = {"NDF":"NDF","ADF":"ADF","CF":"CF","Ash":"رماد"}
-            rows = [[ar('نوع الليف'), ar('المحسوب %'), ar('القياسي %'),
+            rows = [[ar('نوع الليف'), ar('المحقق %'), ar('القياسي %'),
                      ar('الانحراف %'), ar('التقييم')]]
-            for key, name in fn.items():
-                if key in mf_standard:
-                    ev = mf_evaluation.get(key, {})
-                    rows.append([ar(name),
-                        f"{ev.get('calculated', 0):.2f}",
-                        f"{ev.get('standard', 0):.2f}",
-                        f"{ev.get('deviation', 0):+.1f}",
-                        ev.get("grade", "-")])
+            for k, n in fn.items():
+                if k in mf_standard:
+                    e = mf_evaluation.get(k, {})
+                    rows.append([ar(n),
+                        f"{e.get('calculated', 0):.2f}",
+                        f"{e.get('standard', 0):.2f}",
+                        f"{e.get('deviation', 0):+.1f}",
+                        e.get("grade", "-")])
             story.append(self._table(rows, '#6a1b9a'))
 
-            if include_charts:
-                self._bar_chart(story, mineral_data, mf_standard,
-                    ["Ca","P","Na","K","Mg","NDF","ADF","CF"])
+            self._chart(story, mineral_data, mf_standard,
+                ["Ca","P","Na","K","Mg","NDF","ADF","CF"])
 
             if ratios:
                 story.append(Spacer(1, 12))
@@ -1172,120 +1246,47 @@ class ProfessionalPDFGenerator:
                 ca_p = ratios.get("Ca_P_ratio", 0)
                 k_na = ratios.get("K_Na_ratio", 0)
                 ideal = get_ideal_ca_p_ratio(breed.split()[0] if breed else "")
-                story.append(self._p(
-                    f"• Ca : P = {ca_p:.2f} (المثالي ≈ {ideal:.1f})"))
-                story.append(self._p(
-                    f"• K : Na = {k_na:.2f} (المثالي ≈ 3.0)"))
+                story.append(self._p(f"• Ca : P = {ca_p:.2f} (مثالي ≈ {ideal:.1f})"))
+                story.append(self._p(f"• K : Na = {k_na:.2f} (مثالي ≈ 3.0)"))
                 for r in self._recommendations(mf_evaluation):
                     story.append(self._p(f"• {r}"))
 
-        self._signature(story, requester_name)
+        self._signature(story, requester)
         doc.build(story)
         buf.seek(0)
         return buf.getvalue()
 
-    def generate_mineral_fiber_report(self, formula_results, animal_type,
-                                        stage, mineral_data, mf_standard,
-                                        mf_evaluation, ratios=None,
-                                        user_name="", requester_name=""):
-        buf = io.BytesIO()
-        doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=45,
-            leftMargin=45, topMargin=25, bottomMargin=35)
-        story = []
-        story = self._bismala(story)
-        story.append(self._p("🧂🌾 تقرير الأملاح والألياف", 'title'))
-        story.append(Spacer(1, 10))
-
-        info = [
-            [ar("🐾 نوع الحيوان"), ar(animal_type)],
-            [ar("📋 المرحلة"), ar(stage)],
-            [ar("👤 طالب العلفة"), ar(requester_name or "غير محدد")],
-            [ar("📅 التاريخ"),
-             ar(datetime.now().strftime('%Y-%m-%d %H:%M'))]]
-        it = Table(info, colWidths=[140, 360])
-        it.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), HexColor('#e8f5e9')),
-            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-            ('FONTNAME', (0, 0), (-1, -1), self.font_name),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#a5d6a7')),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8)]))
-        story.append(it)
-        story.append(Spacer(1, 15))
-
-        if mf_standard:
-            story = self._section(story, "🧂 الأملاح", '#00838f')
-            names = {"Ca":"كالسيوم","P":"فسفور","Na":"صوديوم",
-                      "K":"بوتاسيوم","Mg":"مغنيسيوم","Cl":"كلور","S":"كبريت"}
-            rows = [[ar('المعدن'), ar('المحسوب %'), ar('القياسي %'),
-                     ar('الانحراف %'), ar('التقييم')]]
-            for key, name in names.items():
-                if key in mf_standard:
-                    ev = mf_evaluation.get(key, {})
-                    rows.append([ar(f"{name} ({key})"),
-                        f"{ev.get('calculated', 0):.3f}",
-                        f"{ev.get('standard', 0):.3f}",
-                        f"{ev.get('deviation', 0):+.1f}",
-                        ev.get("grade", "-")])
-            story.append(self._table(rows, '#00838f'))
-            story.append(Spacer(1, 15))
-
-            story = self._section(story, "🌾 الألياف", '#6a1b9a')
-            fn = {"NDF":"NDF","ADF":"ADF","CF":"CF","Ash":"رماد"}
-            rows = [[ar('نوع الليف'), ar('المحسوب %'), ar('القياسي %'),
-                     ar('الانحراف %'), ar('التقييم')]]
-            for key, name in fn.items():
-                if key in mf_standard:
-                    ev = mf_evaluation.get(key, {})
-                    rows.append([ar(name),
-                        f"{ev.get('calculated', 0):.2f}",
-                        f"{ev.get('standard', 0):.2f}",
-                        f"{ev.get('deviation', 0):+.1f}",
-                        ev.get("grade", "-")])
-            story.append(self._table(rows, '#6a1b9a'))
-
-        story.append(Spacer(1, 15))
-        story.append(self._p("📌 التوصيات:", 'heading'))
-        for r in self._recommendations(mf_evaluation):
-            story.append(self._p(f"• {r}"))
-
-        self._signature(story, requester_name)
-        doc.build(story)
-        buf.seek(0)
-        return buf.getvalue()
-
-    def generate_lab_report(self, analysis_results, animal_type, stage,
-                             user_name, standard=None, evaluation=None,
-                             requester_name="", mineral_fiber_data=None,
-                             mf_standard=None, mf_evaluation=None, ratios=None):
+    def generate_lab_report(self, analysis, animal, stage, user, std,
+                             evaluation=None, requester="",
+                             mineral_fiber_data=None, mf_standard=None,
+                             mf_evaluation=None, ratios=None):
         buf = io.BytesIO()
         doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=40,
             leftMargin=40, topMargin=25, bottomMargin=35)
         story = []
         story = self._bismala(story)
-        story.append(self._p("🔬 تقرير التحليل المخبري v19.2", 'title'))
+        story.append(self._p("🔬 تقرير المختبر - v19.3", 'title'))
         story.append(Spacer(1, 10))
 
-        if analysis_results and 'components' in analysis_results:
+        if analysis and 'components' in analysis:
             story = self._section(story, "📦 المكونات", '#1565C0')
             rows = [[ar('المادة'), ar('الوزن (كجم)'), ar('النسبة %')]]
-            tw = sum(analysis_results['components'].values())
-            for name, w in analysis_results['components'].items():
+            tw = sum(analysis['components'].values())
+            for n, w in analysis['components'].items():
                 if w > 0:
-                    pct = (w / tw * 100) if tw > 0 else 0
-                    rows.append([ar(name), f"{w:.1f}", f"{pct:.2f}"])
+                    p = (w/tw*100) if tw > 0 else 0
+                    rows.append([ar(n), f"{w:.1f}", f"{p:.2f}"])
             story.append(self._table(rows, '#1565C0', [240, 130, 130]))
             story.append(Spacer(1, 15))
 
-            story = self._section(story, "📊 البروتين والطاقة", '#2e7d32')
+            story = self._section(story, "📊 النتائج", '#2e7d32')
             rows = [[ar('العنصر'), ar('القيمة')]]
-            if 'cp' in analysis_results:
-                rows.append([ar('CP'), f"{analysis_results['cp']:.2f}%"])
-            if 'dp' in analysis_results:
-                rows.append([ar('DP'), f"{analysis_results['dp']:.2f}%"])
-            if 'se' in analysis_results:
-                rows.append([ar('SE'), f"{analysis_results['se']:.2f}"])
+            if 'cp' in analysis:
+                rows.append([ar('CP'), f"{analysis['cp']:.2f}%"])
+            if 'dp' in analysis:
+                rows.append([ar('DP'), f"{analysis['dp']:.2f}%"])
+            if 'se' in analysis:
+                rows.append([ar('SE'), f"{analysis['se']:.2f}"])
             story.append(self._table(rows, '#2e7d32', [300, 200]))
 
         if mineral_fiber_data and mf_standard:
@@ -1293,43 +1294,42 @@ class ProfessionalPDFGenerator:
             story = self._section(story, "🧂 الأملاح", '#00838f')
             names = {"Ca":"كالسيوم","P":"فسفور","Na":"صوديوم",
                       "K":"بوتاسيوم","Mg":"مغنيسيوم","Cl":"كلور","S":"كبريت"}
-            rows = [[ar('المعدن'), ar('المحسوب %'), ar('القياسي %'),
+            rows = [[ar('المعدن'), ar('المحقق %'), ar('القياسي %'),
                      ar('الانحراف %'), ar('التقييم')]]
-            for key, name in names.items():
-                if key in mf_standard:
-                    ev = mf_evaluation.get(key, {})
-                    rows.append([ar(f"{name} ({key})"),
-                        f"{ev.get('calculated', 0):.3f}",
-                        f"{ev.get('standard', 0):.3f}",
-                        f"{ev.get('deviation', 0):+.1f}",
-                        ev.get("grade", "-")])
+            for k, n in names.items():
+                if k in mf_standard:
+                    e = mf_evaluation.get(k, {})
+                    rows.append([ar(f"{n} ({k})"),
+                        f"{e.get('calculated', 0):.3f}",
+                        f"{e.get('standard', 0):.3f}",
+                        f"{e.get('deviation', 0):+.1f}",
+                        e.get("grade", "-")])
             story.append(self._table(rows, '#00838f'))
             story.append(Spacer(1, 15))
 
             story = self._section(story, "🌾 الألياف", '#6a1b9a')
             fn = {"NDF":"NDF","ADF":"ADF","CF":"CF","Ash":"رماد"}
-            rows = [[ar('نوع الليف'), ar('المحسوب %'), ar('القياسي %'),
+            rows = [[ar('نوع الليف'), ar('المحقق %'), ar('القياسي %'),
                      ar('الانحراف %'), ar('التقييم')]]
-            for key, name in fn.items():
-                if key in mf_standard:
-                    ev = mf_evaluation.get(key, {})
-                    rows.append([ar(name),
-                        f"{ev.get('calculated', 0):.2f}",
-                        f"{ev.get('standard', 0):.2f}",
-                        f"{ev.get('deviation', 0):+.1f}",
-                        ev.get("grade", "-")])
+            for k, n in fn.items():
+                if k in mf_standard:
+                    e = mf_evaluation.get(k, {})
+                    rows.append([ar(n),
+                        f"{e.get('calculated', 0):.2f}",
+                        f"{e.get('standard', 0):.2f}",
+                        f"{e.get('deviation', 0):+.1f}",
+                        e.get("grade", "-")])
             story.append(self._table(rows, '#6a1b9a'))
 
-            self._bar_chart(story, mineral_fiber_data, mf_standard,
+            self._chart(story, mineral_fiber_data, mf_standard,
                 ["Ca","P","Na","K","Mg","NDF","ADF","CF"])
 
-        self._signature(story, requester_name)
+        self._signature(story, requester)
         doc.build(story)
         buf.seek(0)
         return buf.getvalue()
 
-    def generate_milk_replacer_report(self, formula, animal_type, age_days,
-                                        instructions, user_name):
+    def generate_milk_replacer_report(self, formula, animal, age, instr, user):
         buf = io.BytesIO()
         doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=45,
             leftMargin=45, topMargin=25, bottomMargin=35)
@@ -1337,22 +1337,19 @@ class ProfessionalPDFGenerator:
         story = self._bismala(story)
         story.append(self._p("🍼 تقرير بديل الحليب", 'title'))
         story.append(Spacer(1, 10))
-        story.append(self._p(f"🐾 نوع الحيوان: {animal_type}"))
-        story.append(self._p(f"📅 العمر: {age_days} يوم"))
+        story.append(self._p(f"🐾 النوع: {animal}"))
+        story.append(self._p(f"📅 العمر: {age} يوم"))
         story.append(Spacer(1, 15))
-
         story = self._section(story, "📋 المكونات", '#2e7d32')
         rows = [[ar('المكون'), ar('النسبة %'), ar('جم/كجم')]]
-        for ing, pct in formula.items():
-            rows.append([ar(ing), f'{pct:.2f}%', f'{pct*10:.1f}'])
+        for i, p in formula.items():
+            rows.append([ar(i), f'{p:.2f}%', f'{p*10:.1f}'])
         story.append(self._table(rows, '#1b5e20', [200, 130, 130]))
         story.append(Spacer(1, 15))
-
         story = self._section(story, "📌 التعليمات", '#e65100')
-        for line in instructions.split('\n'):
+        for line in instr.split('\n'):
             if line.strip():
                 story.append(self._p(f"• {line.strip()}"))
-
         self._signature(story)
         doc.build(story)
         buf.seek(0)
@@ -1362,76 +1359,66 @@ class ProfessionalPDFGenerator:
 pdf_generator = ProfessionalPDFGenerator()
 
 
-# =====================================================================
-# التنبؤ بالأسعار
-# =====================================================================
 class PricePredictor:
     def __init__(self):
         self.db = get_db_manager()
 
-    def get_price_trend(self, ingredient_name, days=30):
+    def get_trend(self, ing, days=30):
         rows = self.db.execute_query(
             "SELECT * FROM price_history WHERE ingredient_name=? "
-            "ORDER BY record_date DESC LIMIT ?", (ingredient_name, days))
+            "ORDER BY record_date DESC LIMIT ?", (ing, days))
         if len(rows) < 3:
             return {'trend': 'stable', 'change_percent': 0,
                     'volatility': 0, 'current_price': 0}
         prices = [r[2] for r in rows]
         x = np.array(range(len(prices))).reshape(-1, 1)
         y = np.array(prices)
-        model = LinearRegression()
-        model.fit(x, y)
-        slope = model.coef_[0]
-        change = ((prices[0] - prices[-1]) / prices[-1] * 100
-                  if prices[-1] > 0 else 0)
-        trend = ('up' if slope > 0.5
-                 else 'down' if slope < -0.5 else 'stable')
-        return {'trend': trend, 'change_percent': change,
+        m = LinearRegression()
+        m.fit(x, y)
+        s = m.coef_[0]
+        c = ((prices[0] - prices[-1]) / prices[-1] * 100
+             if prices[-1] > 0 else 0)
+        t = 'up' if s > 0.5 else 'down' if s < -0.5 else 'stable'
+        return {'trend': t, 'change_percent': c,
                 'volatility': np.std(prices) / np.mean(prices)
                 if np.mean(prices) > 0 else 0,
                 'current_price': prices[0]}
 
-    def predict_price(self, ingredient_name, days_ahead=7):
+    def predict_price(self, ing, days_ahead=7):
         rows = self.db.execute_query(
             "SELECT price FROM price_history WHERE ingredient_name=? "
-            "ORDER BY record_date DESC LIMIT 30", (ingredient_name,))
+            "ORDER BY record_date DESC LIMIT 30", (ing,))
         if len(rows) < 5:
-            return {'prediction': None, 'confidence': 0,
-                    'current_price': None, 'trend': 'stable'}
+            return {'prediction': None, 'current_price': None,
+                    'trend': 'stable'}
         prices = [r[0] for r in rows]
         weights = np.array(range(1, len(prices) + 1))
-        weighted_avg = np.average(prices, weights=weights)
-        trend = ((prices[0] - prices[-1]) / len(prices)
-                 if len(prices) > 1 else 0)
-        pred = weighted_avg + (trend * days_ahead)
+        wa = np.average(prices, weights=weights)
+        tr = ((prices[0] - prices[-1]) / len(prices) if len(prices) > 1 else 0)
+        pred = wa + tr * days_ahead
         return {'prediction': max(0, pred),
-                'confidence': min(1, len(prices) / 30),
                 'current_price': prices[0] if prices else None,
-                'trend': self.get_price_trend(ingredient_name)['trend']}
+                'trend': self.get_trend(ing)['trend']}
 
 
-# =====================================================================
-# المختبر الذكي
-# =====================================================================
 class SmartLabSystem:
     def __init__(self):
         self.db = get_db_manager()
-        self.ocr_available = OCR_AVAILABLE or EASYOCR_AVAILABLE
+        self.ocr = OCR_AVAILABLE or EASYOCR_AVAILABLE
         self.reader = None
         if EASYOCR_AVAILABLE:
             try:
                 self.reader = easyocr.Reader(['ar', 'en'], gpu=False)
             except Exception:
-                self.reader = None
+                pass
 
     def analyze_image(self, image):
-        if not self.ocr_available:
-            return None, "مكتبات OCR غير مثبتة."
+        if not self.ocr:
+            return None, "OCR غير مثبت."
         results = []
         try:
             if EASYOCR_AVAILABLE and self.reader:
-                result = self.reader.readtext(np.array(image))
-                for (bbox, text, prob) in result:
+                for (_, text, prob) in self.reader.readtext(np.array(image)):
                     if prob > 0.3:
                         results.append(text)
             elif OCR_AVAILABLE:
@@ -1442,44 +1429,34 @@ class SmartLabSystem:
                     img, lang='ara+eng').split('\n')
             return self._parse(results), None
         except Exception as e:
-            return None, f"خطأ: {str(e)}"
+            return None, str(e)
 
     def _parse(self, texts):
-        data = {'sample_name': '', 'cp': None, 'dc': None, 'se': None,
-                'ndf': None, 'adf': None, 'ee': None, 'ash': None,
-                'moisture': None, 'ca': None, 'p': None, 'na': None,
-                'k': None}
-        patterns = {
-            'cp': [r'بروتين\s*خام\s*[:=]?\s*([\d.]+)',
-                    r'CP\s*[:=]?\s*([\d.]+)'],
-            'dc': [r'معامل\s*الهضم\s*[:=]?\s*([\d.]+)',
-                    r'DC\s*[:=]?\s*([\d.]+)'],
-            'se': [r'معادل\s*النشاء\s*[:=]?\s*([\d.]+)',
-                    r'SE\s*[:=]?\s*([\d.]+)'],
+        data = {k: None for k in ['cp','dc','se','ndf','adf','ee','ash',
+                                    'moisture','ca','p','na','k']}
+        data['sample_name'] = ''
+        pats = {
+            'cp': [r'بروتين\s*خام\s*[:=]?\s*([\d.]+)', r'CP\s*[:=]?\s*([\d.]+)'],
+            'dc': [r'معامل\s*الهضم\s*[:=]?\s*([\d.]+)', r'DC\s*[:=]?\s*([\d.]+)'],
+            'se': [r'معادل\s*النشاء\s*[:=]?\s*([\d.]+)', r'SE\s*[:=]?\s*([\d.]+)'],
             'ndf': [r'NDF\s*[:=]?\s*([\d.]+)'],
             'adf': [r'ADF\s*[:=]?\s*([\d.]+)'],
-            'ee': [r'دهن\s*خام\s*[:=]?\s*([\d.]+)',
-                    r'EE\s*[:=]?\s*([\d.]+)'],
-            'ash': [r'رماد\s*[:=]?\s*([\d.]+)',
-                     r'ASH\s*[:=]?\s*([\d.]+)'],
+            'ee': [r'دهن\s*خام\s*[:=]?\s*([\d.]+)'],
+            'ash': [r'رماد\s*[:=]?\s*([\d.]+)'],
             'moisture': [r'رطوبة\s*[:=]?\s*([\d.]+)'],
-            'ca': [r'كالسيوم\s*[:=]?\s*([\d.]+)',
-                    r'Ca\s*[:=]?\s*([\d.]+)'],
-            'p': [r'فسفور\s*[:=]?\s*([\d.]+)',
-                   r'P\s*[:=]?\s*([\d.]+)'],
-            'na': [r'صوديوم\s*[:=]?\s*([\d.]+)',
-                    r'Na\s*[:=]?\s*([\d.]+)'],
-            'k': [r'بوتاسيوم\s*[:=]?\s*([\d.]+)',
-                   r'K\s*[:=]?\s*([\d.]+)']}
-        for text in texts:
-            tc = text.strip()
+            'ca': [r'Ca\s*[:=]?\s*([\d.]+)'],
+            'p': [r'P\s*[:=]?\s*([\d.]+)'],
+            'na': [r'Na\s*[:=]?\s*([\d.]+)'],
+            'k': [r'K\s*[:=]?\s*([\d.]+)']}
+        for t in texts:
+            tc = t.strip()
             if 'اسم' in tc and not data['sample_name']:
                 parts = tc.split(':')
                 if len(parts) > 1:
                     data['sample_name'] = parts[1].strip()
-            for key, plist in patterns.items():
+            for key, ps in pats.items():
                 if data[key] is None:
-                    for p in plist:
+                    for p in ps:
                         m = re.search(p, tc, re.IGNORECASE)
                         if m:
                             try:
@@ -1489,141 +1466,72 @@ class SmartLabSystem:
                                 pass
         return data
 
-    def save_lab_result(self, data):
+    def save(self, data):
         rid = secrets.token_hex(16)
         self.db.insert_record('lab_results', {
             'result_id': rid,
             'sample_name': data.get('sample_name', ''),
-            'sample_type': data.get('sample_type', ''),
-            'cp': data.get('cp', 0.0), 'dc': data.get('dc', 0.0),
-            'se': data.get('se', 0.0), 'ndf': data.get('ndf', 0.0),
-            'adf': data.get('adf', 0.0), 'ee': data.get('ee', 0.0),
-            'ash': data.get('ash', 0.0),
-            'moisture': data.get('moisture', 0.0),
-            'calcium': data.get('ca', 0.0),
-            'phosphorus': data.get('p', 0.0),
-            'sodium': data.get('na', 0.0),
-            'potassium': data.get('k', 0.0),
-            'magnesium': 0.0, 'chlorine': 0.0, 'sulfur': 0.0,
-            'crude_fiber': 0.0,
+            'cp': data.get('cp') or 0.0, 'dc': data.get('dc') or 0.0,
+            'se': data.get('se') or 0.0, 'ndf': data.get('ndf') or 0.0,
+            'adf': data.get('adf') or 0.0, 'ee': data.get('ee') or 0.0,
+            'ash': data.get('ash') or 0.0,
+            'moisture': data.get('moisture') or 0.0,
             'analysis_date': datetime.now().isoformat(),
             'analyzed_by': data.get('analyzed_by', ''),
             'notes': data.get('notes', ''),
-            'image_path': data.get('image_path', ''),
             'requester_name': data.get('requester_name', '')})
         return rid
 
 
-# =====================================================================
-# المراجع العلمية
-# =====================================================================
 class ScientificReferenceSystem:
     REFERENCES = {
-        "general": {
-            "title": "تغذية الحيوان العامة", "icon": "📚",
-            "references": [
-                {"id": "REF001", "authors": "McDonald, P., et al.",
-                 "year": 2011, "title": "Animal Nutrition",
-                 "publisher": "Pearson",
-                 "summary": "المرجع الأساسي في تغذية الحيوان."}]},
-        "minerals": {
-            "title": "المعادن والفيتامينات", "icon": "🪨",
-            "references": [
-                {"id": "REF008", "authors": "Underwood, E.J., Suttle, N.F.",
-                 "year": 1999,
-                 "title": "The Mineral Nutrition of Livestock",
-                 "publisher": "CABI",
-                 "summary": "تغذية المعادن."}]},
-        "poultry": {
-            "title": "تغذية الدواجن", "icon": "🐔",
-            "references": [
-                {"id": "REF010", "authors": "Leeson, S., Summers, J.D.",
-                 "year": 2009, "title": "Commercial Poultry Nutrition",
-                 "publisher": "Nottingham University Press",
-                 "summary": "تغذية الدواجن."}]},
-        "fiber": {
-            "title": "الألياف", "icon": "🌾",
-            "references": [
-                {"id": "REF025", "authors": "Mertens, D.R.", "year": 1997,
-                 "title": "Fiber Requirements of Dairy Cows",
-                 "publisher": "Journal of Dairy Science",
-                 "summary": "متطلبات الألياف."}]},
-        "milk_replacers": {
-            "title": "بدائل الحليب", "icon": "🍼",
-            "references": [
-                {"id": "REF040", "authors": "Davis, C.L., Drackley, J.K.",
-                 "year": 1998,
-                 "title": "The Development, Nutrition, and Management of the Young Calf",
-                 "publisher": "Iowa State University Press",
-                 "summary": "تغذية العجول."}]}}
+        "general": {"title": "تغذية الحيوان العامة", "icon": "📚",
+            "references": [{"id": "R1", "authors": "McDonald, P., et al.",
+                "year": 2011, "title": "Animal Nutrition",
+                "publisher": "Pearson",
+                "summary": "المرجع الأساسي في تغذية الحيوان."}]},
+        "minerals": {"title": "المعادن والفيتامينات", "icon": "🪨",
+            "references": [{"id": "R2", "authors": "Underwood",
+                "year": 1999, "title": "Mineral Nutrition of Livestock",
+                "publisher": "CABI", "summary": "تغذية المعادن."}]},
+        "poultry": {"title": "تغذية الدواجن", "icon": "🐔",
+            "references": [{"id": "R3", "authors": "Leeson & Summers",
+                "year": 2009, "title": "Commercial Poultry Nutrition",
+                "publisher": "Nottingham",
+                "summary": "تغذية الدواجن."}]},
+        "fiber": {"title": "الألياف", "icon": "🌾",
+            "references": [{"id": "R4", "authors": "Mertens, D.R.",
+                "year": 1997, "title": "Fiber Requirements",
+                "publisher": "JDS", "summary": "متطلبات الألياف."}]},
+        "milk": {"title": "بدائل الحليب", "icon": "🍼",
+            "references": [{"id": "R5", "authors": "Davis & Drackley",
+                "year": 1998, "title": "Young Calf",
+                "publisher": "Iowa",
+                "summary": "تغذية العجول."}]}}
 
     KNOWLEDGE_BASE = {
         "البروتين المهضوم": {
-            "answer": "البروتين المهضوم هو كمية البروتين التي يستطيع الحيوان هضمها وامتصاصها فعلياً من العلف.",
-            "simplified": "الجزء من البروتين الذي يستفيد منه الحيوان."},
+            "answer": "البروتين الذي يستطيع الحيوان هضمه وامتصاصه فعلياً.",
+            "simplified": "الجزء المفيد من البروتين."},
         "معادل النشاء": {
-            "answer": "مقياس لكمية الطاقة التي يوفرها العلف للحيوان مقارنة بالنشاء النقي.",
-            "simplified": "يقيس كمية الطاقة في العلف."},
+            "answer": "مقياس الطاقة مقارنة بالنشاء النقي.",
+            "simplified": "مقياس طاقة العلف."},
         "NDF": {
-            "answer": "الألياف المتعادلة - تشمل السليلوز والهيميسليلوز واللجنين. تقيس الألياف الكلية.",
-            "simplified": "الألياف الكلية التي تحدد شبع الحيوان."},
+            "answer": "الألياف المتعادلة - السليلوز + الهيميسليلوز + اللجنين.",
+            "simplified": "الألياف الكلية."},
         "ADF": {
-            "answer": "الألياف الحمضية - تشمل السليلوز واللجنين. ترتبط عكسياً بمعامل الهضم.",
-            "simplified": "تقيس صعوبة هضم الألياف."},
-        "الكالسيوم للفسفور": {
-            "answer": "المثالية: أبقار 1.5-2:1، أغنام 2:1، خيول 1.8:1، دواجن بياض 4:1.",
-            "simplified": "نسبة Ca:P يجب أن تكون متوازنة."}}
+            "answer": "الألياف الحمضية - السليلوز + اللجنين.",
+            "simplified": "صعوبة هضم الألياف."},
+        "الكالسيوم": {
+            "answer": "Ca:P مثالي: أبقار 1.5، أغنام 2، خيول 1.8، بياض 4.",
+            "simplified": "نسبة الكالسيوم للفسفور."}}
 
     @staticmethod
-    def get_knowledge_answer(q):
-        ql = q.lower()
-        for key, val in ScientificReferenceSystem.KNOWLEDGE_BASE.items():
-            if key.lower() in ql or key in q:
-                return {"answer": val["answer"],
-                        "simplified": val["simplified"]}
+    def get_answer(q):
+        for k, v in ScientificReferenceSystem.KNOWLEDGE_BASE.items():
+            if k in q:
+                return v
         return None
-
-
-# =====================================================================
-# المخزون
-# =====================================================================
-class InventoryManager:
-    @staticmethod
-    def initialize_inventory():
-        if "inventory" not in st.session_state:
-            st.session_state["inventory"] = {}
-            for cat_name, items in BIG_FEEDS_LIBRARY.items():
-                for ing in items:
-                    st.session_state["inventory"][ing] = {
-                        "quantity": 25.0, "min_threshold": 5.0, "unit": "طن"}
-
-    @staticmethod
-    def check_stock_levels():
-        warns = {}
-        for item, data in st.session_state["inventory"].items():
-            qty = data if isinstance(data, (int, float)) else data["quantity"]
-            thr = (5.0 if isinstance(data, (int, float))
-                   else data.get("min_threshold", 5.0))
-            if qty <= 0:
-                warns[item] = {"status": "نفذ المخزون", "level": "critical"}
-            elif qty < thr:
-                warns[item] = {"status": "منخفض", "level": "warning"}
-        return warns
-
-    @staticmethod
-    def get_stock_summary():
-        total = len(st.session_state["inventory"])
-        qty = sum(d["quantity"] if isinstance(d, dict) else d
-                  for d in st.session_state["inventory"].values())
-        low = sum(1 for d in st.session_state["inventory"].values()
-                  if (d["quantity"] if isinstance(d, dict) else d)
-                  < (d.get("min_threshold", 5.0)
-                     if isinstance(d, dict) else 5.0))
-        return {"total_items": total, "total_quantity": qty,
-                "low_stock": low}
-
-
-InventoryManager.initialize_inventory()
 
 
 ANIMAL_IMAGES_RESOURCES = {
@@ -1637,6 +1545,41 @@ ANIMAL_IMAGES_RESOURCES = {
     "عام": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1600"
 }
 
+
+class InventoryManager:
+    @staticmethod
+    def init():
+        if "inventory" not in st.session_state:
+            st.session_state["inventory"] = {}
+            for cat in BIG_FEEDS_LIBRARY.values():
+                for ing in cat:
+                    st.session_state["inventory"][ing] = {
+                        "quantity": 25.0, "min_threshold": 5.0, "unit": "طن"}
+
+    @staticmethod
+    def check_levels():
+        w = {}
+        for item, d in st.session_state["inventory"].items():
+            qty = d["quantity"] if isinstance(d, dict) else d
+            thr = d.get("min_threshold", 5.0) if isinstance(d, dict) else 5.0
+            if qty <= 0:
+                w[item] = {"status": "نفذ"}
+            elif qty < thr:
+                w[item] = {"status": "منخفض"}
+        return w
+
+    @staticmethod
+    def summary():
+        t = len(st.session_state["inventory"])
+        q = sum(d["quantity"] if isinstance(d, dict) else d
+                for d in st.session_state["inventory"].values())
+        l = sum(1 for d in st.session_state["inventory"].values()
+                if (d["quantity"] if isinstance(d, dict) else d)
+                < (d.get("min_threshold", 5.0) if isinstance(d, dict) else 5.0))
+        return {"total_items": t, "total_quantity": q, "low_stock": l}
+
+
+InventoryManager.init()
 
 # =====================================================================
 # State
@@ -1655,14 +1598,13 @@ defaults = {
     "lab_ee": 0.0, "lab_ash": 0.0, "lab_moisture": 0.0,
     "lab_notes": "", "lab_ca": 0.0, "lab_p": 0.0, "lab_na": 0.0,
     "lab_k": 0.0, "user": None, "device_id": None,
-    "shared_comments":
-        "• [توجيه الاختصاصي]: يرجى من جميع الزملاء إضافة تعليقاتهم.\n"}
+    "shared_comments": "• [توجيه الاختصاصي]: يرجى إضافة تعليقاتكم.\n"}
 for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
 get_or_create_device_id()
-seed_price_history_if_empty()
+seed_price_history()
 
 if "smart_lab_system" not in st.session_state:
     try:
@@ -1689,39 +1631,32 @@ if "global_products_prices" not in st.session_state:
 
 
 # =====================================================================
-# عرض الجداول العربية الصحيح
+# عرض الجداول العربية
 # =====================================================================
 def show_arabic_table(rows, color="#2e7d32", widths=None):
     if not rows:
         st.info("لا توجد بيانات.")
         return
-    ncols = len(rows[0])
+    n = len(rows[0])
     if widths is None:
-        widths = [f"{100/ncols:.1f}%" for _ in range(ncols)]
-
-    html = f"""
-    <div dir="rtl" style="overflow-x:auto; margin:12px 0;">
+        widths = [f"{100/n:.1f}%" for _ in range(n)]
+    html = f"""<div dir="rtl" style="overflow-x:auto; margin:12px 0;">
     <table style="width:100%; border-collapse:collapse;
                   font-family:'Cairo','Tajawal',sans-serif;
                   direction:rtl; text-align:right; font-size:0.92rem;
                   box-shadow:0 4px 20px rgba(0,0,0,0.08);
                   border-radius:12px; overflow:hidden;">
-        <thead>
-            <tr style="background:linear-gradient(135deg,{color},{color}dd);
-                        color:white; font-weight:700;">
-    """
+    <thead><tr style="background:{color}; color:white; font-weight:700;">"""
     for i, h in enumerate(rows[0]):
         html += (f'<th style="padding:12px 14px; text-align:center; '
-                  f'width:{widths[i] if i < len(widths) else "auto"}; '
-                  f'border-bottom:2px solid rgba(255,255,255,0.3);">'
+                  f'width:{widths[i] if i < len(widths) else "auto"};">'
                   f'{h}</th>')
     html += "</tr></thead><tbody>"
-
-    for r_idx, row in enumerate(rows[1:]):
-        bg = "#ffffff" if r_idx % 2 == 0 else "#f8faf8"
+    for ri, row in enumerate(rows[1:]):
+        bg = "#ffffff" if ri % 2 == 0 else "#f8faf8"
         html += f'<tr style="background:{bg};">'
         for i, cell in enumerate(row):
-            align = "right" if i == 0 else "center"
+            al = "right" if i == 0 else "center"
             cs = str(cell)
             tc = "#333"
             if "✅" in cs or "ممتاز" in cs:
@@ -1732,7 +1667,7 @@ def show_arabic_table(rows, color="#2e7d32", widths=None):
                 tc = "#e65100"
             elif "👍" in cs or "جيد" in cs:
                 tc = "#1565C0"
-            html += (f'<td style="padding:10px 14px; text-align:{align}; '
+            html += (f'<td style="padding:10px 14px; text-align:{al}; '
                       f'color:{tc}; border-bottom:1px solid #e8ece8; '
                       f'font-weight:{"600" if i == 0 else "400"};">'
                       f'{cell}</td>')
@@ -1741,36 +1676,33 @@ def show_arabic_table(rows, color="#2e7d32", widths=None):
     st.markdown(html, unsafe_allow_html=True)
 
 
-# =====================================================================
-# شريط الدعاء
-# =====================================================================
 def render_dua_bar():
     st.markdown("""
     <style>
     @keyframes scrollDuaLR {
-        0%   { transform: translateX(-100%); opacity: 0.2; }
-        8%   { opacity: 1; } 50%  { opacity: 1; }
-        92%  { opacity: 1; }
+        0% { transform: translateX(-100%); opacity: 0.2; }
+        8% { opacity: 1; } 50% { opacity: 1; }
+        92% { opacity: 1; }
         100% { transform: translateX(100%); opacity: 0.2; }
     }
     @keyframes glowTextDua {
         0%,100% { text-shadow: 0 0 8px #ffd700, 0 0 16px #ffd700, 0 0 30px #ff8c00; }
-        50%     { text-shadow: 0 0 20px #ffd700, 0 0 40px #ff8c00, 0 0 70px #ff4500; }
+        50% { text-shadow: 0 0 20px #ffd700, 0 0 40px #ff8c00, 0 0 70px #ff4500; }
     }
     @keyframes pulseHeartDua {
         0%,100% { transform: scale(1); color: #ff6b6b; }
-        50%     { transform: scale(1.4); color: #ff1744; }
+        50% { transform: scale(1.4); color: #ff1744; }
     }
     @keyframes bgShiftDua {
-        0%   { background-position:   0% 50%; }
-        50%  { background-position: 100% 50%; }
-        100% { background-position:   0% 50%; }
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
     }
     .dua-container {
         background: linear-gradient(90deg, #0d1b2a, #1a237e, #4a148c, #1a237e, #0d1b2a);
         background-size: 300% 300%;
         animation: bgShiftDua 14s ease infinite;
-        padding: 24px 0; border-radius: 24px 24px 0 0; margin-bottom: 0;
+        padding: 24px 0; border-radius: 24px 24px 0 0;
         overflow: hidden; border: 3px solid #ffd700; border-bottom: none;
         box-shadow: 0 8px 40px rgba(255, 215, 0, 0.5);
         direction: ltr; position: relative; min-height: 90px;
@@ -1781,9 +1713,9 @@ def render_dua_bar():
         font-size: 1.75rem; font-weight: 800; color: #ffd700;
         padding: 0 30px;
         font-family: 'Cairo', 'Tajawal', sans-serif;
-        letter-spacing: 1.5px; will-change: transform;
     }
-    .dua-track .emoji-heart { display: inline-block; animation: pulseHeartDua 1.2s ease-in-out infinite; margin: 0 10px; }
+    .dua-track .emoji-heart { display: inline-block;
+        animation: pulseHeartDua 1.2s ease-in-out infinite; margin: 0 10px; }
     .dua-track .name-highlight {
         color: #ffab40; font-weight: 900;
         background: rgba(255, 215, 0, 0.18);
@@ -1791,12 +1723,10 @@ def render_dua_bar():
     }
     .dua-static {
         background: linear-gradient(90deg, #1b2a4a, #2a1b4a, #1b2a4a);
-        background-size: 200% 200%;
-        animation: bgShiftDua 10s ease infinite;
         padding: 14px 20px; border-radius: 0 0 20px 20px;
         text-align: center; color: #e1bee7;
         font-size: 1.15rem; font-weight: 700;
-        border: 3px solid #ffd700; border-top: 1px solid rgba(255, 215, 0, 0.35);
+        border: 3px solid #ffd700;
         direction: rtl; line-height: 1.9; margin-bottom: 20px;
     }
     .dua-static .name-highlight-static {
@@ -1806,7 +1736,7 @@ def render_dua_bar():
     }
     .dua-static .heart-sm {
         color: #ff6b6b; font-size: 1rem; margin: 0 6px;
-        display: inline-block; animation: pulseHeartDua 1.5s ease-in-out infinite;
+        display: inline-block;
     }
     </style>
     <div class="dua-container">
@@ -1815,20 +1745,15 @@ def render_dua_bar():
             و <span class="name-highlight">ابتسام</span>
             وارحمهما وأدخلهما فسيح جناتك ❤️
             اللهم اجعل قبرهما روضة من رياض الجنة ❤️
-            اللهم ارحم موتانا وموتى المسلمين ❤️
         </div>
     </div>
     <div class="dua-static">
         🕊️ <span class="name-highlight-static">اللهم اغفر لإسماعيل تاور وابتسام</span>
-        <span class="heart-sm">❤️</span>
-        وارحمهما وأدخلهما فسيح جناتك 🕊️
+        <span class="heart-sm">❤️</span> وارحمهما وأدخلهما فسيح جناتك 🕊️
     </div>
     """, unsafe_allow_html=True)
 
 
-# =====================================================================
-# CSS
-# =====================================================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
@@ -1837,14 +1762,12 @@ html, body, [data-testid="stAppViewContainer"] {
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 50%, #f5f7fa 100%);
     background-attachment: fixed;
 }
-.stApp { background: transparent; }
 .main-box {
     background: rgba(255,255,255,0.92); padding: 35px; border-radius: 24px;
-    box-shadow: 0 25px 70px rgba(0,0,0,0.15); backdrop-filter: blur(15px);
-    margin-bottom: 35px;
+    box-shadow: 0 25px 70px rgba(0,0,0,0.15); margin-bottom: 35px;
 }
 .section-title {
-    color: #1b5e20; border-right: 6px solid #2e7d32; padding-right: 18px;
+    color: #1b5e20; border-right: 6px solid #2e7d32;
     text-align: right; font-size: 1.7rem; font-weight: 700;
     margin: 30px 0 25px 0;
     background: linear-gradient(to left, rgba(46,125,50,0.12), transparent);
@@ -1865,9 +1788,9 @@ html, body, [data-testid="stAppViewContainer"] {
 .metric-card {
     background: white; padding: 22px; border-radius: 18px;
     box-shadow: 0 6px 30px rgba(0,0,0,0.08); text-align: center;
-    border: 1px solid rgba(46,125,50,0.1);
 }
-.metric-card .number { font-size: 2.2rem; font-weight: 900; color: #1b5e20; margin: 5px 0; }
+.metric-card .number { font-size: 2.2rem; font-weight: 900;
+    color: #1b5e20; margin: 5px 0; }
 .metric-card .label { font-size: 0.95rem; color: #666; font-weight: 600; }
 .warning-card {
     background: linear-gradient(135deg, #fff3e0, #ffe0b2);
@@ -1888,38 +1811,24 @@ html, body, [data-testid="stAppViewContainer"] {
 """, unsafe_allow_html=True)
 
 
-def guide_section(tab_name, guide_text):
-    with st.expander(f"📘 دليل استخدام {tab_name}", expanded=False):
-        st.markdown(
-            f"<div style='background:#f0f8ff; padding:15px; "
-            f"border-radius:10px; direction:rtl;'>{guide_text}</div>",
-            unsafe_allow_html=True)
-
-
-# =====================================================================
-# صورة الخلطة
-# =====================================================================
-def generate_formula_image(formula_data, target_dp, target_se, breed, stage,
-                            user_name):
+def generate_formula_image(formula_data, dp, se, breed, stage, user):
     fig, ax = plt.subplots(figsize=(12, 10))
     ax.set_facecolor('#f5f5f5')
     fig.patch.set_facecolor('#ffffff')
-    title = ar(f"🧬 خلطة علفية معتمدة - تاور نولجي\n"
-               f"المشرف: {user_name}\n"
+    title = ar(f"🧬 خلطة علفية - تاور نولجي\n"
+               f"المشرف: {user}\n"
                f"الفصيل: {breed} | المرحلة: {stage}\n"
-               f"DP: {target_dp:.1f}% | SE: {target_se:.1f}")
+               f"DP: {dp:.1f}% | SE: {se:.1f}")
     ax.set_title(title, fontsize=14, fontweight='bold', pad=25)
     ings = list(formula_data.keys())
-    kg = [p * 10 for p in formula_data.values()]
+    kg = [p*10 for p in formula_data.values()]
     y = np.arange(len(ings))
-    ax.barh(y, kg, color='#2e7d32', alpha=0.8,
-            edgecolor='#1b5e20', linewidth=1.5)
+    ax.barh(y, kg, color='#2e7d32', alpha=0.8, edgecolor='#1b5e20')
     ax.set_yticks(y)
     ax.set_yticklabels([ar(i) for i in ings], fontsize=11)
-    ax.set_xlabel(ar('الكمية (كجم/طن)'), fontsize=12, fontweight='bold')
+    ax.set_xlabel(ar('الكمية (كجم/طن)'), fontsize=12)
     for i, v in enumerate(kg):
-        ax.text(v + 3, i, ar(f'{v:.1f} كجم'), va='center', fontsize=10,
-                fontweight='bold', color='#1b5e20')
+        ax.text(v+3, i, ar(f'{v:.1f} كجم'), va='center', fontsize=10)
     ax.grid(axis='x', alpha=0.3, linestyle='--')
     plt.tight_layout()
     buf = io.BytesIO()
@@ -1954,114 +1863,19 @@ def send_image_to_whatsapp(image_buf, caption, phone=WHATSAPP_NUMBER):
         """, unsafe_allow_html=True)
         return True
     except Exception as e:
-        st.error(f"❌ {str(e)}")
+        st.error(f"❌ {e}")
         return False
 
 
-# =====================================================================
-# عرض تحليل الأملاح والألياف
-# =====================================================================
-def render_mineral_fiber_analysis(formula_results, animal_type, stage,
-                                    requester_name=""):
-    mf_result = calculate_minerals_fibers(formula_results)
-    computed = mf_result["values"]
-    ratios = mf_result["ratios"]
-
-    mf_std = MINERAL_FIBER_STANDARDS.get(animal_type, {}).get(stage, {})
-    mf_eval = (evaluate_against_standard(computed, mf_std)
-               if mf_std else {})
-
-    tab_min, tab_fib, tab_rat = st.tabs(
-        ["🧂 الأملاح", "🌾 الألياف", "⚖️ النسب"])
-
-    with tab_min:
-        st.markdown("#### 🧂 تحليل الأملاح (المعادن)")
-        items = [("Ca","كالسيوم (Ca)"), ("P","فسفور (P)"),
-                 ("Na","صوديوم (Na)"), ("K","بوتاسيوم (K)"),
-                 ("Mg","مغنيسيوم (Mg)"), ("Cl","كلور (Cl)"),
-                 ("S","كبريت (S)")]
-        rows = [["المعدن", "المحسوب %", "القياسي %",
-                 "الانحراف %", "التقييم"]]
-        for key, name in items:
-            calc = computed.get(key, 0.0)
-            std = mf_std.get(key)
-            if std is not None:
-                ev = mf_eval.get(key, {})
-                rows.append([name, f"{calc:.3f}", f"{std:.3f}",
-                              f"{ev.get('deviation', 0):+.1f}%",
-                              ev.get("grade", "-")])
-            else:
-                rows.append([name, f"{calc:.3f}", "-", "-", "-"])
-        show_arabic_table(rows, "#00838f",
-                          ["30%","16%","16%","18%","20%"])
-
-    with tab_fib:
-        st.markdown("#### 🌾 تحليل الألياف")
-        items = [("NDF","ألياف متعادلة (NDF)"),
-                 ("ADF","ألياف حمضية (ADF)"),
-                 ("CF","ألياف خام (CF)"), ("Ash","رماد (Ash)")]
-        rows = [["نوع الليف", "المحسوب %", "القياسي %",
-                 "الانحراف %", "التقييم"]]
-        for key, name in items:
-            calc = computed.get(key, 0.0)
-            std = mf_std.get(key)
-            if std is not None:
-                ev = mf_eval.get(key, {})
-                rows.append([name, f"{calc:.2f}", f"{std:.2f}",
-                              f"{ev.get('deviation', 0):+.1f}%",
-                              ev.get("grade", "-")])
-            else:
-                rows.append([name, f"{calc:.2f}", "-", "-", "-"])
-        show_arabic_table(rows, "#6a1b9a",
-                          ["34%","16%","16%","18%","16%"])
-
-    with tab_rat:
-        st.markdown("#### ⚖️ النسب الحرجة")
-        ca_p = ratios.get("Ca_P_ratio", 0)
-        k_na = ratios.get("K_Na_ratio", 0)
-        ideal = get_ideal_ca_p_ratio(animal_type)
-        rows = [["النسبة", "القيمة", "المثالي", "الحالة"]]
-        ca_s = ("✅ ممتاز" if abs(ca_p - ideal) <= 0.3
-                else "⚠️ يحتاج تحسين" if abs(ca_p - ideal) <= 0.6
-                else "❌ خارج النطاق")
-        k_s = ("✅ ممتاز" if 2.5 <= k_na <= 4.0
-               else "⚠️ يحتاج تحسين")
-        rows.append(["Ca : P", f"{ca_p:.2f}", f"≈ {ideal:.1f}", ca_s])
-        rows.append(["K : Na", f"{k_na:.2f}", "≈ 3.0", k_s])
-        show_arabic_table(rows, "#c62828",
-                          ["25%","20%","25%","30%"])
-
-    if mf_std:
-        keys = [k for k in ["Ca","P","Na","K","Mg","NDF","ADF","CF"]
-                if k in mf_std]
-        if keys:
-            fig = go.Figure()
-            fig.add_trace(go.Bar(
-                x=keys, y=[computed.get(k, 0) for k in keys],
-                name="المحسوب", marker_color="#2e7d32"))
-            fig.add_trace(go.Bar(
-                x=keys, y=[mf_std.get(k, 0) for k in keys],
-                name="القياسي", marker_color="#1565C0"))
-            fig.update_layout(
-                title=dict(
-                    text="مقارنة الأملاح والألياف مع المعايير",
-                    font=dict(family="Cairo, Tajawal, sans-serif",
-                              size=14)),
-                barmode="group",
-                font=dict(family="Cairo, Tajawal, sans-serif", size=12),
-                height=400)
-            st.plotly_chart(fig, use_container_width=True)
-
-    if mf_eval:
-        st.markdown("#### 📌 التوصيات الذكية")
-        for rec in pdf_generator._recommendations(mf_eval):
-            st.info(f"• {rec}")
-
-    return mf_result, mf_std, mf_eval, ratios
+def guide_section(name, text):
+    with st.expander(f"📘 دليل استخدام {name}", expanded=False):
+        st.markdown(f"<div style='background:#f0f8ff; padding:15px; "
+                     f"border-radius:10px; direction:rtl;'>{text}</div>",
+                     unsafe_allow_html=True)
 
 
 # =====================================================================
-# دالة التركيب الرئيسية (مع الوضع التلقائي)
+# دالة التركيب الرئيسية (v19.3 - المحرك الشامل)
 # =====================================================================
 def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
                              default_dp, default_se, img_key,
@@ -2070,15 +1884,12 @@ def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
         f'<div class="section-title">{icon} {display_name} - تركيب العلف</div>',
         unsafe_allow_html=True)
 
+    st.success("🤖 **الوضع التلقائي الشامل (v19.3):** "
+                "اختر المواد المتاحة، والنظام يحسب النسب تلقائياً "
+                "وفقاً لكل الاحتياجات (طاقة + بروتين + أملاح + ألياف)")
+
     requester = st.text_input("👤 اسم طالب العلف:",
         placeholder="أدخل اسم المربي", key=f"{animal_key}_req")
-
-    # الوضع التلقائي
-    st.markdown('<div class="section-title">🎯 الوضع الذكي</div>',
-                unsafe_allow_html=True)
-    auto_mode = st.toggle(
-        "🤖 الوضع التلقائي — النظام يحدد النسب حسب احتياجات الحيوان",
-        value=True, key=f"{animal_key}_auto")
 
     # الموقع
     st.markdown('<div class="section-title">🌍 الموقع الجغرافي</div>',
@@ -2107,7 +1918,7 @@ def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
             "ولاية الخرطوم": ["الخرطوم", "أم درمان", "بحري"],
             "ولاية الجزيرة": ["ود مدني", "الحصاحيصا", "المناقل"],
             "ولاية القضارف": ["القضارف", "الفاو"],
-            "ولاية شمال كردفان": ["الأبيض", "بارا", "أم روابة"],
+            "ولاية شمال كردفان": ["الأبيض", "بارا"],
             "ولاية جنوب كردفان": ["كادوقلي", "الدلنج"],
             "ولاية غرب كردفان": ["الفوله", "النهود"],
             "إقليم النيل الأزرق": ["الدمازين", "الروصيرص"],
@@ -2134,7 +1945,6 @@ def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
         age = st.number_input("العمر (شهر):", 1, 240, 24,
                                key=f"{animal_key}_age")
 
-    # القياسات
     if has_measurements:
         st.markdown('<div class="section-title">📐 القياسات</div>',
                     unsafe_allow_html=True)
@@ -2153,58 +1963,40 @@ def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
                 key=f"{animal_key}_length")
         wf = wf_map.get(animal_key, 12000)
         ff = ff_map.get(animal_key, 0.03)
-        est_w = (girth ** 2 * length) / wf
-        st.success(f"⚖️ الوزن التقديري: **{est_w:.1f} كجم** | "
-                   f"الاحتياج اليومي: **{est_w*ff:.2f} كجم مادة جافة**")
+        ew = (girth ** 2 * length) / wf
+        st.success(f"⚖️ الوزن التقديري: **{ew:.1f} كجم** | "
+                   f"الاحتياج اليومي: **{ew*ff:.2f} كجم مادة جافة**")
 
-    # الاحتياجات
-    std_vals = STANDARD_VALUES.get(display_name, {}).get(stage, {})
-    auto_dp = std_vals.get("DP", default_dp)
-    auto_se = std_vals.get("SE", default_se)
-    auto_cp = std_vals.get("CP", auto_dp / 0.82)
+    # المعايير
+    std_v = STANDARD_VALUES.get(display_name, {}).get(stage, {})
+    mf_std_v = MINERAL_FIBER_STANDARDS.get(display_name, {}).get(stage, {})
 
-    st.markdown('<div class="section-title">📋 الاحتياجات الغذائية</div>',
-                unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-title">📋 الاحتياجات الغذائية القياسية '
+        '(تُطبَّق تلقائياً)</div>', unsafe_allow_html=True)
+    st.info("🎯 النظام سيلتزم بهذه القيم أثناء حساب النسب:")
 
-    use_cp = False
-    final_target_cp = None
-    if auto_mode:
-        st.success(f"🤖 **الوضع التلقائي** — القيم من المعايير القياسية")
-        m1, m2, m3 = st.columns(3)
-        m1.metric("🎯 DP", f"{auto_dp:.2f}%", "قياسي")
-        m2.metric("⚡ SE", f"{auto_se:.2f}", "قياسي")
-        m3.metric("📊 CP", f"{auto_cp:.2f}%")
-        final_target_dp = auto_dp
-        final_target_se = auto_se
-        with st.expander("🔧 تعديل يدوي (اختياري)"):
-            man_dp = st.slider("DP %", 5.0, 40.0, float(auto_dp),
-                                key=f"{animal_key}_man_dp")
-            man_se = st.slider("SE", 10.0, 90.0, float(auto_se),
-                                key=f"{animal_key}_man_se")
-            if st.checkbox("تفعيل التعديل", value=False,
-                            key=f"{animal_key}_en_man"):
-                final_target_dp = man_dp
-                final_target_se = man_se
-    else:
-        use_cp = st.checkbox("⚡ استخدم CP", value=False,
-                              key=f"{animal_key}_cp_basis")
-        p1, p2 = st.columns(2)
-        final_target_dp = None
-        if use_cp:
-            with p1:
-                final_target_cp = st.slider("CP %:", 5.0, 60.0,
-                    float(auto_cp), key=f"{animal_key}_cp_s")
-        else:
-            with p1:
-                final_target_dp = st.slider("DP %:", 5.0, 40.0,
-                    float(auto_dp), key=f"{animal_key}_dp_s")
-        with p2:
-            final_target_se = st.slider("SE:", 10.0, 90.0,
-                float(auto_se), key=f"{animal_key}_se_s")
+    cm1, cm2, cm3 = st.columns(3)
+    cm1.metric("🧬 DP", f"{std_v.get('DP', default_dp):.2f}%")
+    cm2.metric("⚡ SE", f"{std_v.get('SE', default_se):.2f}")
+    cm3.metric("📊 CP", f"{std_v.get('CP', 0):.2f}%")
+
+    if mf_std_v:
+        with st.expander("🔬 الأملاح والألياف المطلوبة (تُطبَّق تلقائياً)",
+                          expanded=False):
+            rows = [["المقياس", "القيمة القياسية %"]]
+            for k, v in mf_std_v.items():
+                rows.append([k, f"{v:.3f}"])
+            show_arabic_table(rows, "#00838f", ["50%","50%"])
+
+    use_cp = st.checkbox("⚡ استخدم البروتين الخام (CP) بدلاً من المهضوم (DP)",
+                          value=False, key=f"{animal_key}_cp_basis")
 
     # المواد المتاحة
-    st.markdown('<div class="section-title">🌾 المواد المتاحة في بيئتك</div>',
-                unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-title">🌾 المواد المتاحة في بيئتك</div>',
+        unsafe_allow_html=True)
+    st.info("✅ اختر المواد المتاحة عندك — النظام سيتكفل بتحديد النسب المثالية")
 
     qc1, qc2, qc3 = st.columns(3)
     with qc1:
@@ -2222,7 +2014,7 @@ def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
                     st.session_state[f"{animal_key}_feed_{ing}"] = False
             st.rerun()
     with qc3:
-        if st.button("⭐ توصيات", use_container_width=True,
+        if st.button("⭐ توصيات افتراضية", use_container_width=True,
                       key=f"{animal_key}_def"):
             dmap = {
                 "cattle": ["ذرة صفراء", "شعير مطحون", "نخالة قمح (ردة)",
@@ -2230,19 +2022,22 @@ def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
                            "أمباز الفول السوداني (كسب)",
                            "مركزات خيول ومجترات", "ملح الطعام",
                            "الحجر الجيري (بودرة بلاط)",
-                           "فوسفات ثنائي الكالسيوم (DCP)"],
+                           "فوسفات ثنائي الكالسيوم (DCP)",
+                           "بيكربونات الصوديوم (الصودا)"],
                 "sheep": ["ذرة صفراء", "شعير مطحون", "نخالة قمح (ردة)",
                           "كسب فول صويا 44%",
                           "أمباز الفول السوداني (كسب)",
                           "مركزات خيول ومجترات", "ملح الطعام",
                           "الحجر الجيري (بودرة بلاط)",
-                          "فوسفات ثنائي الكالسيوم (DCP)"],
+                          "فوسفات ثنائي الكالسيوم (DCP)",
+                          "بيكربونات الصوديوم (الصودا)"],
                 "goat": ["ذرة صفراء", "شعير مطحون", "نخالة قمح (ردة)",
                          "كسب فول صويا 44%",
                          "أمباز الفول السوداني (كسب)",
                          "مركزات خيول ومجترات", "ملح الطعام",
                          "الحجر الجيري (بودرة بلاط)",
-                         "فوسفات ثنائي الكالسيوم (DCP)"],
+                         "فوسفات ثنائي الكالسيوم (DCP)",
+                         "بيكربونات الصوديوم (الصودا)"],
                 "horse": ["شعير مطحون", "ذرة صفراء", "نخالة قمح (ردة)",
                           "كسب فول صويا 44%",
                           "أمباز الفول السوداني (كسب)",
@@ -2256,7 +2051,8 @@ def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
                           "البرسيم الجاف (الدريس)",
                           "مركزات خيول ومجترات", "ملح الطعام",
                           "الحجر الجيري (بودرة بلاط)",
-                          "فوسفات ثنائي الكالسيوم (DCP)"],
+                          "فوسفات ثنائي الكالسيوم (DCP)",
+                          "بيكربونات الصوديوم (الصودا)"],
                 "poultry": ["ذرة صفراء", "سورجم (فتريتة)",
                             "كسب فول صويا 44%",
                             "كسب جلوتين الذرة 60%",
@@ -2264,22 +2060,25 @@ def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
                             "بريمكس تسمين دواجن (Premix)",
                             "ملح الطعام",
                             "الحجر الجيري (بودرة بلاط)",
-                            "فوسفات ثنائي الكالسيوم (DCP)"],
+                            "فوسفات ثنائي الكالسيوم (DCP)",
+                            "إنزيم الفايتيز الزامي (Phytase Super-D)"],
                 "fish": ["ذرة صفراء", "كسب فول صويا 44%",
                          "مسحوق أسماك (Fishmeal 60%)",
                          "كسب جلوتين الذرة 60%",
                          "مركزات دواجن وسمان", "ملح الطعام",
-                         "فوسفات ثنائي الكالسيوم (DCP)"]}
+                         "فوسفات ثنائي الكالسيوم (DCP)",
+                         "إنزيم الفايتيز الزامي (Phytase Super-D)"]}
             dset = set(dmap.get(animal_key, []))
             for cat in BIG_FEEDS_LIBRARY.values():
                 for ing in cat:
-                    st.session_state[f"{animal_key}_feed_{ing}"] = (ing in dset)
+                    st.session_state[f"{animal_key}_feed_{ing}"] = (
+                        ing in dset)
             st.rerun()
 
     selected = []
     prices = {}
     for cat_name, items in BIG_FEEDS_LIBRARY.items():
-        with st.expander(f"📁 {cat_name}", expanded=True):
+        with st.expander(f"📁 {cat_name}", expanded=False):
             cols = st.columns(3)
             for idx, ing in enumerate(items.keys()):
                 with cols[idx % 3]:
@@ -2300,24 +2099,25 @@ def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
                         prices[ing] = pr
 
     if not selected:
-        st.warning("⚠️ **يرجى اختيار المواد المتاحة**")
+        st.warning("⚠️ **يرجى اختيار المواد المتاحة في بيئتك**")
         return
 
-    # الإضافات الإلزامية
-    fixed = {"ملح الطعام": 0.5, "مضاد سموم فطرية": 0.2,
-             "الحجر الجيري (بودرة بلاط)": 1.5,
-             "فوسفات ثنائي الكالسيوم (DCP)": 1.0}
+    # الإضافات الإلزامية (تُضاف تلقائياً إذا لم تُختر)
+    mandatory = {
+        "ملح الطعام": 0.5, "مضاد سموم فطرية": 0.2,
+        "الحجر الجيري (بودرة بلاط)": 1.5,
+        "فوسفات ثنائي الكالسيوم (DCP)": 1.0}
     auto_add = {}
     warns = []
 
-    if animal_key in ["cattle","sheep","goat","camel"]:
+    if animal_key in ["cattle", "sheep", "goat", "camel"]:
         auto_add["بيكربونات الصوديوم (الصودا)"] = 0.75
         warns.append("🚨 <b>بيكربونات الصوديوم 0.75%</b> — "
-                     "لحماية الكرش من التحمض.")
+                     "حماية الكرش من التحمض.")
     elif animal_key == "poultry":
         auto_add["بيكربونات الصوديوم (الصودا)"] = 0.20
 
-    if animal_key in ["poultry","fish"]:
+    if animal_key in ["poultry", "fish"]:
         auto_add["إنزيم الفايتيز الزامي (Phytase Super-D)"] = 0.05
         warns.append("🚨 <b>إنزيم الفايتيز 0.05%</b> — "
                      "لتحرير الفسفور النباتي.")
@@ -2328,140 +2128,158 @@ def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
         warns.append("⚠️ <b>معادل الجوسيبول 0.15%</b>.")
 
     if animal_key == "poultry" and any(
-            x in selected for x in ["شعير مطحون","قمح محلي مصنّع"]):
+            x in selected for x in ["شعير مطحون", "قمح محلي مصنّع"]):
         auto_add["إنزيم الـ NSP (زيلاناز + بيتا جلوكاناز)"] = 0.08
         warns.append("⚠️ <b>إنزيمات NSP 0.08%</b>.")
 
-    for it in {**fixed, **auto_add}:
+    all_auto = {**mandatory, **auto_add}
+    for it in all_auto:
         if it not in selected:
             selected.append(it)
             prices[it] = live_prices.get(it, 40.0)
-    all_fixed = {**fixed, **auto_add}
 
-    # الزر
+    # زر التشغيل
     st.markdown("---")
-    st.info(f"🎯 **جاهز** — {len(selected)} مادة | "
-            f"DP={final_target_dp:.2f}% | SE={final_target_se:.2f}")
+    st.info(f"🎯 **جاهز للتشغيل** — {len(selected)} مادة مختارة | "
+            f"الاحتياجات ستُطبَّق تلقائياً: DP={std_v.get('DP', default_dp):.1f}%, "
+            f"SE={std_v.get('SE', default_se):.1f}")
 
-    if st.button(f"🚀 تشغيل المحرك ({display_name})", type="primary",
-                  use_container_width=True, key=f"{animal_key}_run"):
+    if st.button(f"🚀 تشغيل المحرك الشامل ({display_name})",
+                  type="primary", use_container_width=True,
+                  key=f"{animal_key}_run"):
         if len(selected) < 3:
             st.warning("⚠️ اختر 3 مكونات على الأقل.")
         else:
-            with st.spinner("🔄 حساب الخلطة..."):
-                c = [prices[i] for i in selected]
-                bounds = [(all_fixed[i], all_fixed[i])
-                          if i in all_fixed else (0.0, 100.0)
-                          for i in selected]
-                A_eq = [[1.0]*len(selected)]
-                b_eq = [100.0]
-                cp_row, se_row = [], []
-                for ing in selected:
-                    fd = FLAT_FEED_DB.get(ing, {})
-                    cp = fd.get("CP", 0.0)
-                    dc = fd.get("DC", 0.0)
-                    se = fd.get("SE", 0.0)
-                    cp_row.append(cp if use_cp else cp*dc)
-                    se_row.append(se)
-                A_eq.append(cp_row)
-                b_eq.append((final_target_cp if use_cp
-                             else final_target_dp)*100.0)
+            with st.spinner("🔄 حل شامل: طاقة + بروتين + أملاح + ألياف..."):
+                res, ctx, level = auto_formulate_relaxed(
+                    selected, prices, animal_key, display_name,
+                    stage, use_cp)
 
-                A_ub, b_ub = [], []
-                A_ub.append([-x for x in se_row])
-                b_ub.append(-final_target_se*100.0)
-
-                gr = BIG_FEEDS_LIBRARY["🌾 الحبوب ومصادر الطاقة"]
-                gind = [1.0 if i in gr else 0.0 for i in selected]
-                if sum(gind) > 0:
-                    A_ub.append([-x for x in gind])
-                    b_ub.append(-50.0)
-                if "نخالة قمح (ردة)" in selected:
-                    A_ub.append([1.0 if i == "نخالة قمح (ردة)" else 0.0
-                                  for i in selected])
-                    b_ub.append(18.0)
-
-                limits = {
-                    "مولاس قصب السكر":
-                        {"default":12.0,"poultry":5.0,"horse":8.0,"fish":5.0},
-                    "يوريا علفية محصنة (المجترات فقط)":
-                        {"default":1.0,"poultry":0.0,"horse":0.0,"fish":0.0},
-                    "مخلفات مصانع البسكويت":
-                        {"default":15.0,"poultry":10.0},
-                    "سرسة الأرز المطحونة":{"default":10.0},
-                    "ملح الطعام":{"default":1.0}}
-                for mat, lims in limits.items():
-                    if mat in selected:
-                        lim = lims.get(animal_key, lims.get("default", 15.0))
-                        idx = selected.index(mat)
-                        row = [0.0]*len(selected)
-                        row[idx] = 1.0
-                        A_ub.append(row)
-                        b_ub.append(lim)
-
-                res = linprog(c, A_ub=A_ub, b_ub=b_ub,
-                               A_eq=A_eq, b_eq=b_eq,
-                               bounds=bounds, method='highs')
-
-                if not res.success:
-                    st.warning("⚠️ محاولة مرنة...")
-                    A_ub2, b_ub2 = [], []
-                    A_ub2.append([-x for x in se_row])
-                    b_ub2.append(-(final_target_se-3.0)*100.0)
-                    if sum(gind) > 0:
-                        A_ub2.append([-x for x in gind])
-                        b_ub2.append(-40.0)
-                    if "نخالة قمح (ردة)" in selected:
-                        A_ub2.append([1.0 if i == "نخالة قمح (ردة)"
-                                       else 0.0 for i in selected])
-                        b_ub2.append(25.0)
-                    res = linprog(c, A_ub=A_ub2, b_ub=b_ub2,
-                                   A_eq=A_eq, b_eq=b_eq,
-                                   bounds=bounds, method='highs')
-
-                if res.success:
+                if res is None or not res.success:
+                    st.error(f"❌ تعذر إيجاد حل: {ctx}")
+                    st.info("💡 **جرّب:**\n"
+                            "- إضافة مصدر بروتين (كسب صويا/فول/أسماك)\n"
+                            "- إضافة مصدر طاقة (ذرة/شعير/سورجم)\n"
+                            "- إضافة مصدر Ca (حجر جيري) و P (DCP)\n"
+                            "- إضافة مصدر ألياف (نخالة/دريس/تبن)")
+                else:
                     formula = {}
-                    se_t = dp_t = cp_t = 0.0
-                    for idx, ing in enumerate(selected):
-                        if res.x[idx] > 0.0001:
-                            formula[ing] = res.x[idx]
-                            fd = FLAT_FEED_DB.get(ing, {})
-                            se_t += (res.x[idx]/100.0)*fd.get("SE", 0.0)
-                            cp_t += (res.x[idx]/100.0)*fd.get("CP", 0.0)
-                            dp_t += (res.x[idx]/100.0)*(
-                                fd.get("CP",0.0)*fd.get("DC",0.0))
+                    for i, ing in enumerate(selected):
+                        if res.x[i] > 0.0001:
+                            formula[ing] = res.x[i]
                     ton_cost = res.fun / 100.0
 
-                    st.success(f"🎯 تم التشغيل في: {city}")
-                    voice_guide(f"تم توليد الخلطة بـ {ton_cost:.2f} دولار.")
+                    st.success(f"🎯 تم التركيب الشامل بنجاح في: {city} "
+                                f"| مستوى: **{level}**")
+                    voice_guide(f"تم التركيب بتكلفة {ton_cost:.2f} دولار.")
 
                     if warns:
-                        st.markdown("### 🔬 تقرير التدخل:")
+                        st.markdown("### 🔬 التعديلات الإلزامية المدمجة:")
                         for w in warns:
                             st.markdown(
                                 f'<div class="warning-card">{w}</div>',
                                 unsafe_allow_html=True)
 
-                    # جدول عربي
-                    st.markdown("#### 📝 النسب التي حددها النظام:")
-                    rows = [["المكون","النسبة %","كجم/طن","الحالة"]]
+                    st.markdown("#### 📝 النسب المعتمدة:")
+                    rows = [["المكون", "النسبة %", "كجم/طن", "الحالة"]]
                     for k, v in sorted(formula.items(),
                                         key=lambda x: -x[1]):
-                        status = ("🔒 إلزامي" if k in all_fixed
-                                  else "🟢 أساسي" if v >= 20
-                                  else "🟡 مهم" if v >= 5
-                                  else "⚪ مكمل")
-                        rows.append([k, f"{v:.2f}%", f"{v*10:.1f}", status])
+                        st_ = ("🔒 إضافي" if k in all_auto
+                               else "🟢 أساسي" if v >= 20
+                               else "🟡 ثانوي" if v >= 5
+                               else "⚪ مكمل")
+                        rows.append([k, f"{v:.2f}%", f"{v*10:.1f}", st_])
                     show_arabic_table(rows, "#2e7d32",
                                       ["40%","18%","18%","24%"])
 
-                    m1, m2, m3, m4 = st.columns(4)
-                    m1.metric("💰 التكلفة/طن", f"${ton_cost:.2f}")
-                    m2.metric("🧬 DP",
-                               f"{dp_t:.2f}%" if not use_cp
-                               else f"{cp_t:.2f}% CP")
-                    m3.metric("🌽 SE", f"{se_t:.2f}")
-                    m4.metric("📊 مكونات", len(formula))
+                    # التحقق الشامل
+                    achieved = compute_achieved(formula, selected, ctx)
+                    std_a = ctx['std_vals']
+                    mf_std = ctx['mf_std']
+
+                    st.markdown("#### ✅ التحقق من تحقيق كل الاحتياجات:")
+
+                    mc1, mc2, mc3 = st.columns(3)
+                    with mc1:
+                        tgt = std_a.get("DP", 12.0)
+                        d = achieved["DP"] - tgt
+                        mc1.metric("🧬 DP %", f"{achieved['DP']:.2f}",
+                                    delta=f"{d:+.2f} | هدف {tgt:.1f}")
+                    with mc2:
+                        tgt = std_a.get("SE", 65.0)
+                        d = achieved["SE"] - tgt
+                        mc2.metric("⚡ SE", f"{achieved['SE']:.2f}",
+                                    delta=f"{d:+.2f} | هدف {tgt:.1f}")
+                    with mc3:
+                        mc3.metric("📊 CP %", f"{achieved['CP']:.2f}",
+                                    delta=f"مرجعي {std_a.get('CP', 0):.1f}")
+
+                    st.markdown("##### 🧂 الأملاح (المعادن):")
+                    mrows = [["المعدن", "المحقق %", "القياسي %",
+                              "الانحراف", "الحالة"]]
+                    mnames = {"Ca": "كالسيوم", "P": "فسفور", "Na": "صوديوم",
+                               "K": "بوتاسيوم", "Mg": "مغنيسيوم",
+                               "Cl": "كلور", "S": "كبريت"}
+                    for k, n in mnames.items():
+                        if k not in mf_std:
+                            continue
+                        tgt = mf_std[k]
+                        act = achieved[k]
+                        dev = ((act - tgt) / tgt * 100) if tgt > 0 else 0
+                        if abs(dev) <= 10:
+                            g = "✅ ممتاز"
+                        elif abs(dev) <= 20:
+                            g = "👍 جيد"
+                        elif dev > 0:
+                            g = "🔺 مرتفع"
+                        else:
+                            g = "🔻 منخفض"
+                        mrows.append([n, f"{act:.3f}", f"{tgt:.3f}",
+                                       f"{dev:+.1f}%", g])
+                    show_arabic_table(mrows, "#00838f",
+                                      ["25%","20%","20%","17%","18%"])
+
+                    st.markdown("##### 🌾 الألياف:")
+                    frows = [["نوع الليف", "المحقق %", "القياسي %",
+                              "الانحراف", "الحالة"]]
+                    fnames = {"NDF": "ألياف متعادلة NDF",
+                               "ADF": "ألياف حمضية ADF",
+                               "CF": "ألياف خام CF", "Ash": "رماد Ash"}
+                    for k, n in fnames.items():
+                        if k not in mf_std:
+                            continue
+                        tgt = mf_std[k]
+                        act = achieved[k]
+                        dev = ((act - tgt) / tgt * 100) if tgt > 0 else 0
+                        if abs(dev) <= 15:
+                            g = "✅ ممتاز"
+                        elif abs(dev) <= 25:
+                            g = "👍 جيد"
+                        elif dev > 0:
+                            g = "🔺 مرتفع"
+                        else:
+                            g = "🔻 منخفض"
+                        frows.append([n, f"{act:.2f}", f"{tgt:.2f}",
+                                       f"{dev:+.1f}%", g])
+                    show_arabic_table(frows, "#6a1b9a",
+                                      ["30%","18%","18%","17%","17%"])
+
+                    ca_p = (achieved["Ca"] / achieved["P"]
+                             if achieved["P"] > 0 else 0)
+                    k_na = (achieved["K"] / achieved["Na"]
+                             if achieved["Na"] > 0 else 0)
+                    ideal = get_ideal_ca_p_ratio(display_name)
+                    n1, n2 = st.columns(2)
+                    n1.metric("⚖️ Ca : P", f"{ca_p:.2f}",
+                               delta=f"المثالي ≈ {ideal:.1f}")
+                    n2.metric("⚖️ K : Na", f"{k_na:.2f}",
+                               delta="المثالي ≈ 3.0")
+
+                    c1, c2, c3, c4 = st.columns(4)
+                    c1.metric("💰 التكلفة/طن", f"${ton_cost:.2f}")
+                    c2.metric("🧬 DP", f"{achieved['DP']:.2f}%")
+                    c3.metric("⚡ SE", f"{achieved['SE']:.2f}")
+                    c4.metric("📊 مكونات", len(formula))
 
                     if len(formula) > 1:
                         fig = px.pie(values=list(formula.values()),
@@ -2472,6 +2290,24 @@ def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
                         fig.update_layout(height=400,
                             font=dict(family="Cairo, Tajawal, sans-serif"))
                         st.plotly_chart(fig, use_container_width=True)
+
+                    ck = [k for k in ["Ca","P","Na","K","Mg","NDF","ADF","CF"]
+                          if k in mf_std]
+                    if ck:
+                        fig2 = go.Figure()
+                        fig2.add_trace(go.Bar(
+                            x=ck, y=[achieved.get(k, 0) for k in ck],
+                            name="المحقق", marker_color="#2e7d32"))
+                        fig2.add_trace(go.Bar(
+                            x=ck, y=[mf_std.get(k, 0) for k in ck],
+                            name="القياسي", marker_color="#1565C0"))
+                        fig2.update_layout(
+                            title="مقارنة التحقق مع المعايير",
+                            barmode="group",
+                            font=dict(family=
+                                "Cairo, Tajawal, sans-serif"),
+                            height=400)
+                        st.plotly_chart(fig2, use_container_width=True)
 
                     b1, b2 = st.columns(2)
                     with b1:
@@ -2486,8 +2322,8 @@ def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
                                         f"{display_name}-{breed}-{stage}",
                                     'animal_type': display_name,
                                     'breed': breed, 'stage': stage,
-                                    'target_dp': final_target_dp or 0,
-                                    'target_se': se_t,
+                                    'target_dp': achieved['DP'],
+                                    'target_se': achieved['SE'],
                                     'ingredients': json.dumps(
                                         formula, ensure_ascii=False),
                                     'total_cost': ton_cost*1000,
@@ -2500,32 +2336,31 @@ def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
                             except Exception as e:
                                 st.error(f"❌ {e}")
                     with b2:
-                        if st.button("🔬 إرسال للمختبر",
+                        if st.button("📲 مشاركة كصورة",
                                       use_container_width=True,
-                                      key=f"{animal_key}_lab"):
-                            st.session_state["lab_sample"] = {
-                                'formula': formula, 'animal': display_name,
-                                'breed': breed, 'stage': stage,
-                                'age': age, 'dp': dp_t, 'se': se_t,
-                                'cp': cp_t, 'requester': requester}
-                            st.success("✅ تم الإرسال.")
+                                      key=f"{animal_key}_share"):
+                            img = generate_formula_image(
+                                formula, achieved["DP"],
+                                achieved["SE"], breed, stage,
+                                get_current_user_name())
+                            cap = (f"خلطة {display_name} | "
+                                    f"DP:{achieved['DP']:.1f}% | "
+                                    f"SE:{achieved['SE']:.0f} | "
+                                    f"${ton_cost:.2f}/طن")
+                            send_image_to_whatsapp(img, cap)
 
                     # PDF
                     try:
                         mf_r = calculate_minerals_fibers(formula)
-                        mf_std = MINERAL_FIBER_STANDARDS.get(
-                            display_name, {}).get(stage, {})
-                        mf_ev = (evaluate_against_standard(
-                            mf_r["values"], mf_std) if mf_std else {})
+                        mf_ev = evaluate_against_standard(
+                            mf_r["values"], mf_std) if mf_std else {}
                         pdf_data = pdf_generator.generate_comprehensive_report(
-                            formula,
-                            dp_t if not use_cp else cp_t*0.82,
+                            formula, achieved["DP"],
                             f"{breed} - {stage}", ton_cost, city,
-                            ton_cost*lr, ls, se_t,
+                            ton_cost*lr, ls, achieved["SE"],
                             user_name=get_current_user_name(),
                             requester_name=requester,
-                            standard=std_vals,
-                            include_charts=True,
+                            standard=std_a,
                             extra_info={"السلالة": breed,
                                         "المرحلة": stage,
                                         "العمر": f"{age} شهر",
@@ -2536,7 +2371,7 @@ def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
                             mf_evaluation=mf_ev,
                             ratios=mf_r["ratios"])
                         st.download_button(
-                            "📥 تحميل PDF", pdf_data,
+                            "📥 تحميل PDF الشامل", pdf_data,
                             file_name=f"Tawor_{display_name}_"
                                       f"{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
                             mime="application/pdf",
@@ -2544,31 +2379,35 @@ def render_feed_formulation(animal_key, display_name, icon, breeds, stages,
                     except Exception as e:
                         st.warning(f"⚠️ PDF: {e}")
 
-                    # مشاركة واتساب
-                    if st.button("📲 مشاركة كصورة", use_container_width=True,
-                                  key=f"{animal_key}_share"):
-                        img = generate_formula_image(
-                            formula, dp_t, se_t, breed, stage,
-                            get_current_user_name())
-                        cap = (f"خلطة {display_name} | DP:{dp_t:.1f}% | "
-                                f"SE:{se_t:.0f} | ${ton_cost:.2f}/طن")
-                        send_image_to_whatsapp(img, cap)
+                    if st.button("🔬 إرسال للمختبر",
+                                  use_container_width=True,
+                                  key=f"{animal_key}_lab"):
+                        st.session_state["lab_sample"] = {
+                            'formula': formula,
+                            'animal': display_name, 'breed': breed,
+                            'stage': stage, 'age': age,
+                            'dp': achieved["DP"],
+                            'se': achieved["SE"],
+                            'cp': achieved["CP"],
+                            'requester': requester}
+                        st.success("✅ تم الإرسال للمختبر.")
 
-                    st.markdown("---")
-                    st.markdown("## 🧂🌾 تحليل الأملاح والألياف")
-                    render_mineral_fiber_analysis(
-                        formula, display_name, stage, requester)
-                else:
-                    st.error("❌ تعذر إيجاد حل. أضف مكونات بروتينية.")
+                    st.session_state["active_formula"] = formula
+                    st.session_state["active_cp_tag"] = achieved["DP"]
+                    st.session_state["active_se_tag"] = achieved["SE"]
+                    st.session_state["computed_ton_cost"] = ton_cost
+                    st.session_state["active_animal_img"] = \
+                        ANIMAL_IMAGES_RESOURCES.get(
+                            img_key, ANIMAL_IMAGES_RESOURCES["عام"])
+                    st.session_state["active_stage_title"] = stage
 
 
 # =====================================================================
 # المختبر المتقدم
 # =====================================================================
 def render_advanced_lab():
-    st.markdown(
-        '<div class="section-title">🔬 المختبر المتقدم</div>',
-        unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🔬 المختبر المتقدم</div>',
+                unsafe_allow_html=True)
 
     if st.session_state.get("lab_sample"):
         s = st.session_state["lab_sample"]
@@ -2587,10 +2426,8 @@ def render_advanced_lab():
         std = STANDARD_VALUES.get(animal, {}).get(stage, {})
         mf_std = MINERAL_FIBER_STANDARDS.get(animal, {}).get(stage, {})
     with c2:
-        st.selectbox("نظام البروتين:",
-            ["بروتين مهضوم (DP)", "بروتين خام (CP)"])
-        st.selectbox("نظام الطاقة:",
-            ["معادل النشاء (SE)", "طاقة أيضية (ME)"])
+        st.selectbox("نظام البروتين:", ["DP", "CP"])
+        st.selectbox("نظام الطاقة:", ["SE", "ME"])
 
     inputs = {}
     cols = st.columns(3)
@@ -2611,17 +2448,17 @@ def render_advanced_lab():
             comps = []
             for ing, w in inputs.items():
                 if w > 0:
-                    pct = w / total
+                    p = w / total
                     fd = FLAT_FEED_DB.get(ing, {})
                     cp = fd.get("CP", 0.0)
                     dc = fd.get("DC", 0.0)
                     se = fd.get("SE", 0.0)
-                    cp_t += pct * cp
-                    dp_t += pct * (cp * dc)
-                    se_t += pct * se
-                    comps.append([ing, f"{w:.1f}", f"{pct*100:.2f}"])
+                    cp_t += p * cp
+                    dp_t += p * (cp * dc)
+                    se_t += p * se
+                    comps.append([ing, f"{w:.1f}", f"{p*100:.2f}"])
 
-            pcts = {ing: (w/total*100) for ing, w in inputs.items() if w > 0}
+            pcts = {i: (w/total*100) for i, w in inputs.items() if w > 0}
             mf_r = calculate_minerals_fibers(pcts)
             mf_ev = (evaluate_against_standard(mf_r["values"], mf_std)
                      if mf_std else {})
@@ -2640,20 +2477,52 @@ def render_advanced_lab():
                 show_arabic_table([["المادة", "الوزن", "النسبة %"]] + comps,
                                    "#1565C0", ["50%","25%","25%"])
             with t2:
-                rows = [["العنصر", "القيمة"]]
-                rows.append(["CP", f"{cp_t:.2f}%"])
-                rows.append(["DP", f"{dp_t:.2f}%"])
-                rows.append(["SE", f"{se_t:.2f}"])
+                rows = [["العنصر", "القيمة"],
+                        ["CP", f"{cp_t:.2f}%"],
+                        ["DP", f"{dp_t:.2f}%"],
+                        ["SE", f"{se_t:.2f}"]]
                 show_arabic_table(rows, "#2e7d32", ["60%","40%"])
             with t3:
-                render_mineral_fiber_analysis(pcts, animal, stage, req)
+                mv = mf_r["values"]
+                mrows = [["المعدن", "المحقق %", "القياسي %",
+                          "الانحراف", "الحالة"]]
+                mnames = {"Ca": "كالسيوم", "P": "فسفور", "Na": "صوديوم",
+                           "K": "بوتاسيوم", "Mg": "مغنيسيوم",
+                           "Cl": "كلور", "S": "كبريت"}
+                for k, n in mnames.items():
+                    if k not in mf_std:
+                        continue
+                    tgt = mf_std[k]
+                    act = mv.get(k, 0)
+                    dev = ((act-tgt)/tgt*100) if tgt > 0 else 0
+                    g = ("✅" if abs(dev) <= 10
+                         else "👍" if abs(dev) <= 20
+                         else "🔺" if dev > 0 else "🔻")
+                    mrows.append([n, f"{act:.3f}", f"{tgt:.3f}",
+                                   f"{dev:+.1f}%", g])
+                show_arabic_table(mrows, "#00838f")
 
-            # PDF
+                frows = [["الليف", "المحقق %", "القياسي %",
+                          "الانحراف", "الحالة"]]
+                fnames = {"NDF": "NDF", "ADF": "ADF", "CF": "CF",
+                           "Ash": "رماد"}
+                for k, n in fnames.items():
+                    if k not in mf_std:
+                        continue
+                    tgt = mf_std[k]
+                    act = mv.get(k, 0)
+                    dev = ((act-tgt)/tgt*100) if tgt > 0 else 0
+                    g = ("✅" if abs(dev) <= 15
+                         else "👍" if abs(dev) <= 25
+                         else "🔺" if dev > 0 else "🔻")
+                    frows.append([n, f"{act:.2f}", f"{tgt:.2f}",
+                                   f"{dev:+.1f}%", g])
+                show_arabic_table(frows, "#6a1b9a")
+
             try:
                 pdf_data = pdf_generator.generate_lab_report(
                     st.session_state["analysis_results"], animal, stage,
-                    get_current_user_name(), std, None,
-                    requester_name=req,
+                    get_current_user_name(), std, None, requester_name=req,
                     mineral_fiber_data=mf_r["values"],
                     mf_standard=mf_std, mf_evaluation=mf_ev,
                     ratios=mf_r["ratios"])
@@ -2668,38 +2537,33 @@ def render_advanced_lab():
 # المختبر الذكي
 # =====================================================================
 def render_smart_lab():
-    st.markdown(
-        '<div class="section-title">🧪 المختبر الذكي - OCR</div>',
-        unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🧪 المختبر الذكي</div>',
+                unsafe_allow_html=True)
     if not OCR_AVAILABLE and not EASYOCR_AVAILABLE:
         st.warning("pip install easyocr")
 
-    uploaded = st.file_uploader("ارفع صورة",
-                                 type=['png','jpg','jpeg','bmp','tiff'])
-    if uploaded is not None:
+    up = st.file_uploader("ارفع صورة", type=['png','jpg','jpeg'])
+    img = None
+    if up:
         try:
-            img = PILImage_module.open(uploaded)
+            img = PILImage_module.open(up)
             st.image(img, use_container_width=True)
         except Exception:
             img = None
         if (st.session_state.get("smart_lab_system") and img and
                 st.button("🔍 تحليل")):
             with st.spinner("..."):
-                result, err = st.session_state[
+                r, e = st.session_state[
                     "smart_lab_system"].analyze_image(img)
-                if err:
-                    st.error(err)
+                if e:
+                    st.error(e)
                 else:
                     st.success("✅")
                     for k, v in [('lab_sample_name','sample_name'),
                                   ('lab_cp','cp'), ('lab_dc','dc'),
                                   ('lab_se','se'), ('lab_ndf','ndf'),
-                                  ('lab_adf','adf'), ('lab_ee','ee'),
-                                  ('lab_ash','ash'),
-                                  ('lab_moisture','moisture'),
-                                  ('lab_ca','ca'), ('lab_p','p'),
-                                  ('lab_na','na'), ('lab_k','k')]:
-                        st.session_state[k] = result.get(v) or ""
+                                  ('lab_adf','adf')]:
+                        st.session_state[k] = r.get(v) or ""
 
     c1, c2 = st.columns(2)
     with c1:
@@ -2708,17 +2572,13 @@ def render_smart_lab():
                          key="lab_cp", step=0.1)
         st.number_input("DC:", value=float(st.session_state.get("lab_dc") or 0),
                          key="lab_dc", step=0.01)
+    with c2:
         st.number_input("SE:", value=float(st.session_state.get("lab_se") or 0),
                          key="lab_se", step=0.1)
-    with c2:
         st.number_input("NDF:", value=float(st.session_state.get("lab_ndf") or 0),
                          key="lab_ndf", step=0.1)
         st.number_input("ADF:", value=float(st.session_state.get("lab_adf") or 0),
                          key="lab_adf", step=0.1)
-        st.number_input("Ca:", value=float(st.session_state.get("lab_ca") or 0),
-                         key="lab_ca", step=0.01)
-        st.number_input("P:", value=float(st.session_state.get("lab_p") or 0),
-                         key="lab_p", step=0.01)
 
     st.text_area("ملاحظات:", key="lab_notes")
     req = st.text_input("👤 الطالب:", key="smart_req")
@@ -2731,7 +2591,7 @@ def render_smart_lab():
             data['sample_name'] = st.session_state.get('lab_sample_name','')
             data['analyzed_by'] = get_current_user_name()
             data['requester_name'] = req
-            rid = st.session_state["smart_lab_system"].save_lab_result(data)
+            rid = st.session_state["smart_lab_system"].save(data)
             st.success(f"✅ {rid[:8]}")
 
 
@@ -2741,7 +2601,6 @@ def render_smart_lab():
 MAX_LOGIN = 5
 LOCKOUT = 300
 
-# فحص الجلسة
 if st.session_state.get("user") and \
         st.session_state["user"].get("role") == "owner" and \
         st.session_state.get("session_token"):
@@ -2754,7 +2613,7 @@ if not st.session_state.get("approved", False):
             dt = (datetime.now() -
                   st.session_state["last_login_time"]).seconds
             if dt < LOCKOUT:
-                st.error(f"🔒 قفل مؤقت. المحاولة بعد {LOCKOUT - dt} ثانية")
+                st.error(f"🔒 قفل مؤقت. بعد {LOCKOUT - dt} ثانية")
                 st.stop()
             else:
                 st.session_state["login_attempts"] = 0
@@ -2772,7 +2631,7 @@ if not st.session_state.get("approved", False):
         "🌾 تاور نولجي Tawornology</h2>",
         unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#555;'>"
-                "للانتاج الحيواني وتركيب الاعلاف - v19.2</p>",
+                "للانتاج الحيواني وتركيب الاعلاف - v19.3</p>",
                 unsafe_allow_html=True)
 
     cs1, cs2 = st.columns(2)
@@ -2786,25 +2645,23 @@ if not st.session_state.get("approved", False):
     if st.button("👤 دخول كزائر", type="primary",
                   use_container_width=True):
         auth = AuthManager()
-        user = auth.login_public()
-        if user:
+        u = auth.login_public()
+        if u:
             st.session_state["approved"] = True
             st.session_state["user_role"] = "public"
             st.session_state["login_welcome_shown"] = False
             st.session_state["last_login_time"] = datetime.now()
             st.session_state["session_token"] = secrets.token_urlsafe(32)
-            st.session_state["user"] = user
-            voice_guide("مرحباً بك زائراً.")
+            st.session_state["user"] = u
             st.rerun()
 
     st.markdown("<hr>", unsafe_allow_html=True)
-    opt = st.radio("طريقة الدخول:",
-                    ["كود سري", "اسم المستخدم"], horizontal=True)
+    opt = st.radio("طريقة الدخول:", ["كود سري", "اسم المستخدم"],
+                    horizontal=True)
 
     if opt == "كود سري":
         code = st.text_input("🔑 الكود:", type="password")
-        if st.button("دخول 🔓", type="secondary",
-                      use_container_width=True):
+        if st.button("دخول 🔓", type="secondary", use_container_width=True):
             ud = validate_access_code(code)
             if ud:
                 st.session_state["approved"] = True
@@ -2825,18 +2682,17 @@ if not st.session_state.get("approved", False):
     else:
         un = st.text_input("👤 المستخدم")
         pw = st.text_input("🔑 كلمة المرور", type="password")
-        if st.button("دخول 🔓", type="primary",
-                      use_container_width=True):
+        if st.button("دخول 🔓", type="primary", use_container_width=True):
             auth = AuthManager()
-            user = auth.authenticate(un, pw)
-            if user:
+            u = auth.authenticate(un, pw)
+            if u:
                 st.session_state["approved"] = True
-                st.session_state["user_role"] = user['role']
+                st.session_state["user_role"] = u['role']
                 st.session_state["login_welcome_shown"] = False
                 st.session_state["last_login_time"] = datetime.now()
                 st.session_state["session_token"] = \
                     secrets.token_urlsafe(32)
-                st.session_state["user"] = user
+                st.session_state["user"] = u
                 st.rerun()
             else:
                 st.session_state["login_attempts"] = \
@@ -2848,18 +2704,14 @@ if not st.session_state.get("approved", False):
     st.stop()
 
 
-# =====================================================================
-# الترحيب
-# =====================================================================
 if not st.session_state.get("login_welcome_shown"):
-    role_msgs = {
-        "owner": "👑 مرحباً، الاختصاصي م. عبد القادر",
-        "specialist": "🔬 أهلاً بالمختصين",
-        "veterinarian": "💊 أهلاً بالطبيب",
-        "nutritionist": "🧬 أهلاً بأخصائي التغذية",
-        "breeder": "🌾 أهلاً بالمربي",
-        "public": "👤 مرحباً زائراً"}
-    st.toast(role_msgs.get(st.session_state.get("user_role"), "مرحباً"),
+    rmsgs = {"owner": "👑 مرحباً، الاختصاصي",
+             "specialist": "🔬 أهلاً بالمختصين",
+             "veterinarian": "💊 أهلاً بالطبيب",
+             "nutritionist": "🧬 أهلاً بالأخصائي",
+             "breeder": "🌾 أهلاً بالمربي",
+             "public": "👤 مرحباً زائراً"}
+    st.toast(rmsgs.get(st.session_state.get("user_role"), "مرحباً"),
              icon="🌾")
     voice_welcome(st.session_state.get("user_role", "public"))
     st.session_state["login_welcome_shown"] = True
@@ -2908,7 +2760,7 @@ with c2:
                 unsafe_allow_html=True)
     st.markdown("<p style='color:#1565C0; text-align:right; "
                 "font-size:1.2rem;'>"
-                "للانتاج الحيواني وتركيب الاعلاف - v19.2</p>",
+                "للانتاج الحيواني وتركيب الاعلاف - v19.3</p>",
                 unsafe_allow_html=True)
     st.markdown("<h3 style='color:#c62828; text-align:right;'>"
                 "الاختصاصي م. عبد القادر إسماعيل تاور</h3>",
@@ -2917,9 +2769,8 @@ with c2:
 st.markdown("<hr style='border-top:3px solid #2e7d32;'>",
              unsafe_allow_html=True)
 
-# لوحة تحكم
 st.markdown("### 📊 لوحة التحكم")
-cs = InventoryManager.get_stock_summary()
+cs = InventoryManager.summary()
 c1, c2, c3, c4 = st.columns(4)
 c1.markdown(f"<div class='metric-card'><div class='number'>"
              f"{cs['total_items']}</div><div class='label'>"
@@ -2940,19 +2791,18 @@ st.markdown("---")
 # =====================================================================
 # التبويبات
 # =====================================================================
-tab_titles = [
+tt = [
     "🐾 القطاع الحيواني", "🧪 المختبر الذكي", "🔬 المختبر المتقدم",
     "🐔 إدارة المزارع", "🍼 بدائل الحليب", "🕌 مواقيت الصلاة",
     "💊 منبه الجرعات", "📊 بورصة الأسعار", "🏭 المستودعات",
     "📈 الإنتاج اليومي", "🔔 التنبيهات", "📈 التحليلات",
-    "💬 التعليقات", "🖨️ ديباجة الجوالات", "📚 المراجع",
+    "💬 التعليقات", "🖨️ الديباجة", "📚 المراجع",
     "💡 المساعدة", "📖 دليل"]
 if st.session_state.get("user_role") == "owner":
-    tab_titles.append("📧 إرسال الكود")
+    tt.append("📧 إرسال الكود")
 
-tabs = st.tabs(tab_titles)
+tabs = st.tabs(tt)
 
-# ═════ 0: القطاع الحيواني ═════
 with tabs[0]:
     at = st.tabs(["🐄 أبقار", "🐏 أغنام", "🐐 ماعز", "🐴 خيول", "🐫 إبل",
                    "🐔 دواجن", "🐟 أسماك"])
@@ -2994,15 +2844,12 @@ with tabs[0]:
             ["زريعة/بادئ", "نمو", "تسمين نهائي", "زريعة متقدمة"],
             28.0, 68.0, "أسماك", False)
 
-# ═════ 1: المختبر الذكي ═════
 with tabs[1]:
     render_smart_lab()
 
-# ═════ 2: المختبر المتقدم ═════
 with tabs[2]:
     render_advanced_lab()
 
-# ═════ 3: إدارة المزارع ═════
 with tabs[3]:
     st.markdown('<div class="section-title">🐔 إدارة المزارع</div>',
                 unsafe_allow_html=True)
@@ -3035,33 +2882,30 @@ with tabs[3]:
                 c1.metric("العمر", farm['age_days'])
                 c2.metric("الوزن", f"{farm['current_weight']:.3f}")
                 c2.metric("العلف", f"{farm['total_feed']:.1f}")
-                mort = ((farm['dead_count'] / farm['initial_birds']) * 100
+                mort = ((farm['dead_count']/farm['initial_birds'])*100
                         if farm['initial_birds'] > 0 else 0)
                 c3.metric("النفوق %", f"{mort:.1f}")
                 c3.metric("النافق", farm['dead_count'])
-
                 u1, u2 = st.columns(2)
                 with u1:
-                    nw = st.number_input("الوزن", min_value=0.01,
-                        value=float(farm['current_weight']),
-                        step=0.01, key=f"w_{cid}")
-                    nf = st.number_input("العلف", min_value=0.0,
-                        value=float(farm['total_feed']),
-                        step=1.0, key=f"f_{cid}")
+                    nw = st.number_input("الوزن", 0.01,
+                        value=float(farm['current_weight']), step=0.01,
+                        key=f"w_{cid}")
+                    nf = st.number_input("العلف", 0.0,
+                        value=float(farm['total_feed']), step=1.0,
+                        key=f"f_{cid}")
                 with u2:
                     nd = st.number_input("النافق", 0, value=0, step=1,
                                           key=f"d_{cid}")
                     na = st.number_input("العمر", 0,
                         value=int(farm['age_days']), step=1, key=f"a_{cid}")
-                if st.button(f"📊 تحديث", key=f"up_{cid}"):
+                if st.button("📊 تحديث", key=f"up_{cid}"):
                     farm['current_weight'] = nw
                     farm['total_feed'] = nf
                     farm['dead_count'] += nd
                     farm['age_days'] = na
-                    st.success("✅")
                     st.rerun()
 
-# ═════ 4: بدائل الحليب ═════
 with tabs[4]:
     st.markdown('<div class="section-title">🍼 بدائل الحليب</div>',
                 unsafe_allow_html=True)
@@ -3123,7 +2967,6 @@ with tabs[4]:
                                       ["50%","25%","25%"])
                     st.info(f"📌 الجرعة: {dv:.1f} لتر/يوم")
 
-# ═════ 5: مواقيت الصلاة ═════
 with tabs[5]:
     st.markdown("### 🕌 مواقيت الصلاة")
     city = st.selectbox("المدينة:",
@@ -3137,7 +2980,6 @@ with tabs[5]:
         rows.append([n, t])
     show_arabic_table(rows, "#1565C0", ["50%","50%"])
 
-# ═════ 6: منبه الجرعات ═════
 with tabs[6]:
     st.markdown("### 💊 منبه الجرعات")
     with st.expander("➕ إضافة"):
@@ -3163,9 +3005,7 @@ with tabs[6]:
                     'id': secrets.token_hex(8), 'animal': at, 'type': dt,
                     'name': dn, 'amount': da, 'unit': du, 'route': ar_,
                     'freq': fd, 'start': sd.isoformat(),
-                    'next': (sd + timedelta(days=fd)).isoformat(),
-                    'notes': notes})
-                st.success("✅")
+                    'next': (sd + timedelta(days=fd)).isoformat()})
                 st.rerun()
     if st.session_state["dose_reminders"]:
         rows = [["الاسم","الحيوان","الجرعة","التكرار","القادم"]]
@@ -3173,10 +3013,8 @@ with tabs[6]:
             rows.append([r['name'], r['animal'],
                           f"{r['amount']} {r['unit']}",
                           f"كل {r['freq']} يوم", r['next'][:10]])
-        show_arabic_table(rows, "#c62828",
-                          ["20%","20%","20%","20%","20%"])
+        show_arabic_table(rows, "#c62828")
 
-# ═════ 7: بورصة الأسعار ═════
 with tabs[7]:
     st.markdown('<div class="section-title">📊 بورصة الأسعار</div>',
                 unsafe_allow_html=True)
@@ -3184,29 +3022,24 @@ with tabs[7]:
         c1, c2 = st.columns(2)
         with c1:
             st.subheader("🐄 المواشي")
-            for name in list(st.session_state["global_livestock_prices"].keys()):
-                p = st.session_state["global_livestock_prices"][name]
-                np_ = st.number_input(name, value=float(p), step=5.0,
-                                        key=f"pl_{name}")
-                st.session_state["global_livestock_prices"][name] = np_
+            for n in list(st.session_state["global_livestock_prices"].keys()):
+                p = st.session_state["global_livestock_prices"][n]
+                np_ = st.number_input(n, value=float(p), step=5.0,
+                                        key=f"pl_{n}")
+                st.session_state["global_livestock_prices"][n] = np_
         with c2:
             st.subheader("🥩 المنتجات")
-            for name in list(st.session_state["global_products_prices"].keys()):
-                p = st.session_state["global_products_prices"][name]
-                np_ = st.number_input(name, value=float(p), step=0.5,
-                                        key=f"pp_{name}")
-                st.session_state["global_products_prices"][name] = np_
+            for n in list(st.session_state["global_products_prices"].keys()):
+                p = st.session_state["global_products_prices"][n]
+                np_ = st.number_input(n, value=float(p), step=0.5,
+                                        key=f"pp_{n}")
+                st.session_state["global_products_prices"][n] = np_
     else:
         rows = [["المنتج", "السعر ($)"]]
         for n, p in st.session_state["global_livestock_prices"].items():
             rows.append([n, f"{p:.2f}"])
         show_arabic_table(rows, "#2e7d32", ["60%","40%"])
-        rows = [["المنتج", "السعر ($)"]]
-        for n, p in st.session_state["global_products_prices"].items():
-            rows.append([n, f"{p:.2f}"])
-        show_arabic_table(rows, "#1565C0", ["60%","40%"])
 
-# ═════ 8: المستودعات ═════
 with tabs[8]:
     st.markdown('<div class="section-title">🏭 المستودعات</div>',
                 unsafe_allow_html=True)
@@ -3218,10 +3051,8 @@ with tabs[8]:
         st_ = ("🔴 نفذ" if qty <= 0
                else "🟡 منخفض" if qty < thr else "🟢 آمن")
         rows.append([item, f"{qty:.1f}", f"{thr:.1f}", st_])
-    show_arabic_table(rows, "#2e7d32",
-                      ["40%","20%","20%","20%"])
+    show_arabic_table(rows, "#2e7d32")
 
-# ═════ 9: الإنتاج اليومي ═════
 with tabs[9]:
     st.markdown('<div class="section-title">📈 الإنتاج اليومي</div>',
                 unsafe_allow_html=True)
@@ -3248,10 +3079,9 @@ with tabs[9]:
                           r['eggs'], r['weight_gain'], r['mortality']])
         show_arabic_table(rows, "#2e7d32")
 
-# ═════ 10: التنبيهات ═════
 with tabs[10]:
     st.markdown("### 🔔 التنبيهات")
-    warns = InventoryManager.check_stock_levels()
+    warns = InventoryManager.check_levels()
     if warns:
         rows = [["المادة", "الحالة"]]
         for item, info in warns.items():
@@ -3260,25 +3090,9 @@ with tabs[10]:
     else:
         st.success("✅ لا توجد تنبيهات")
 
-# ═════ 11: التحليلات ═════
 with tabs[11]:
     st.markdown('<div class="section-title">📈 التحليلات</div>',
                 unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
-    c1.markdown('<div class="metric-card"><div class="number">1,247</div>'
-                 '<div class="label">الخلطات</div></div>',
-                 unsafe_allow_html=True)
-    c2.markdown('<div class="metric-card"><div class="number">$285</div>'
-                 '<div class="label">متوسط</div></div>',
-                 unsafe_allow_html=True)
-    c3.markdown('<div class="metric-card"><div class="number">18%</div>'
-                 '<div class="label">التوفير</div></div>',
-                 unsafe_allow_html=True)
-    c4.markdown('<div class="metric-card"><div class="number">96%</div>'
-                 '<div class="label">الرضا</div></div>',
-                 unsafe_allow_html=True)
-
-    st.subheader("🔮 تنبؤات الأسعار")
     p = PricePredictor()
     for ing in ["ذرة صفراء", "كسب فول صويا 44%", "نخالة قمح (ردة)"]:
         pred = p.predict_price(ing, 7)
@@ -3289,7 +3103,6 @@ with tabs[11]:
             st.metric(f"{ic} {ing}", f"${pred['prediction']:.2f}",
                       delta=f"{pred['prediction'] - cp:.2f}")
 
-    st.subheader("📊 الرسوم البيانية")
     dates = pd.date_range(start='2024-01-01', periods=12, freq='ME')
     df = pd.DataFrame({
         'التاريخ': dates,
@@ -3303,52 +3116,45 @@ with tabs[11]:
         mode='lines+markers', name='الصويا',
         line=dict(color='#1565C0', width=2)))
     fig.update_layout(title='اتجاه أسعار المواد الخام',
-                      xaxis_title='التاريخ', yaxis_title='السعر ($/طن)',
                       font=dict(family="Cairo, Tajawal, sans-serif"))
     st.plotly_chart(fig, use_container_width=True)
 
-# ═════ 12: التعليقات ═════
 with tabs[12]:
     st.markdown('<div class="section-title">💬 التعليقات</div>',
                 unsafe_allow_html=True)
-    st.text_area("التعليقات الحالية:",
-                 value=st.session_state["shared_comments"],
+    st.text_area("الحالية:", value=st.session_state["shared_comments"],
                  height=200, disabled=True)
-    nc = st.text_area("تعليق جديد:")
+    nc = st.text_area("جديد:")
     if st.button("➕ نشر"):
         if nc:
             role = ("المالك" if st.session_state["user_role"] == "owner"
                     else "مختص")
             st.session_state["shared_comments"] += \
-                f"\n• [{role} {datetime.now().strftime('%Y-%m-%d %H:%M')}]: {nc}"
+                f"\n• [{role} {datetime.now().strftime('%H:%M')}]: {nc}"
             st.rerun()
 
-# ═════ 13: ديباجة الجوالات ═════
 with tabs[13]:
-    st.markdown(
-        '<div class="section-title">🖨️ ديباجة جوالات الأعلاف</div>',
-        unsafe_allow_html=True)
-    brand = st.text_input("اسم البراند:",
+    st.markdown('<div class="section-title">🖨️ الديباجة</div>',
+                unsafe_allow_html=True)
+    brand = st.text_input("البراند:",
                            "منصة تاور نولجي Tawornology العلمية")
     st.markdown(f"""
     <div style='border:3px dashed #1b5e20; padding:30px;
                 border-radius:15px;
                 background:linear-gradient(135deg,#f1f8e9,#e8f5e9);
-                direction:rtl; text-align:right;'>
-        <h2 style='text-align:center; color:#1b5e20;'>
-            🌟 {brand} 🌟</h2>
-        <h3 style='text-align:center; color:#c62828;'>
+                direction:rtl; text-align:center;'>
+        <h2 style='color:#1b5e20;'>🌟 {brand} 🌟</h2>
+        <h3 style='color:#c62828;'>
             الاختصاصي م. عبد القادر إسماعيل تاور</h3>
-        <p style='text-align:center; background:#e8f5e9; padding:10px;'>
-        🎯 {st.session_state.get('active_stage_title', 'إنتاج عام')} |
+        <p style='background:#e8f5e9; padding:10px; border-radius:8px;'>
+        🎯 {st.session_state.get('active_stage_title','إنتاج عام')} |
         DP: {st.session_state.get('active_cp_tag', 12):.1f}% |
         SE: {st.session_state.get('active_se_tag', 65):.1f}</p>
     </div>
     """, unsafe_allow_html=True)
 
-# ═════ 14: المراجع ═════
 with tabs[14]:
-    st.markdown('<div class="section-title">📚 المراجع العلمية</div>',
+    st.markdown('<div class="section-title">📚 المراجع</div>',
                 unsafe_allow_html=True)
     for ck, cd in ScientificReferenceSystem.REFERENCES.items():
         with st.expander(f"{cd['icon']} {cd['title']}"):
@@ -3362,57 +3168,58 @@ with tabs[14]:
                     <small>{ref['summary']}</small>
                 </div>
                 """, unsafe_allow_html=True)
-    q = st.text_input("اسأل عن مصطلح:")
+    q = st.text_input("اسأل:")
     if q:
-        ans = ScientificReferenceSystem.get_knowledge_answer(q)
-        if ans:
-            st.success(f"📖 {ans['answer']}")
-            st.info(f"🔹 {ans['simplified']}")
+        a = ScientificReferenceSystem.get_answer(q)
+        if a:
+            st.success(f"📖 {a['answer']}")
+            st.info(f"🔹 {a['simplified']}")
 
-# ═════ 15: المساعدة ═════
 with tabs[15]:
     st.markdown("""
     ### 🌟 خطوات الاستخدام:
     1. اختر نوع الحيوان
     2. حدد الموقع والسلالة والمرحلة
-    3. **الوضع التلقائي** يحدد الاحتياجات من المعايير
-    4. اختر **المواد المتاحة في بيئتك** فقط
-    5. اضغط **تشغيل المحرك** — النظام يحدد النسب تلقائياً
-    6. حمّل PDF أو شارك كصورة واتساب
+    3. **النظام يعرض الاحتياجات القياسية تلقائياً** (DP, SE, أملاح, ألياف)
+    4. اختر **المواد المتاحة عندك** فقط
+    5. اضغط **تشغيل المحرك الشامل**
+    6. النظام يحسب النسب التي تحقق **كل** الاحتياجات معاً
 
-    ### 🧪 المختبر المتقدم:
-    - CP, DP, SE
-    - 🆕 الأملاح (Ca, P, Na, K, Mg, Cl, S)
-    - 🆕 الألياف (NDF, ADF, CF, Ash)
-    - نسب Ca:P و K:Na مع التقييم
+    ### 🧪 المختبر:
+    - CP, DP, SE + أملاح + ألياف
+    - مقارنة تلقائية مع المعايير
+    - تقرير PDF مفصل
     """)
 
-# ═════ 16: دليل ═════
 with tabs[16]:
     st.markdown("""
     <div class="manual-book">
-    <div class="book-chapter">📘 مقدمة</div>
+    <div class="book-chapter">📘 مقدمة v19.3</div>
     <div class="book-body">
-    تاور نولجي v19.2 منصة متكاملة لتركيب الأعلاف وإدارة الإنتاج الحيواني.
+    محرك التركيب الشامل v19.3 يحل مشكلة القيود المتعددة عبر خوارزمية
+    البرمجة الخطية التي تأخذ كل الاحتياجات في الاعتبار في آن واحد.
     </div>
-    <div class="book-chapter">📗 الوضع التلقائي</div>
+    <div class="book-chapter">🎯 المحرك الشامل</div>
     <div class="book-body">
-    اختر المواد المتاحة فقط والنظام يحدد النسب المثالية تلقائياً
-    حسب احتياجات الحيوان.
+    عند اختيار المواد المتاحة، يقوم النظام بـ:<br>
+    1. بناء 15+ قيداً غذائياً (طاقة، بروتين، 7 معادن، 4 ألياف، Ca:P)<br>
+    2. حل المعادلة بأقل تكلفة<br>
+    3. التحقق من تحقيق كل قيد<br>
+    4. تخفيف المرونة تلقائياً إذا فشل الحل الدقيق
     </div>
-    <div class="book-chapter">📕 المختبر المتقدم</div>
+    <div class="book-chapter">📊 التحقق</div>
     <div class="book-body">
-    تحليل شامل: بروتين + طاقة + أملاح + ألياف.
+    بعد الحل، يعرض النظام جدولين:<br>
+    - جدول الأملاح: القيمة المحققة vs القياسية<br>
+    - جدول الألياف: القيمة المحققة vs القياسية
     </div>
     </div>
     """, unsafe_allow_html=True)
 
-# ═════ 17: إرسال الكود (owner) ═════
 if get_current_user_role() == "owner" and len(tabs) > 17:
     with tabs[17]:
-        st.markdown(
-            '<div class="section-title">📧 إرسال السورس كود</div>',
-            unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📧 إرسال الكود</div>',
+                    unsafe_allow_html=True)
         em = st.text_input("البريد:", value=OWNER_EMAIL)
         if st.button("📤 إرسال"):
             if em and '@' in em:
@@ -3421,21 +3228,18 @@ if get_current_user_role() == "owner" and len(tabs) > 17:
                     st.success(msg) if ok else st.error(msg)
 
 
-# =====================================================================
-# التذييل
-# =====================================================================
 st.markdown("""
 <div style='text-align:center; padding:20px; margin-top:30px;
             border-top:2px solid #e0e0e0; color:#888;'>
-🌾 <b>تاور نولجي Tawornology v19.2</b><br>
+🌾 <b>تاور نولجي Tawornology v19.3</b><br>
 © 2026 | الاختصاصي م. عبد القادر إسماعيل تاور<br>
 🕊️ إهداء إلى روح والدي <b>إسماعيل تاور</b> وأختي <b>ابتسام</b>
 </div>
 """, unsafe_allow_html=True)
 
 if st.button("🔊 اختبار الصوت"):
-    voice_guide("بسم الله، اختبار النظام الصوتي.")
+    voice_guide("بسم الله، اختبار النظام.")
 
 # ============================================================================
-# نهاية الكود v19.2
+# نهاية v19.3 - محرك التركيب الشامل
 # ============================================================================
