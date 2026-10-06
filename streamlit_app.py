@@ -1,8 +1,8 @@
 # ============================================================================
-# تاور نولجي TAWOR NOLOGY — الإصدار 10.0 النهائي المُحسَّن
+# تاور نولجي TAWOR NOLOGY — الإصدار 10.1 النهائي المُحسَّن
 # إشراف: م. عبدالقادر إسماعيل تاور
 # 🕌 رحم الله والدي إسماعيل تاور وأختي ابتسام 🕌
-# الميزات: 18 زيتاً + مختبر تحليل + تصميم حظائر 3D + PDF احترافي
+# الميزات: 18 زيتاً + مختبر + حظائر 3D + فيديو GIF + PDF احترافي
 # ============================================================================
 
 import streamlit as st
@@ -852,7 +852,9 @@ def auto_add_salts_and_minerals(animal_type, requirement=None):
         salt["فوسفات ثنائي الكالسيوم"] = 1.5
         salt["بريمكس مجترات"] = 0.30
     return salt
-    # ═══ القسم 8: بدائل الحليب ═══
+
+
+# ═══ القسم 8: بدائل الحليب ═══
 MILK_REPLACER_STANDARDS = {
     "عجول (Calves)": {"CP": 24.0, "Fat": 24.0, "Lactose": 45.0, "Lysine": 2.1,
                       "Ca": 0.75, "P": 0.70, "Fiber_max": 0.15, "Ash_max": 10.0,
@@ -1110,7 +1112,7 @@ def create_gauge_chart(score):
         return None
 
 
-# ═══ القسم 11: مولد PDF (بجدول زيوت دائم) ═══
+# ═══ القسم 11: مولد PDF (بجداول الزيوت والأملاح) ═══
 class PDFGenerator:
     def __init__(self):
         self.font_name = font_mgr.font_name
@@ -1237,33 +1239,77 @@ class PDFGenerator:
         return t
 
     def _oil_table(self, formula, standard_key):
-        """يُرجع دائماً tuple (table_or_NONE, total, std)."""
+        """جدول الزيوت — يظهر دائماً حتى لو فارغ"""
         oils = get_oil_ingredients()
         oil_rows = [(ing, pct) for ing, pct in formula.items() if ing in oils]
         oil_std = get_oil_standard(standard_key)
         total_oil = sum(p for _, p in oil_rows)
 
-        if not oil_rows:
-            return (None, 0.0, oil_std)
-
-        header = [self._ar("الزيت"), self._ar("النسبة %"), self._ar("kcal/kg تقديري")]
+        header = [self._ar("الزيت"), self._ar("النسبة %"),
+                  self._ar("كجم/طن"), self._ar("kcal/kg تقديري")]
         data = [header]
-        for ing, pct in oil_rows:
-            data.append([self._ar(ing), f"{pct:.2f}%", f"{pct * 90.0:.0f}"])
-        data.append([self._ar("الإجمالي"), f"{total_oil:.2f}%", f"{total_oil * 90:.0f}"])
-        cmds = [('BACKGROUND', (0, 0), (-1, 0), HexColor('#e65100')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), white),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, -1), self.font_name),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('GRID', (0, 0), (-1, -1), 1, HexColor('#bf360c')),
-                ('BACKGROUND', (0, -1), (-1, -1), HexColor('#ffe0b2')),
-                ('TEXTCOLOR', (0, -1), (-1, -1), HexColor('#bf360c')),
-                ('TOPPADDING', (0, 0), (-1, -1), 6),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6)]
-        t = Table(data, colWidths=[250, 100, 135])
+        if oil_rows:
+            for ing, pct in oil_rows:
+                data.append([self._ar(ing), f"{pct:.3f}%",
+                             f"{pct*10:.2f}", f"{pct * 90.0:.0f}"])
+            data.append([self._ar("الإجمالي"), f"{total_oil:.3f}%",
+                         f"{total_oil*10:.2f}", f"{total_oil * 90:.0f}"])
+            last_bg = HexColor('#ffe0b2')
+        else:
+            data.append([self._ar("— لا توجد زيوت في هذه الخلطة —"),
+                         "0.00%", "0.00", "0"])
+            last_bg = HexColor('#f5f5f5')
+
+        cmds = [
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#e65100')),
+            ('TEXTCOLOR',  (0, 0), (-1, 0), white),
+            ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME',   (0, 0), (-1, -1), self.font_name),
+            ('FONTSIZE',   (0, 0), (-1, -1), 9),
+            ('GRID',       (0, 0), (-1, -1), 1, HexColor('#bf360c')),
+            ('BACKGROUND', (0, -1), (-1, -1), last_bg),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6)]
+        t = Table(data, colWidths=[170, 80, 80, 110])
         t.setStyle(TableStyle(cmds))
         return (t, total_oil, oil_std)
+
+    def _salts_table(self, formula):
+        """جدول الأملاح والمعادن يظهر في PDF"""
+        salts_data = BIG_FEEDS_LIBRARY.get("🪨 الأملاح والمعادن", {})
+        salt_rows = [(ing, pct) for ing, pct in formula.items()
+                     if ing in salts_data]
+
+        if not salt_rows:
+            return (None, 0.0)
+
+        header = [self._ar("الملح / المعدن"), self._ar("النسبة %"),
+                  self._ar("كجم/طن"), self._ar("Ca %"), self._ar("P %")]
+        data = [header]
+        for ing, pct in salt_rows:
+            d = salts_data[ing]
+            data.append([
+                self._ar(ing), f"{pct:.3f}%", f"{pct*10:.2f}",
+                f"{d.get('Ca', 0.0):.2f}", f"{d.get('P', 0.0):.2f}"])
+
+        total_pct = sum(p for _, p in salt_rows)
+        data.append([self._ar("الإجمالي"), f"{total_pct:.3f}%",
+                     f"{total_pct*10:.2f}", "", ""])
+
+        cmds = [
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#4e342e')),
+            ('TEXTCOLOR',  (0, 0), (-1, 0), white),
+            ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME',   (0, 0), (-1, -1), self.font_name),
+            ('FONTSIZE',   (0, 0), (-1, -1), 9),
+            ('GRID',       (0, 0), (-1, -1), 1, HexColor('#8d6e63')),
+            ('BACKGROUND', (0, -1), (-1, -1), HexColor('#efebe9')),
+            ('TEXTCOLOR',  (0, -1), (-1, -1), HexColor('#3e2723')),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6)]
+        t = Table(data, colWidths=[150, 75, 75, 75, 75])
+        t.setStyle(TableStyle(cmds))
+        return (t, total_pct)
 
     def generate_report(self, formula, requirement, animal_type, breed, cost, city,
                         local_cost, local_sym, requester_name="", protein_basis="DP",
@@ -1344,12 +1390,8 @@ class PDFGenerator:
         story.append(P("🌰 جدول الزيوت النباتية والحيوانية", size=14,
                        align=TA_RIGHT, color='#e65100'))
         story.append(Spacer(1, 8))
-        if oil_tbl is None:
-            story.append(P("ℹ️ لم تُستخدم أي زيوت في هذه الخلطة.",
-                           size=11, align=TA_RIGHT, color='#666'))
-        else:
-            story.append(oil_tbl)
-            story.append(Spacer(1, 8))
+        story.append(oil_tbl)
+        story.append(Spacer(1, 6))
         oil_note = (f"الحد الأقصى المسموح: {oil_std['max']}% | "
                     f"المثالي: {oil_std['optimal']}% | "
                     f"المرجع: {oil_std['source']}")
@@ -1357,9 +1399,29 @@ class PDFGenerator:
             oil_note = f"⚠️ تجاوز الحد الأقصى! {oil_note}"
         elif total_oil > oil_std['optimal'] * 1.2:
             oil_note = f"⚡ مرتفع قليلاً — {oil_note}"
-        else:
+        elif total_oil > 0:
             oil_note = f"✅ مطابق — {oil_note}"
-        story.append(P(oil_note, size=10, align=TA_RIGHT, color='#bf360c'))
+        else:
+            oil_note = f"ℹ️ لم تُستخدم زيوت — {oil_note}"
+        story.append(P(oil_note, size=9, align=TA_RIGHT, color='#bf360c'))
+        story.append(Spacer(1, 15))
+
+        # ═══ جدول الأملاح والمعادن (جديد) ═══
+        salt_tbl, total_salt = self._salts_table(formula)
+        story.append(P("🪨 جدول الأملاح والمعادن", size=14,
+                       align=TA_RIGHT, color='#4e342e'))
+        story.append(Spacer(1, 8))
+        if salt_tbl is None:
+            story.append(P("ℹ️ لم تُستخدم أملاح أو معادن.",
+                           size=10, align=TA_RIGHT, color='#666'))
+        else:
+            story.append(salt_tbl)
+            story.append(Spacer(1, 6))
+            story.append(P(
+                f"✅ إجمالي الأملاح والمعادن: {total_salt:.3f}% "
+                f"({total_salt*10:.2f} كجم/طن) — "
+                f"المرجع: NRC/INRA Minerals Standards",
+                size=9, align=TA_RIGHT, color='#3e2723'))
         story.append(Spacer(1, 15))
 
         if include_charts:
@@ -1500,7 +1562,38 @@ def export_comparison_to_excel(standard, calculated, requester_name="", animal="
             cell.alignment = ct; cell.border = bd
             cell.fill = PatternFill('solid', fgColor=ev["bg"].replace('#', ''))
         row += 1
+
+    # ═══ الأملاح في Excel ═══
     if formula:
+        salts_data = BIG_FEEDS_LIBRARY.get("🪨 الأملاح والمعادن", {})
+        salt_rows = [(ing, pct) for ing, pct in formula.items()
+                     if ing in salts_data]
+        if salt_rows:
+            row += 2
+            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=6)
+            ws.cell(row=row, column=1, value="🪨 الأملاح والمعادن").font = tf
+            ws.cell(row=row, column=1).alignment = ct
+            row += 1
+            for c, h in enumerate(["الملح/المعدن", "النسبة %", "كجم/طن",
+                                    "Ca %", "P %", ""], 1):
+                cell = ws.cell(row=row, column=c, value=h)
+                cell.font = hf; cell.fill = PatternFill('solid', fgColor='4E342E')
+                cell.alignment = ct; cell.border = bd
+            row += 1
+            for ing, pct in salt_rows:
+                d = salts_data[ing]
+                ws.cell(row=row, column=1, value=ing).border = bd
+                ws.cell(row=row, column=1).alignment = rt
+                ws.cell(row=row, column=2, value=round(pct, 3)).border = bd
+                ws.cell(row=row, column=2).alignment = ct
+                ws.cell(row=row, column=3, value=round(pct*10, 2)).border = bd
+                ws.cell(row=row, column=3).alignment = ct
+                ws.cell(row=row, column=4, value=d.get('Ca', 0)).border = bd
+                ws.cell(row=row, column=4).alignment = ct
+                ws.cell(row=row, column=5, value=d.get('P', 0)).border = bd
+                ws.cell(row=row, column=5).alignment = ct
+                row += 1
+
         oil_rows = [(ing, pct) for ing, pct in formula.items()
                     if ing in get_oil_ingredients()]
         if oil_rows:
@@ -1706,13 +1799,11 @@ def create_barn_3d_figure(dims):
     roof_type = dims["roof_type"]
     fig = go.Figure()
 
-    # الأرضية
     fig.add_trace(go.Mesh3d(
         x=[0, L, L, 0], y=[0, 0, W, W], z=[0, 0, 0, 0],
         i=[0, 0], j=[1, 2], k=[2, 3],
         color='#d7ccc8', opacity=0.6, name='الأرضية', hoverinfo='skip'))
 
-    # الجدران
     for x_pos in [0, L]:
         fig.add_trace(go.Mesh3d(
             x=[x_pos]*4, y=[0, W, W, 0], z=[0, 0, H, H],
@@ -1724,7 +1815,6 @@ def create_barn_3d_figure(dims):
             i=[0, 0], j=[1, 2], k=[2, 3],
             color='#a1887f', opacity=0.35, showlegend=False, hoverinfo='skip'))
 
-    # السقف
     if roof_type == "gable":
         fig.add_trace(go.Mesh3d(
             x=[0, 0, 0], y=[0, W, W/2], z=[H, H, RH],
@@ -1748,7 +1838,6 @@ def create_barn_3d_figure(dims):
             i=[0, 0], j=[1, 2], k=[2, 3],
             color='#8d6e63', opacity=0.5, showlegend=False, hoverinfo='skip'))
 
-    # فتحات التهوية
     vent_h = H * std["vent_open_ratio"]
     for y_v in [0.5, W - 0.5]:
         fig.add_trace(go.Scatter3d(
@@ -1758,7 +1847,6 @@ def create_barn_3d_figure(dims):
             name='فتحة تهوية' if y_v == 0.5 else None,
             showlegend=(y_v == 0.5)))
 
-    # المعالف
     n_feeders = dims["feeders_count"]
     for i in range(n_feeders):
         x_center = (i + 0.5) * (L / n_feeders)
@@ -1770,7 +1858,6 @@ def create_barn_3d_figure(dims):
             name='معلف' if i == 0 else None, showlegend=(i == 0),
             hoverinfo='skip'))
 
-    # السقايات
     n_drinkers = dims["drinkers_count"]
     for i in range(n_drinkers):
         x_center = (i + 0.5) * (L / n_drinkers)
@@ -1781,7 +1868,6 @@ def create_barn_3d_figure(dims):
             name='مسقى' if i == 0 else None, showlegend=(i == 0),
             hovertemplate=f'مسقى #{i+1}<extra></extra>'))
 
-    # الحيوانات
     animals_per_row = dims["animals_per_row"]
     n_rows = max(1, dims["count"] // max(animals_per_row, 1))
     step = max(1, n_rows // 20)
@@ -1798,7 +1884,6 @@ def create_barn_3d_figure(dims):
             name=f'الحيوانات ({dims["count"]})',
             hovertemplate='حيوان<extra></extra>'))
 
-    # الأبعاد
     fig.add_trace(go.Scatter3d(
         x=[0, L], y=[0, 0], z=[-0.5, -0.5], mode='lines+text',
         line=dict(color='#c62828', width=4),
@@ -1834,6 +1919,146 @@ def create_barn_3d_figure(dims):
     return fig
 
 
+# ═══ دالة توليد فيديو GIF للحظيرة ═══
+def create_barn_rotation_gif(dims, n_frames=36, fps=12):
+    """GIF متحرك يدور 360° حول الحظيرة"""
+    if not MATPLOTLIB_AVAILABLE or not PIL_AVAILABLE:
+        return None
+    try:
+        std = dims["standard"]
+        L, W = dims["length_m"], dims["width_m"]
+        H, RH = dims["height_m"], dims["ridge_height_m"]
+
+        frames = []
+        for i in range(n_frames):
+            fig = plt.figure(figsize=(6, 4.5), dpi=70)
+            ax = fig.add_subplot(111, projection='3d')
+
+            ax.add_collection3d(Poly3DCollection(
+                [[(0,0,0),(L,0,0),(L,W,0),(0,W,0)]],
+                facecolors='#d7ccc8', edgecolors='#5d4037',
+                alpha=0.7, linewidths=1))
+            walls = [
+                [(0,0,0),(L,0,0),(L,0,H),(0,0,H)],
+                [(0,W,0),(L,W,0),(L,W,H),(0,W,H)],
+                [(0,0,0),(0,W,0),(0,W,H),(0,0,H)],
+                [(L,0,0),(L,W,0),(L,W,H),(L,0,H)]]
+            ax.add_collection3d(Poly3DCollection(
+                walls, facecolors='#a1887f', edgecolors='#5d4037',
+                alpha=0.4, linewidths=0.8))
+
+            if dims["roof_type"] == "gable":
+                for rf in [[[(0,0,H),(L,0,H),(L,W/2,RH),(0,W/2,RH)]],
+                           [[(0,W/2,RH),(L,W/2,RH),(L,W,H),(0,W,H)]]]:
+                    ax.add_collection3d(Poly3DCollection(
+                        rf, facecolors='#8d6e63', edgecolors='#4e342e',
+                        alpha=0.55, linewidths=0.8))
+            else:
+                ax.add_collection3d(Poly3DCollection(
+                    [[(0,0,RH),(L,0,RH),(L,W,H),(0,W,H)]],
+                    facecolors='#8d6e63', edgecolors='#4e342e',
+                    alpha=0.5, linewidths=0.8))
+
+            apr = dims["animals_per_row"]
+            n_rows = max(1, dims["count"] // max(apr, 1))
+            xs, ys = [], []
+            step = max(1, n_rows // 10)
+            for row in range(0, n_rows, step):
+                y = 2.0 + row * (W - 3.0) / max(n_rows, 1)
+                for col in range(min(apr, 10)):
+                    xs.append(0.5 + col * (L - 1.0) / min(apr, 10))
+                    ys.append(y)
+            if xs:
+                ax.scatter(xs, ys, [0.15]*len(xs), s=15,
+                           c='#1b5e20', alpha=0.7)
+
+            for j in range(min(dims["feeders_count"], 8)):
+                x_c = (j + 0.5) * (L / dims["feeders_count"])
+                ax.plot([x_c, x_c], [0.6, 1.2], [0.15, 0.15],
+                        color='#ff8f00', linewidth=3)
+
+            ax.set_xlim(0, L); ax.set_ylim(0, W); ax.set_zlim(0, RH + 1)
+            ax.set_xlabel('Length (m)', fontsize=7)
+            ax.set_ylabel('Width (m)', fontsize=7)
+            ax.set_zlabel('Height (m)', fontsize=7)
+            ax.tick_params(labelsize=6)
+            ax.set_title(f"{std['name_ar']} — {dims['count']} head",
+                         fontsize=10, color='#1b5e20', fontweight='bold')
+
+            azim = -55 + (360 / n_frames) * i
+            ax.view_init(elev=18, azim=azim)
+
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png', dpi=70,
+                        bbox_inches='tight', facecolor='white')
+            plt.close(fig)
+            buf.seek(0)
+            frames.append(PILImage.open(buf).convert('RGB')
+                          .convert('P', palette=PILImage.ADAPTIVE, colors=128))
+
+        out = io.BytesIO()
+        frames[0].save(out, format='GIF', save_all=True,
+                       append_images=frames[1:],
+                       duration=int(1000/fps), loop=0, optimize=True)
+        out.seek(0)
+        return out.getvalue()
+    except Exception as e:
+        print(f"GIF error: {e}")
+        return None
+
+
+# ═══ دالة إنشاء HTML تفاعلي بأنيميشن دوران ═══
+def create_barn_animated_html(dims):
+    """HTML تفاعلي مع زر تشغيل دوران 360°"""
+    if not PLOTLY_AVAILABLE:
+        return None
+    try:
+        fig = create_barn_3d_figure(dims)
+        if fig is None:
+            return None
+
+        n_frames = 72
+        frames_list = []
+        for i in range(n_frames):
+            angle = (360 / n_frames) * i
+            rad = np.radians(angle)
+            r = 1.8
+            frames_list.append(go.Frame(
+                name=f"f{i}",
+                layout=dict(scene=dict(camera=dict(
+                    eye=dict(x=r*np.cos(rad),
+                             y=r*np.sin(rad),
+                             z=1.2))))))
+        fig.frames = frames_list
+
+        fig.update_layout(
+            updatemenus=[dict(
+                type="buttons", direction="right",
+                x=0.05, y=1.13, xanchor="left", showactive=False,
+                bgcolor='#1b5e20', bordercolor='#d4af37',
+                font=dict(color='white', size=12),
+                buttons=[
+                    dict(label="▶ تشغيل الدوران التلقائي",
+                         method="animate",
+                         args=[None, dict(frame=dict(duration=60,
+                                                     redraw=True),
+                                          fromcurrent=True,
+                                          transition=dict(duration=0))]),
+                    dict(label="⏸ إيقاف",
+                         method="animate",
+                         args=[[None], dict(frame=dict(duration=0,
+                                                      redraw=False),
+                                            mode="immediate")])])])
+
+        return fig.to_html(include_plotlyjs='cdn', full_html=True,
+                           config={'displayModeBar': True,
+                                   'toImageButtonOptions':
+                                       {'format': 'png', 'height': 900,
+                                        'width': 1400}})
+    except Exception:
+        return None
+
+
 def render_barn_to_pdf_image(dims):
     if not MATPLOTLIB_AVAILABLE: return None
     try:
@@ -1843,12 +2068,10 @@ def render_barn_to_pdf_image(dims):
         fig = plt.figure(figsize=(10, 7))
         ax = fig.add_subplot(111, projection='3d')
 
-        # الأرضية
         floor = [[(0,0,0),(L,0,0),(L,W,0),(0,W,0)]]
         ax.add_collection3d(Poly3DCollection(floor, facecolors='#d7ccc8',
             edgecolors='#5d4037', alpha=0.7, linewidths=1.5))
 
-        # الجدران
         walls = [
             [(0,0,0),(L,0,0),(L,0,H),(0,0,H)],
             [(0,W,0),(L,W,0),(L,W,H),(0,W,H)],
@@ -1857,7 +2080,6 @@ def render_barn_to_pdf_image(dims):
         ax.add_collection3d(Poly3DCollection(walls, facecolors='#a1887f',
             edgecolors='#5d4037', alpha=0.45, linewidths=1))
 
-        # السقف
         if dims["roof_type"] == "gable":
             roof1 = [[(0,0,H),(L,0,H),(L,W/2,RH),(0,W/2,RH)]]
             roof2 = [[(0,W/2,RH),(L,W/2,RH),(L,W,H),(0,W,H)]]
@@ -1870,7 +2092,6 @@ def render_barn_to_pdf_image(dims):
             ax.add_collection3d(Poly3DCollection(roof, facecolors='#8d6e63',
                 edgecolors='#4e342e', alpha=0.5, linewidths=1))
 
-        # فتحات التهوية
         vent_h = H * std["vent_open_ratio"]
         for y_v in [0.05, W-0.05]:
             ax.plot([1, L-1, L-1, 1, 1], [y_v]*5,
@@ -1878,7 +2099,6 @@ def render_barn_to_pdf_image(dims):
                     color='#1976d2', linewidth=2.5,
                     label='فتحة تهوية' if y_v < 1 else None)
 
-        # المعالف
         n_feeders = dims["feeders_count"]
         for i in range(n_feeders):
             x_c = (i + 0.5) * (L / n_feeders)
@@ -1889,14 +2109,12 @@ def render_barn_to_pdf_image(dims):
             ax.add_collection3d(Poly3DCollection(fb, facecolors='#ff8f00',
                 edgecolors='#e65100', alpha=0.85, linewidths=1))
 
-        # السقايات
         n_drinkers = dims["drinkers_count"]
         xs_d = [((i + 0.5) * (L / n_drinkers)) for i in range(n_drinkers)]
         ax.scatter(xs_d, [W-1.0]*len(xs_d), [0.4]*len(xs_d),
                    s=120, c='#1976d2', marker='D', label='مسقى',
                    depthshade=False, edgecolors='#0d47a1')
 
-        # الحيوانات
         apr = dims["animals_per_row"]
         n_rows = max(1, dims["count"] // max(apr, 1))
         sample_step = max(1, n_rows // 15)
@@ -2031,7 +2249,9 @@ def generate_barn_pdf_report(dims):
               onLaterPages=pdf_gen._draw_page)
     buffer.seek(0)
     return buffer.getvalue()
-    # ═══ القسم 15: الحالة الأولية للجلسة ═══
+
+
+# ═══ القسم 15: الحالة الأولية للجلسة ═══
 DEFAULTS = {
     "approved": False, "user_role": None,
     "active_formula": {},
@@ -2052,6 +2272,8 @@ DEFAULTS = {
         "طبق بيض 30 ($)": 4.20, "لتر حليب بقر ($)": 0.90,
         "لتر حليب إبل ($)": 3.50},
     "barn_last_dims": None,
+    "barn_gif": None,
+    "barn_html": None,
 }
 
 for k, v in DEFAULTS.items():
@@ -2069,7 +2291,7 @@ def is_owner():
     return st.session_state.get("user_role") == "owner"
 
 
-# ═══ القسم 16: CSS ═══
+# ═══ القسم 16: CSS (مع Media Queries كاملة) ═══
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Amiri:wght@400;700&display=swap');
@@ -2253,6 +2475,95 @@ h1, h2, h3, h4, h5, p, span, li, div, label { color: #1a1a1a !important; }
     border-right: 5px solid #1976d2;
     margin-bottom: 18px; direction: rtl; text-align: right;
 }
+
+/* ═══════ Media Queries للاستجابة ═══════ */
+@media (max-width: 1024px) {
+    .main-box { padding: 20px; }
+    h1 { font-size: 1.8rem !important; }
+    .dua-main-box h3 { font-size: 1.5rem; }
+    .dua-main-box .names { font-size: 1.3rem; padding: 12px 20px; }
+    .section-title { font-size: 1.3rem; padding: 10px 14px; }
+}
+
+@media (max-width: 768px) {
+    .main-box { padding: 14px; border-radius: 10px; margin-bottom: 70px; }
+    h1 { font-size: 1.35rem !important; -webkit-text-stroke: 0 !important; }
+    h2 { font-size: 1.15rem !important; }
+    h3 { font-size: 1.05rem !important; }
+    h4 { font-size: 0.95rem !important; }
+    .profile-img-style { width: 100px; height: 100px; border-width: 3px; }
+    .dua-main-box { padding: 18px 12px; border-radius: 14px; border-width: 3px; }
+    .dua-main-box h3 { font-size: 1.15rem; letter-spacing: 0; }
+    .dua-main-box .names {
+        font-size: 1rem; padding: 10px 14px;
+        border-radius: 10px; line-height: 1.5;
+    }
+    .dua-main-box p.quran { font-size: 0.9rem; padding: 12px 14px; }
+    .visitor-dua-banner { padding: 12px 16px; border-width: 2px; }
+    .visitor-dua-banner b { font-size: 1rem; }
+    .section-title {
+        font-size: 1.05rem; padding: 8px 12px;
+        border-right-width: 4px; margin-top: 20px;
+    }
+    .formula-item, .oil-item, .price-card, .oil-info-card, .barn-info-card {
+        padding: 10px 14px; font-size: 0.9rem;
+        border-right-width: 4px;
+    }
+    .stButton > button {
+        font-size: 0.85rem !important;
+        padding: 6px 10px !important;
+        min-height: 38px !important;
+    }
+    .mini-signature {
+        font-size: 0.68rem; padding: 6px 14px;
+        left: 8px; bottom: 58px;
+    }
+    .dua-fixed-banner {
+        font-size: 0.8rem; padding: 8px 10px;
+        line-height: 1.4;
+    }
+    [data-testid="stMetricValue"] { font-size: 1rem !important; }
+    [data-testid="stMetricLabel"] { font-size: 0.75rem !important; }
+    .stTabs [data-baseweb="tab"] {
+        font-size: 0.8rem !important;
+        padding: 6px 8px !important;
+    }
+    .stDataFrame { font-size: 0.75rem; }
+}
+
+@media (max-width: 480px) {
+    .main-box { padding: 10px; margin-bottom: 75px; }
+    h1 { font-size: 1.1rem !important; }
+    h2 { font-size: 1rem !important; }
+    .profile-img-style { width: 80px; height: 80px; }
+    .dua-main-box { padding: 14px 8px; }
+    .dua-main-box h3 { font-size: 1rem; }
+    .dua-main-box .names { font-size: 0.85rem; padding: 8px 10px; }
+    .dua-main-box p.quran { font-size: 0.78rem; padding: 8px 10px; }
+    .section-title { font-size: 0.95rem; padding: 6px 10px; }
+    .formula-item, .oil-item {
+        padding: 8px 10px; font-size: 0.82rem;
+        border-right-width: 3px;
+    }
+    .mini-signature {
+        font-size: 0.6rem; padding: 5px 10px;
+        bottom: 55px; left: 6px;
+    }
+    .dua-fixed-banner {
+        font-size: 0.72rem; padding: 6px 8px;
+    }
+    [data-testid="stMetricValue"] { font-size: 0.9rem !important; }
+    .stTabs [data-baseweb="tab"] {
+        font-size: 0.72rem !important;
+        padding: 4px 6px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    html, body, [data-testid="stAppViewContainer"] {
+        background-attachment: scroll !important;
+    }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -2424,7 +2735,6 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
         "🔬 مختبر تحليل وفحص الأعلاف الجاهزة"
     ])
 
-    # ═══════ تبويب فرعي 1: تركيب العلفة ═══════
     with sub_tab_formulator:
         st.markdown('<div class="section-title">🌍 الموقع الجغرافي</div>',
                     unsafe_allow_html=True)
@@ -2697,7 +3007,6 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
                 else:
                     std_key_global = "أسماك_تسمين"
 
-        # ═══ التحقق (بدون st.stop) ═══
         formulation_ready = bool(animal_choice and requirement)
 
         if not formulation_ready:
@@ -2732,7 +3041,6 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
                 "👤 اسم طالب العلفة (سيظهر في التقرير):",
                 placeholder="مثال: مزرعة الأمل — أحمد محمد", key="requester")
 
-            # ═══ اختيار المكونات ═══
             st.markdown('<div class="section-title">🌾 اختيار المكونات</div>',
                         unsafe_allow_html=True)
             selected_ingredients = []
@@ -2740,7 +3048,7 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
 
             for cat_name, items in BIG_FEEDS_LIBRARY.items():
                 is_expanded = ("الحبوب" in cat_name or "الأكساب" in cat_name
-                               or "الزيوت" in cat_name)
+                               or "الزيوت" in cat_name or "الأملاح" in cat_name)
                 with st.expander(f"📁 {cat_name}", expanded=is_expanded):
                     sub_cols = st.columns(3)
                     for idx, (ing_name, ing_data) in enumerate(items.items()):
@@ -2950,7 +3258,6 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
                     else:
                         st.error(f"❌ {result['message']}")
 
-    # ═══════ تبويب فرعي 2: مختبر التحليل ═══════
     with sub_tab_analyzer:
         st.markdown('<div class="section-title">🔬 مختبر فحص وتحليل الخلطات الجاهزة</div>',
                     unsafe_allow_html=True)
@@ -3141,7 +3448,9 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
                     f'padding:10px; border-radius:5px;">'
                     f'📲 مشاركة النتيجة عبر واتساب</button></a>',
                     unsafe_allow_html=True)
-                # ═══ القسم 21: تبويب مكتبة الزيوت ═══
+
+
+# ═══ القسم 21: تبويب مكتبة الزيوت ═══
 with tab_map["🌰 مكتبة الزيوت"]:
     st.markdown('<div class="section-title">🌰 مكتبة الزيوت النباتية والحيوانية</div>',
                 unsafe_allow_html=True)
@@ -3274,7 +3583,7 @@ with tab_map["📷 المختبر الذكي"]:
                     st.error(f"❌ {r['message']}")
 
 
-# ═══ القسم 24: تبويب تصميم الحظائر 3D (جديد — للمالك فقط) ═══
+# ═══ القسم 24: تبويب تصميم الحظائر 3D (مع فيديو GIF) ═══
 if is_owner():
     with tab_map["🏗️ تصميم الحظائر 3D"]:
         st.markdown('<div class="section-title">🏗️ مصمم الحظائر العلمي ثلاثي الأبعاد</div>',
@@ -3355,17 +3664,64 @@ if is_owner():
             else:
                 st.warning("⚠️ Plotly غير متوفر لعرض المجسم.")
 
-            st.markdown("### 📥 تصدير التقرير")
-            try:
-                pdf_bytes = generate_barn_pdf_report(dims)
-                fname = (f"Barn_Design_{barn_animal}_{barn_count}_"
-                         f"{datetime.now():%Y%m%d}.pdf")
-                st.download_button("📄 تحميل تصميم الحظيرة (PDF)",
-                    pdf_bytes, file_name=fname,
-                    mime="application/pdf",
+            # ═══ تصدير: PDF + GIF + HTML تفاعلي ═══
+            st.markdown("### 📥 تصدير التقرير والوسائط")
+
+            g1, g2, g3 = st.columns(3)
+            with g1:
+                if st.button("🎬 توليد فيديو GIF", use_container_width=True,
+                             key="gen_barn_gif"):
+                    with st.spinner("⏳ جاري توليد الفيديو... (قد يستغرق 30-60 ثانية)"):
+                        gif = create_barn_rotation_gif(dims, n_frames=36, fps=12)
+                    if gif:
+                        st.session_state["barn_gif"] = gif
+                        st.success("✅ تم توليد الفيديو!")
+                    else:
+                        st.error("⚠️ تعذر التوليد — تأكد من تثبيت Pillow و matplotlib")
+
+            with g2:
+                if st.button("🎥 توليد عرض HTML تفاعلي", use_container_width=True,
+                             key="gen_barn_html"):
+                    with st.spinner("⏳ جاري التحضير..."):
+                        html = create_barn_animated_html(dims)
+                    if html:
+                        st.session_state["barn_html"] = html
+                        st.success("✅ جاهز!")
+                    else:
+                        st.error("⚠️ Plotly غير متوفر")
+
+            with g3:
+                try:
+                    pdf_bytes = generate_barn_pdf_report(dims)
+                    fname = (f"Barn_Design_{barn_animal}_{barn_count}_"
+                             f"{datetime.now():%Y%m%d}.pdf")
+                    st.download_button("📄 تحميل PDF", pdf_bytes,
+                        file_name=fname, mime="application/pdf",
+                        use_container_width=True, type="primary")
+                except Exception as e:
+                    st.error(f"PDF: {e}")
+
+            # ═══ معاينة وتحميل الفيديو ═══
+            if st.session_state.get("barn_gif"):
+                st.markdown("#### 🎬 معاينة الفيديو")
+                st.image(st.session_state["barn_gif"],
+                         caption="دوران 360° حول الحظيرة",
+                         use_container_width=True)
+                st.download_button(
+                    "📥 تحميل الفيديو GIF",
+                    st.session_state["barn_gif"],
+                    file_name=f"Barn_{barn_animal}_{barn_count}.gif",
+                    mime="image/gif",
                     use_container_width=True, type="primary")
-            except Exception as e:
-                st.error(f"⚠️ خطأ في إنشاء PDF: {e}")
+
+            # ═══ تحميل HTML التفاعلي ═══
+            if st.session_state.get("barn_html"):
+                st.download_button(
+                    "📥 تحميل HTML تفاعلي (يفتح في المتصفح)",
+                    st.session_state["barn_html"],
+                    file_name=f"Barn_{barn_animal}_{barn_count}.html",
+                    mime="text/html",
+                    use_container_width=True)
 
             with st.expander("📊 مقارنة خيارات أحجام مختلفة"):
                 alt_rows = []
@@ -3596,7 +3952,14 @@ with tab_map["💡 المساعدة"]:
     - **الزيوت؟** راجع تبويب "🌰 مكتبة الزيوت" لمعرفة الحدود المسموحة
     - **مختبر التحليل؟** داخل تبويب "🔬 النمذجة" ← "🔬 مختبر تحليل الأعلاف"
     - **تصميم الحظائر؟** تبويب مخصص للمالك مع مجسم 3D وتقرير PDF
-    - **كيف أحفظ التصميم؟** زر تحميل PDF في تبويب تصميم الحظائر
+    - **🎬 كيف أُنشئ فيديو للحظيرة؟**
+        1. اختر نوع الحيوان والعدد
+        2. اضغط **🎬 توليد فيديو GIF** (يستغرق 30-60 ثانية)
+        3. انتظر ظهور المعاينة
+        4. اضغط **📥 تحميل الفيديو GIF** لحفظه
+    - **🎥 ما هو HTML التفاعلي؟**
+        ملف يُفتح في المتصفح مباشرة، ويعرض الحظيرة بدوران تلقائي
+        مع أزرار ▶ تشغيل و⏸ إيقاف.
 
     ### 🔧 الدعم الفني
     📧 {OWNER_EMAIL}
@@ -3620,10 +3983,19 @@ with tab_map["📖 الدليل"]:
     - 🧬 **احتياجات متخصصة**: لكل حيوان دالة خاصة
     - 🧠 **محرك ذكي**: يطابق DP + SE + NDF + ADF + Ca + P + EE
     - 🔬 **مختبر تحليل**: داخل تبويب النمذجة لفحص الخلطات الجاهزة
-    - 🏗️ **تصميم الحظائر 3D**: مع حساب علمي للتهوية والمعالف والسقايات
+    - 🏗️ **تصميم الحظائر 3D**: مجسم تفاعلي + فيديو GIF + HTML
+    - 🎬 **فيديو GIF**: دوران 360° للحظيرة
+    - 🎥 **HTML تفاعلي**: عرض مباشر في المتصفح
     - 🔀 **DP أو CP**: اختيار أساس الحساب
     - 📷 **OCR**: تحليل صور المكونات
-    - 📄 **PDF احترافي**: ختم + رسوم بيانية ملوّنة + جدول الزيوت
+    - 📄 **PDF احترافي**: تقرير كامل بجداول الزيوت والأملاح
+
+    ### 🆕 ما الجديد في 10.1
+    - ✅ جدول الزيوت يظهر دائماً في PDF
+    - ✅ جدول الأملاح والمعادن في PDF
+    - ✅ توليد فيديو GIF بدوران 360°
+    - ✅ HTML تفاعلي للعرض
+    - ✅ دعم كامل للشاشات الصغيرة (موبايل/تابلت)
 
     ### 📊 نظام التقييم
     | الرمز | المعيار | الفرق |
@@ -3667,5 +4039,5 @@ st.markdown(
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# نهاية الملف — Tawor Nology 10.0 Final
+# نهاية الملف — Tawor Nology 10.1 Final
 # ═══════════════════════════════════════════════════════════════════════════
