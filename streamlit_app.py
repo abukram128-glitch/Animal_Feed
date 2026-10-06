@@ -1,8 +1,8 @@
 # ============================================================================
-# تاور نولجي TAWOR NOLOGY — الإصدار 10.1 النهائي المُحسَّن
+# تاور نولجي TAWOR NOLOGY — الإصدار 10.2 النهائي المُحسَّن
 # إشراف: م. عبدالقادر إسماعيل تاور
 # 🕌 رحم الله والدي إسماعيل تاور وأختي ابتسام 🕌
-# الميزات: 18 زيتاً + مختبر + حظائر 3D + فيديو GIF + PDF احترافي
+# الميزات: 18 زيتاً + مختبر + حظائر 3D + فيديو GIF + حاسبة العليقة + PDF
 # ============================================================================
 
 import streamlit as st
@@ -1112,7 +1112,7 @@ def create_gauge_chart(score):
         return None
 
 
-# ═══ القسم 11: مولد PDF (بجداول الزيوت والأملاح) ═══
+# ═══ القسم 11: مولد PDF ═══
 class PDFGenerator:
     def __init__(self):
         self.font_name = font_mgr.font_name
@@ -1239,7 +1239,6 @@ class PDFGenerator:
         return t
 
     def _oil_table(self, formula, standard_key):
-        """جدول الزيوت — يظهر دائماً حتى لو فارغ"""
         oils = get_oil_ingredients()
         oil_rows = [(ing, pct) for ing, pct in formula.items() if ing in oils]
         oil_std = get_oil_standard(standard_key)
@@ -1275,14 +1274,11 @@ class PDFGenerator:
         return (t, total_oil, oil_std)
 
     def _salts_table(self, formula):
-        """جدول الأملاح والمعادن يظهر في PDF"""
         salts_data = BIG_FEEDS_LIBRARY.get("🪨 الأملاح والمعادن", {})
         salt_rows = [(ing, pct) for ing, pct in formula.items()
                      if ing in salts_data]
-
         if not salt_rows:
             return (None, 0.0)
-
         header = [self._ar("الملح / المعدن"), self._ar("النسبة %"),
                   self._ar("كجم/طن"), self._ar("Ca %"), self._ar("P %")]
         data = [header]
@@ -1291,11 +1287,9 @@ class PDFGenerator:
             data.append([
                 self._ar(ing), f"{pct:.3f}%", f"{pct*10:.2f}",
                 f"{d.get('Ca', 0.0):.2f}", f"{d.get('P', 0.0):.2f}"])
-
         total_pct = sum(p for _, p in salt_rows)
         data.append([self._ar("الإجمالي"), f"{total_pct:.3f}%",
                      f"{total_pct*10:.2f}", "", ""])
-
         cmds = [
             ('BACKGROUND', (0, 0), (-1, 0), HexColor('#4e342e')),
             ('TEXTCOLOR',  (0, 0), (-1, 0), white),
@@ -1385,7 +1379,6 @@ class PDFGenerator:
             ('BOTTOMPADDING', (0, 0), (-1, -1), 8)]))
         story.append(st_tbl); story.append(Spacer(1, 15))
 
-        # ═══ جدول الزيوت (يظهر دائماً) ═══
         oil_tbl, total_oil, oil_std = self._oil_table(formula, standard_key)
         story.append(P("🌰 جدول الزيوت النباتية والحيوانية", size=14,
                        align=TA_RIGHT, color='#e65100'))
@@ -1406,7 +1399,6 @@ class PDFGenerator:
         story.append(P(oil_note, size=9, align=TA_RIGHT, color='#bf360c'))
         story.append(Spacer(1, 15))
 
-        # ═══ جدول الأملاح والمعادن (جديد) ═══
         salt_tbl, total_salt = self._salts_table(formula)
         story.append(P("🪨 جدول الأملاح والمعادن", size=14,
                        align=TA_RIGHT, color='#4e342e'))
@@ -1563,7 +1555,6 @@ def export_comparison_to_excel(standard, calculated, requester_name="", animal="
             cell.fill = PatternFill('solid', fgColor=ev["bg"].replace('#', ''))
         row += 1
 
-    # ═══ الأملاح في Excel ═══
     if formula:
         salts_data = BIG_FEEDS_LIBRARY.get("🪨 الأملاح والمعادن", {})
         salt_rows = [(ing, pct) for ing, pct in formula.items()
@@ -1919,9 +1910,7 @@ def create_barn_3d_figure(dims):
     return fig
 
 
-# ═══ دالة توليد فيديو GIF للحظيرة ═══
 def create_barn_rotation_gif(dims, n_frames=36, fps=12):
-    """GIF متحرك يدور 360° حول الحظيرة"""
     if not MATPLOTLIB_AVAILABLE or not PIL_AVAILABLE:
         return None
     try:
@@ -2007,9 +1996,7 @@ def create_barn_rotation_gif(dims, n_frames=36, fps=12):
         return None
 
 
-# ═══ دالة إنشاء HTML تفاعلي بأنيميشن دوران ═══
 def create_barn_animated_html(dims):
-    """HTML تفاعلي مع زر تشغيل دوران 360°"""
     if not PLOTLY_AVAILABLE:
         return None
     try:
@@ -2251,6 +2238,250 @@ def generate_barn_pdf_report(dims):
     return buffer.getvalue()
 
 
+# ═══ القسم 14.5: حاسبة وزن الحيوان والعليقة اليومية ═══
+@dataclass
+class DailyFeedPlan:
+    animal_type: str
+    weight_kg: float
+    production_type: str
+    dmi_kg: float
+    dmi_pct_bw: float
+    feed_kg: float
+    meals_per_day: int
+    feed_per_meal_kg: float
+    water_liters: float
+    num_animals: int
+    total_feed_kg: float
+    total_dmi_kg: float
+    total_water_liters: float
+    energy_note: str = ""
+    protein_note: str = ""
+    notes: str = ""
+
+
+DMI_PERCENTAGES = {
+    "أبقار": {
+        "صيانة":         (2.0, 2.2,  "NRC 2001 — صيانة"),
+        "حليب_عالي":     (3.5, 4.0,  "NRC 2001 — حلابة عالية"),
+        "حليب_متوسط":    (3.0, 3.5,  "NRC 2001 — حلابة متوسطة"),
+        "حليب_منخفض":    (2.5, 3.0,  "NRC 2001 — حلابة منخفضة"),
+        "تسمين_مكثف":    (2.8, 3.2,  "NRC 2001 — تسمين مكثف"),
+        "تسمين_عادي":    (2.4, 2.8,  "NRC 2001 — تسمين عادي"),
+        "حمل_أخير":      (2.0, 2.3,  "NRC 2001 — حمل آخر"),
+        "نمو":           (2.5, 3.0,  "NRC 2001 — نمو"),
+    },
+    "أغنام": {
+        "صيانة":         (2.0, 2.5,  "NRC 2007 — صيانة"),
+        "تسمين_مكثف":    (3.5, 4.5,  "NRC 2007 — تسمين مكثف"),
+        "تسمين_عادي":    (3.0, 3.8,  "NRC 2007 — تسمين عادي"),
+        "حملان_تيد":     (2.8, 3.5,  "NRC 2007 — إنهاء"),
+        "مرضعات":        (4.0, 5.0,  "NRC 2007 — مرضعة"),
+        "حامل_أخير":     (2.5, 3.0,  "NRC 2007 — حمل آخر"),
+        "حامل_متوسط":    (2.2, 2.8,  "NRC 2007 — حمل مبكر"),
+        "نمو":           (3.0, 4.0,  "NRC 2007 — نمو"),
+    },
+    "ماعز": {
+        "صيانة":         (2.0, 2.5,  "NRC 2007 — صيانة"),
+        "تسمين_جديان":   (3.5, 4.5,  "NRC 2007 — تسمين جديان"),
+        "تيوس":          (2.8, 3.5,  "NRC 2007 — تيوس"),
+        "حلابة_عالي":    (4.0, 5.0,  "NRC 2007 — حلابة عالية"),
+        "حلابة_متوسط":   (3.5, 4.2,  "NRC 2007 — حلابة متوسطة"),
+        "حامل_أخير":     (2.5, 3.0,  "NRC 2007 — حمل آخر"),
+        "نمو":           (3.0, 4.0,  "NRC 2007 — نمو"),
+    },
+    "إبل": {
+        "صيانة":         (1.5, 2.0,  "FAO 2010 — صيانة"),
+        "نمو":           (2.5, 3.0,  "FAO 2010 — نمو (حوار)"),
+        "تسمين":         (2.0, 2.5,  "FAO 2010 — تسمين"),
+        "حليب":          (2.5, 3.0,  "FAO 2010 — حلابة"),
+        "سباق":          (2.5, 3.5,  "FAO 2010 — سباق (هجن)"),
+    },
+    "خيول": {
+        "صيانة":         (1.8, 2.2,  "NRC 2007 Horses — صيانة"),
+        "رياضة_مكثف":    (3.0, 3.5,  "NRC 2007 Horses — جهد عالي"),
+        "رياضة_عادي":    (2.3, 2.8,  "NRC 2007 Horses — جهد متوسط"),
+        "نمو_أمهار":     (2.5, 3.0,  "NRC 2007 Horses — نمو"),
+        "مرضعات":        (3.0, 3.5,  "NRC 2007 Horses — مرضعة"),
+    },
+    "دواجن": {
+        "بادي":          (0.0, 0.0,  "Ross 308 — عمر 1-7 يوم"),
+        "نامي":          (0.0, 0.0,  "Ross 308 — عمر 8-21 يوم"),
+        "ناهي":          (0.0, 0.0,  "Ross 308 — عمر 22-42 يوم"),
+        "بياض":          (0.0, 0.0,  "NRC 1994 — بياض إنتاجي"),
+    },
+    "سمان": {
+        "بادي":          (0.0, 0.0,  "NRC Quail — بادي"),
+        "نامي":          (0.0, 0.0,  "NRC Quail — نامي"),
+        "ناهي":          (0.0, 0.0,  "NRC Quail — ناهي"),
+        "بياض":          (0.0, 0.0,  "NRC Quail — بياض"),
+    },
+    "أسماك": {
+        "بادئ زريعة":    (5.0, 8.0,  "NRC Fish — بادئ"),
+        "نمو":           (3.0, 5.0,  "NRC Fish — نمو"),
+        "تسمين":         (1.5, 3.0,  "NRC Fish — تسمين نهائي"),
+    },
+}
+
+
+POULTRY_DAILY_INTAKE_G = {
+    "دواجن": {
+        "بادي": {"min": 18,  "max": 28,  "typical": 23},
+        "نامي": {"min": 60,  "max": 95,  "typical": 78},
+        "ناهي": {"min": 140, "max": 200, "typical": 170},
+        "بياض": {"min": 105, "max": 125, "typical": 115},
+    },
+    "سمان": {
+        "بادي": {"min": 12,  "max": 20,  "typical": 16},
+        "نامي": {"min": 20,  "max": 28,  "typical": 24},
+        "ناهي": {"min": 25,  "max": 32,  "typical": 28},
+        "بياض": {"min": 25,  "max": 32,  "typical": 28},
+    },
+}
+
+
+MEALS_PER_DAY = {
+    "أبقار": 3, "أغنام": 2, "ماعز": 2, "إبل": 2, "خيول": 3,
+    "دواجن": 4, "سمان": 3, "أسماك": 4,
+}
+
+
+def calculate_daily_feed_intake(animal_type, weight_kg, production_type="صيانة",
+                                  milk_yield=0.0, adg_kg=0.0, age_weeks=0,
+                                  num_animals=1, feed_dm_pct=88.0):
+    if weight_kg <= 0 or num_animals < 1:
+        return None
+
+    std_table = DMI_PERCENTAGES.get(animal_type, {})
+    if production_type not in std_table:
+        return None
+
+    dmi_min_pct, dmi_max_pct, ref = std_table[production_type]
+    dmi_pct = (dmi_min_pct + dmi_max_pct) / 2.0
+
+    if animal_type in ["أبقار", "أغنام", "ماعز", "إبل"]:
+        if milk_yield > 0:
+            dmi_pct += milk_yield * 0.003
+        if adg_kg > 0:
+            dmi_pct += adg_kg * 0.15
+
+    if animal_type in ["دواجن", "سمان"]:
+        poultry_table = POULTRY_DAILY_INTAKE_G.get(animal_type, {})
+        if production_type in poultry_table:
+            intake_g = poultry_table[production_type]["typical"]
+            if animal_type == "دواجن" and production_type == "نامي" and age_weeks >= 2:
+                intake_g += (age_weeks - 2) * 3.5
+            elif animal_type == "دواجن" and production_type == "بادي":
+                intake_g = 23 if age_weeks >= 1 else 18
+            dmi_kg = intake_g / 1000.0
+            dmi_pct = (dmi_kg / max(weight_kg, 0.05)) * 100 if weight_kg > 0.05 else 0
+        else:
+            return None
+    elif animal_type == "أسماك":
+        dmi_kg = weight_kg * (dmi_pct / 100.0)
+    else:
+        dmi_kg = weight_kg * (dmi_pct / 100.0)
+
+    if feed_dm_pct <= 0 or feed_dm_pct > 100:
+        feed_dm_pct = 88.0
+    feed_kg = dmi_kg / (feed_dm_pct / 100.0)
+
+    meals = MEALS_PER_DAY.get(animal_type, 2)
+    feed_per_meal = feed_kg / meals
+
+    water_per_dmi = {
+        "أبقار": 4.5, "أغنام": 3.5, "ماعز": 3.5, "إبل": 2.8,
+        "خيول": 3.0, "دواجن": 2.0, "سمان": 2.2, "أسماك": 0.0,
+    }
+    if animal_type == "أسماك":
+        water_liters = 0.0
+    else:
+        water_liters = dmi_kg * water_per_dmi.get(animal_type, 3.5)
+        if milk_yield > 0:
+            water_liters += milk_yield * 0.9
+
+    energy_note = ""
+    protein_note = ""
+    if animal_type == "أبقار":
+        if "حليب" in production_type:
+            protein_note = f"استهدف DP ≥ {12.5 + milk_yield*0.3:.1f}%"
+            energy_note = f"SE ≥ {55 + milk_yield*0.35:.0f} وحدة"
+        elif "تسمين" in production_type:
+            protein_note = f"استهدف DP ≥ {9.5 + adg_kg*3:.1f}%"
+            energy_note = f"SE ≥ {60 + adg_kg*5:.0f} وحدة"
+    elif animal_type in ["أغنام", "ماعز"]:
+        if production_type == "مرضعات" or "حلابة" in production_type:
+            protein_note = f"استهدف DP ≥ {10.5 + milk_yield*0.4:.1f}%"
+        elif "تسمين" in production_type:
+            protein_note = f"استهدف DP ≥ {9.5 + adg_kg*5:.1f}%"
+
+    return DailyFeedPlan(
+        animal_type=animal_type,
+        weight_kg=weight_kg,
+        production_type=production_type,
+        dmi_kg=round(dmi_kg, 3),
+        dmi_pct_bw=round(dmi_pct, 2),
+        feed_kg=round(feed_kg, 3),
+        meals_per_day=meals,
+        feed_per_meal_kg=round(feed_per_meal, 3),
+        water_liters=round(water_liters, 2),
+        num_animals=num_animals,
+        total_feed_kg=round(feed_kg * num_animals, 2),
+        total_dmi_kg=round(dmi_kg * num_animals, 2),
+        total_water_liters=round(water_liters * num_animals, 1),
+        energy_note=energy_note,
+        protein_note=protein_note,
+        notes=ref,
+    )
+
+
+PRODUCTION_TYPE_LABELS = {
+    "صيانة": "🌿 صيانة",
+    "حليب_عالي": "🥛 حلابة عالية الإنتاج",
+    "حليب_متوسط": "🥛 حلابة متوسطة",
+    "حليب_منخفض": "🥛 حلابة منخفضة",
+    "تسمين_مكثف": "💪 تسمين مكثف",
+    "تسمين_عادي": "💪 تسمين عادي",
+    "حمل_أخير": "🤰 حمل آخر",
+    "نمو": "📈 نمو",
+    "تسمين": "💪 تسمين",
+    "حليب": "🥛 حلابة",
+    "سباق": "🏃 سباق",
+    "تسمين_جديان": "💪 تسمين جديان",
+    "تيوس": "🐐 تيوس",
+    "حلابة_عالي": "🥛 حلابة إدرار عالي",
+    "حلابة_متوسط": "🥛 حلابة إدرار متوسط",
+    "مرضعات": "🍼 مرضعات",
+    "حامل_أخير": "🤰 حامل (4-5)",
+    "حامل_متوسط": "🤰 حامل (1-3)",
+    "حملان_تيد": "🐑 حملان تيد",
+    "رياضة_مكثف": "🏇 رياضة مكثف",
+    "رياضة_عادي": "🏇 رياضة عادي",
+    "نمو_أمهار": "🐎 أمهار نمو",
+    "بادي": "🐣 بادي (1-7 يوم)",
+    "نامي": "🐤 نامي (8-21 يوم)",
+    "ناهي": "🐔 ناهي (22-42 يوم)",
+    "بياض": "🥚 بياض إنتاجي",
+    "بادئ زريعة": "🐟 بادئ زريعة",
+    "تسمين نهائي": "🐟 تسمين نهائي",
+}
+
+
+def daily_feed_distribution(plan, formula):
+    if not formula or not plan:
+        return []
+    rows = []
+    for ing, pct in formula.items():
+        per_animal_g = plan.feed_kg * (pct / 100.0) * 1000
+        total_kg = plan.total_feed_kg * (pct / 100.0)
+        rows.append({
+            "المكوّن": ing,
+            "النسبة %": f"{pct:.2f}%",
+            "لكل حيوان (جم/يوم)": f"{per_animal_g:.1f}",
+            "للقطيع (كجم/يوم)": f"{total_kg:.3f}",
+        })
+    return rows
+
+
 # ═══ القسم 15: الحالة الأولية للجلسة ═══
 DEFAULTS = {
     "approved": False, "user_role": None,
@@ -2274,6 +2505,7 @@ DEFAULTS = {
     "barn_last_dims": None,
     "barn_gif": None,
     "barn_html": None,
+    "daily_feed_plan": None,
 }
 
 for k, v in DEFAULTS.items():
@@ -2291,7 +2523,7 @@ def is_owner():
     return st.session_state.get("user_role") == "owner"
 
 
-# ═══ القسم 16: CSS (مع Media Queries كاملة) ═══
+# ═══ القسم 16: CSS ═══
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Amiri:wght@400;700&display=swap');
@@ -2476,7 +2708,6 @@ h1, h2, h3, h4, h5, p, span, li, div, label { color: #1a1a1a !important; }
     margin-bottom: 18px; direction: rtl; text-align: right;
 }
 
-/* ═══════ Media Queries للاستجابة ═══════ */
 @media (max-width: 1024px) {
     .main-box { padding: 20px; }
     h1 { font-size: 1.8rem !important; }
@@ -2698,6 +2929,7 @@ st.markdown("<hr style='border-top: 3px solid #2e7d32;'>", unsafe_allow_html=Tru
 if is_owner():
     tabs_titles = [
         "🔬 النمذجة والحسابات العلفية",
+        "⚖️ حاسبة العليقة اليومية",
         "🌰 مكتبة الزيوت",
         "🍼 بدائل الحليب",
         "📷 المختبر الذكي",
@@ -2716,6 +2948,7 @@ if is_owner():
 else:
     tabs_titles = [
         "🔬 النمذجة والحسابات العلفية",
+        "⚖️ حاسبة العليقة اليومية",
         "🌰 مكتبة الزيوت",
         "🍼 بدائل الحليب",
         "📷 المختبر الذكي",
@@ -2728,7 +2961,7 @@ tabs = st.tabs(tabs_titles)
 tab_map = {title: tab for title, tab in zip(tabs_titles, tabs)}
 
 
-# ═══ القسم 20: تبويب النمذجة (تبويبين فرعيين) ═══
+# ═══ القسم 20: تبويب النمذجة ═══
 with tab_map["🔬 النمذجة والحسابات العلفية"]:
     sub_tab_formulator, sub_tab_analyzer = st.tabs([
         "🎯 تركيب علفة نموذجية (أقل تكلفة بالبروتين المهضوم)",
@@ -3450,6 +3683,201 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
                     unsafe_allow_html=True)
 
 
+# ═══ القسم 20.5: تبويب حاسبة العليقة اليومية ═══
+with tab_map["⚖️ حاسبة العليقة اليومية"]:
+    st.markdown('<div class="section-title">⚖️ حاسبة وزن الحيوان والعليقة اليومية</div>',
+                unsafe_allow_html=True)
+    st.write("تُحسب كمية العليقة اليومية علمياً وفق معايير **NRC / INRA / FAO** "
+             "بناءً على نوع الحيوان، وزنه، وحالته الفسيولوجية. "
+             "كما يتم توزيع المكوّنات تلقائياً إذا كانت هناك **خلطة نشطة** من تبويب النمذجة.")
+
+    st.markdown('<div class="section-title">🐾 اختر الحيوان</div>',
+                unsafe_allow_html=True)
+    fp1, fp2, fp3 = st.columns(3)
+    with fp1:
+        fp_animal = st.selectbox(
+            "نوع الحيوان:",
+            ["أبقار", "أغنام", "ماعز", "إبل", "خيول", "دواجن", "سمان", "أسماك"],
+            key="fp_animal")
+    with fp2:
+        fp_weight = st.number_input(
+            "⚖️ الوزن الحي (كجم):",
+            min_value=0.01, max_value=1500.0,
+            value={"أبقار": 500.0, "أغنام": 50.0, "ماعز": 45.0,
+                   "إبل": 450.0, "خيول": 450.0, "دواجن": 2.0,
+                   "سمان": 0.2, "أسماك": 0.5}.get(fp_animal, 50.0),
+            step=0.1 if fp_animal in ["دواجن", "سمان", "أسماك"] else 5.0,
+            key=f"fp_weight_{fp_animal}")
+    with fp3:
+        fp_num = st.number_input(
+            "🔢 عدد الحيوانات:",
+            min_value=1, max_value=100000,
+            value=1, step=1, key="fp_num")
+
+    std_options = list(DMI_PERCENTAGES.get(fp_animal, {}).keys())
+    if not std_options:
+        st.error("⚠️ لا توجد معايير لهذا الحيوان")
+    else:
+        fp2_cols = st.columns(3)
+        with fp2_cols[0]:
+            fp_prod = st.selectbox(
+                "الحالة الفسيولوجية:",
+                std_options,
+                format_func=lambda x: PRODUCTION_TYPE_LABELS.get(x, x),
+                key=f"fp_prod_{fp_animal}")
+        with fp2_cols[1]:
+            fp_milk = 0.0
+            if any(k in fp_prod for k in ["حليب", "حلابة", "مرضعات"]):
+                fp_milk = st.number_input(
+                    "🥛 إنتاج الحليب اليومي (كجم):",
+                    min_value=0.0, max_value=60.0, value=20.0, step=0.5,
+                    key="fp_milk")
+        with fp2_cols[2]:
+            fp_adg = 0.0
+            if "تسمين" in fp_prod or "نمو" in fp_prod:
+                fp_adg = st.number_input(
+                    "📈 الزيادة الوزنية اليومية (كجم):",
+                    min_value=0.0, max_value=3.0,
+                    value={"أبقار": 1.2, "أغنام": 0.25, "ماعز": 0.18,
+                           "إبل": 0.8, "خيول": 0.5}.get(fp_animal, 0.2),
+                    step=0.01, key="fp_adg")
+
+        fp_age_weeks = 0
+        if fp_animal in ["دواجن", "سمان"]:
+            fp_age_weeks = st.number_input(
+                "📅 العمر (أسبوع):", min_value=1, max_value=20, value=1,
+                step=1, key="fp_age")
+
+        fp_dm_pct = st.slider(
+            "🌾 نسبة المادة الجافة في العليقة %:",
+            min_value=70, max_value=95, value=88, step=1,
+            help="الخلطات الجافة عادة 88-92% | الأعلاف الخضراء 25-35%",
+            key="fp_dm")
+
+        if st.button("🧮 احسب العليقة اليومية", type="primary",
+                     use_container_width=True, key="fp_calc"):
+            plan = calculate_daily_feed_intake(
+                animal_type=fp_animal,
+                weight_kg=fp_weight,
+                production_type=fp_prod,
+                milk_yield=fp_milk,
+                adg_kg=fp_adg,
+                age_weeks=fp_age_weeks,
+                num_animals=fp_num,
+                feed_dm_pct=fp_dm_pct,
+            )
+            if plan:
+                st.session_state["daily_feed_plan"] = plan
+                st.success("✅ تم الحساب بنجاح!")
+            else:
+                st.error("⚠️ تعذّر الحساب — تحقق من المدخلات")
+
+    plan = st.session_state.get("daily_feed_plan")
+    if plan and plan.animal_type == fp_animal:
+        st.markdown("---")
+        st.markdown(f"### 📊 نتائج الحساب — {plan.animal_type} / "
+                    f"{PRODUCTION_TYPE_LABELS.get(plan.production_type, plan.production_type)}")
+
+        r1, r2, r3, r4 = st.columns(4)
+        r1.metric("🌾 DMI / حيوان",
+                  f"{plan.dmi_kg:.3f} كجم",
+                  delta=f"{plan.dmi_pct_bw:.2f}% من الوزن")
+        r2.metric("🍽️ علف طازج / حيوان",
+                  f"{plan.feed_kg:.3f} كجم")
+        r3.metric(f"📦 علف القطيع ({plan.num_animals})",
+                  f"{plan.total_feed_kg:.1f} كجم/يوم")
+        r4.metric("💧 ماء / حيوان",
+                  f"{plan.water_liters:.2f} لتر" if plan.water_liters > 0 else "—")
+
+        st.markdown("#### 🍽️ توزيع الوجبات اليومية")
+        meal_cols = st.columns(plan.meals_per_day)
+        for i, col in enumerate(meal_cols):
+            with col:
+                st.metric(f"وجبة {i+1}",
+                          f"{plan.feed_per_meal_kg*1000:.0f} جم",
+                          delta=f"{plan.feed_per_meal_kg:.3f} كجم")
+
+        with st.expander("🔬 تفاصيل علمية ومرجعية", expanded=True):
+            st.markdown(f"""
+            - **المرجع العلمي:** {plan.notes}
+            - **المادة الجافة DMI:** {plan.dmi_kg:.3f} كجم/يوم
+              ({plan.dmi_pct_bw:.2f}% من الوزن الحي)
+            - **العليقة الطازجة:** {plan.feed_kg:.3f} كجم/يوم
+              (بنسبة مادة جافة {fp_dm_pct}%)
+            - **عدد الوجبات:** {plan.meals_per_day} وجبة/يوم
+            - **حجم الوجبة الواحدة:** {plan.feed_per_meal_kg*1000:.0f} جم
+            - **ماء الشرب:** {plan.water_liters:.2f} لتر/يوم
+            """)
+            if plan.protein_note:
+                st.info(f"🧬 **البروتين:** {plan.protein_note}")
+            if plan.energy_note:
+                st.info(f"⚡ **الطاقة:** {plan.energy_note}")
+
+        active_formula = st.session_state.get("active_formula", {})
+        if active_formula:
+            st.markdown("---")
+            st.markdown("### 🌾 توزيع المكونات الفعلي اليومي")
+            st.caption("💡 يعتمد على **الخلطة النشطة** من تبويب النمذجة")
+            dist_rows = daily_feed_distribution(plan, active_formula)
+            if dist_rows:
+                st.dataframe(pd.DataFrame(dist_rows),
+                             use_container_width=True, hide_index=True)
+
+                ton_cost = st.session_state.get("computed_ton_cost", 0.0)
+                if ton_cost > 0:
+                    daily_cost_per = (plan.feed_kg / 1000.0) * ton_cost
+                    daily_cost_herd = (plan.total_feed_kg / 1000.0) * ton_cost
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("💰 تكلفة يومية / حيوان",
+                              f"${daily_cost_per:.3f}")
+                    c2.metric(f"💰 تكلفة يومية للقطيع",
+                              f"${daily_cost_herd:.2f}")
+                    c3.metric("📅 تكلفة شهرية للقطيع",
+                              f"${daily_cost_herd * 30:.2f}")
+        else:
+            st.info("💡 **نصيحة:** قم أولاً بتركيب خلطة من تبويب "
+                    "«🔬 النمذجة والحسابات العلفية» لترى توزيع المكونات "
+                    "والتكلفة اليومية الفعلية.")
+
+        st.markdown("---")
+        st.markdown("### 📥 تصدير خطة العليقة")
+        export_lines = [
+            f"خطة العليقة اليومية — {APP_NAME}",
+            f"🤲 {DUA_SHORT} 🤲",
+            "=" * 50,
+            f"نوع الحيوان:        {plan.animal_type}",
+            f"الحالة الفسيولوجية: {PRODUCTION_TYPE_LABELS.get(plan.production_type, plan.production_type)}",
+            f"الوزن الحي:         {plan.weight_kg} كجم",
+            f"عدد الحيوانات:      {plan.num_animals}",
+            "-" * 50,
+            f"DMI / حيوان:        {plan.dmi_kg:.3f} كجم ({plan.dmi_pct_bw:.2f}% BW)",
+            f"علف طازج / حيوان:   {plan.feed_kg:.3f} كجم",
+            f"عدد الوجبات:        {plan.meals_per_day}",
+            f"حجم الوجبة:         {plan.feed_per_meal_kg*1000:.0f} جم",
+            f"ماء الشرب:          {plan.water_liters:.2f} لتر",
+            "-" * 50,
+            f"إجمالي DMI:         {plan.total_dmi_kg:.2f} كجم/يوم",
+            f"إجمالي العلف:       {plan.total_feed_kg:.2f} كجم/يوم",
+            f"إجمالي الماء:       {plan.total_water_liters:.1f} لتر/يوم",
+            "-" * 50,
+            f"المرجع العلمي:      {plan.notes}",
+        ]
+        if plan.protein_note:
+            export_lines.append(f"ملاحظة بروتين:      {plan.protein_note}")
+        if plan.energy_note:
+            export_lines.append(f"ملاحظة طاقة:        {plan.energy_note}")
+        export_lines.append("=" * 50)
+        export_lines.append(f"تاور نولجي Tawor Nology © {datetime.now().year}")
+        export_text = "\n".join(export_lines)
+
+        st.download_button(
+            "📄 تحميل الخطة (نص TXT)",
+            export_text.encode('utf-8'),
+            file_name=f"DailyFeed_{plan.animal_type}_{datetime.now():%Y%m%d}.txt",
+            mime="text/plain",
+            use_container_width=True)
+
+
 # ═══ القسم 21: تبويب مكتبة الزيوت ═══
 with tab_map["🌰 مكتبة الزيوت"]:
     st.markdown('<div class="section-title">🌰 مكتبة الزيوت النباتية والحيوانية</div>',
@@ -3583,7 +4011,7 @@ with tab_map["📷 المختبر الذكي"]:
                     st.error(f"❌ {r['message']}")
 
 
-# ═══ القسم 24: تبويب تصميم الحظائر 3D (مع فيديو GIF) ═══
+# ═══ القسم 24: تبويب تصميم الحظائر 3D ═══
 if is_owner():
     with tab_map["🏗️ تصميم الحظائر 3D"]:
         st.markdown('<div class="section-title">🏗️ مصمم الحظائر العلمي ثلاثي الأبعاد</div>',
@@ -3664,7 +4092,6 @@ if is_owner():
             else:
                 st.warning("⚠️ Plotly غير متوفر لعرض المجسم.")
 
-            # ═══ تصدير: PDF + GIF + HTML تفاعلي ═══
             st.markdown("### 📥 تصدير التقرير والوسائط")
 
             g1, g2, g3 = st.columns(3)
@@ -3701,7 +4128,6 @@ if is_owner():
                 except Exception as e:
                     st.error(f"PDF: {e}")
 
-            # ═══ معاينة وتحميل الفيديو ═══
             if st.session_state.get("barn_gif"):
                 st.markdown("#### 🎬 معاينة الفيديو")
                 st.image(st.session_state["barn_gif"],
@@ -3714,7 +4140,6 @@ if is_owner():
                     mime="image/gif",
                     use_container_width=True, type="primary")
 
-            # ═══ تحميل HTML التفاعلي ═══
             if st.session_state.get("barn_html"):
                 st.download_button(
                     "📥 تحميل HTML تفاعلي (يفتح في المتصفح)",
@@ -3933,6 +4358,12 @@ with tab_map["📚 المراجع"]:
     - Palmquist (2006) — Milk Fat Depression
     - FAO — Oilseed By-products
 
+    ### ⚖️ مراجع حساب العليقة اليومية:
+    - NRC 2001 — Dry Matter Intake Prediction
+    - NRC 2007 — Small Ruminants DMI
+    - FAO 2010 — Camel Feeding Standards
+    - Forbes (2007) — Voluntary Food Intake
+
     ### 🏗️ مراجع تصميم الحظائر:
     - MWPS-1 — Structures and Environment Handbook
     - MWPS-3 — Swine Housing and Equipment Handbook
@@ -3948,7 +4379,7 @@ with tab_map["💡 المساعدة"]:
     ### الأسئلة الشائعة:
     - **كيف أبدأ؟** اختر الحيوان، حدد الحالة الفسيولوجية، فعّل ✅ الاعتماد
     - **DP أم CP؟** اختر في الأعلى: DP (الأدق)، CP (الأسهل)
-    - **الحالات الفسيولوجية؟** لكل حيوان حالات خاصة (حليب، تسمين، حمل، صيانة)
+    - **⚖️ حاسبة العليقة اليومية؟** تبويب مستقل — يدخل الوزن والحالة، يُحسب DMI والعليقة والوجبات والماء.
     - **الزيوت؟** راجع تبويب "🌰 مكتبة الزيوت" لمعرفة الحدود المسموحة
     - **مختبر التحليل؟** داخل تبويب "🔬 النمذجة" ← "🔬 مختبر تحليل الأعلاف"
     - **تصميم الحظائر؟** تبويب مخصص للمالك مع مجسم 3D وتقرير PDF
@@ -3980,6 +4411,7 @@ with tab_map["📖 الدليل"]:
     ### 🎯 الميزات الرئيسية
     - 🐄 **8 قطاعات**: أبقار، أغنام، ماعز، إبل، خيول، دواجن، سمان، أسماك
     - 🌰 **18 زيتاً نباتياً وحيوانياً**: بمعايير NRC/INRA/FAO
+    - ⚖️ **حاسبة العليقة اليومية**: DMI + العلف + الماء + الوجبات
     - 🧬 **احتياجات متخصصة**: لكل حيوان دالة خاصة
     - 🧠 **محرك ذكي**: يطابق DP + SE + NDF + ADF + Ca + P + EE
     - 🔬 **مختبر تحليل**: داخل تبويب النمذجة لفحص الخلطات الجاهزة
@@ -3990,12 +4422,15 @@ with tab_map["📖 الدليل"]:
     - 📷 **OCR**: تحليل صور المكونات
     - 📄 **PDF احترافي**: تقرير كامل بجداول الزيوت والأملاح
 
-    ### 🆕 ما الجديد في 10.1
+    ### 🆕 ما الجديد في 10.2
+    - ✅ حاسبة العليقة اليومية الكاملة (DMI/Feed/Water/Meals)
+    - ✅ توزيع المكونات اليومية + التكلفة اليومية/الشهرية
+    - ✅ تصدير خطة العليقة بصيغة TXT
     - ✅ جدول الزيوت يظهر دائماً في PDF
     - ✅ جدول الأملاح والمعادن في PDF
     - ✅ توليد فيديو GIF بدوران 360°
     - ✅ HTML تفاعلي للعرض
-    - ✅ دعم كامل للشاشات الصغيرة (موبايل/تابلت)
+    - ✅ دعم كامل للشاشات الصغيرة
 
     ### 📊 نظام التقييم
     | الرمز | المعيار | الفرق |
@@ -4008,16 +4443,6 @@ with tab_map["📖 الدليل"]:
     | ⚠️ | مقبول بتحفظ | 15-25% |
     | 🟠 | ضعيف | 25-40% |
     | ❌ | غير مطابق | >40% |
-
-    ### 🏗️ معايير تصميم الحظائر
-    معتمدة على:
-    - **MWPS-1** — Midwest Plan Service
-    - **FAO 2012** — Rural Structures in the Tropics
-    - **ASABE Standards** — Animal Housing
-
-    ### 🔐 الدخول
-    - 👑 **المالك**: بكود خاص (يُمنح من الإدارة)
-    - 👥 **زائر**: دخول مجاني مع حجب بعض التبويبات
 
     ### 📞 للتواصل والدعم
     📧 {OWNER_EMAIL}
@@ -4039,5 +4464,5 @@ st.markdown(
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# نهاية الملف — Tawor Nology 10.1 Final
+# نهاية الملف — Tawor Nology 10.2 Final
 # ═══════════════════════════════════════════════════════════════════════════
