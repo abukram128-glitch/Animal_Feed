@@ -1,5 +1,5 @@
 # ============================================================================
-# تاور نولجي TAWOR NOLOGY — الإصدار 10.2 النهائي المُحسَّن
+# تاور نولجي TAWOR NOLOGY — الإصدار 10.2.1 النهائي (إصلاح الزيوت)
 # إشراف: م. عبدالقادر إسماعيل تاور
 # 🕌 رحم الله والدي إسماعيل تاور وأختي ابتسام 🕌
 # الميزات: 18 زيتاً + مختبر + حظائر 3D + فيديو GIF + حاسبة العليقة + PDF
@@ -668,8 +668,16 @@ def get_overall_rating(compare_rows):
     else: return {"label": "⚠️ تحتاج تحسين", "color": "#e65100", "score": avg}
 
 
+# ═════════════════════════════════════════════════════════════════════════
+# ✅ الدالة المُعدَّلة — auto_formulate_smart مع دعم required_oils
+# ═════════════════════════════════════════════════════════════════════════
 def auto_formulate_smart(available_ingredients, prices, custom_standard,
-                          standard_key, tolerance=0.3, max_iterations=50):
+                          standard_key, tolerance=0.3, max_iterations=50,
+                          required_oils=None):
+    """
+    required_oils: قائمة أسماء الزيوت التي اختارها المستخدم ويجب إظهارها
+                   بحد أدنى في الخلطة (افتراضيًا 0.5% لكل زيت).
+    """
     if not SCIPY_AVAILABLE:
         return {"success": False, "message": "SCIPY غير متوفرة"}
     ing_data = {}
@@ -692,9 +700,23 @@ def auto_formulate_smart(available_ingredients, prices, custom_standard,
     oil_std = get_oil_standard(standard_key)
     oil_max = oil_std["max"]
 
+    # ⬇️⬇️ حساب الحد الأدنى الإلزامي لكل زيت مُختار
+    oil_set = set(get_oil_ingredients().keys())
+    required_oils = required_oils or []
+    valid_required_oils = [i for i in valid if i in oil_set and i in required_oils]
+    n_req = len(valid_required_oils)
+    per_oil_min = 0.0
+    if n_req > 0:
+        # لا تتجاوز 90% من الحد الأقصى للزيوت، مع ضمان 0.5% على الأقل
+        per_oil_min = min(0.5, (oil_max * 0.9) / n_req)
+
     bounds = []
     for i in valid:
-        if i in get_oil_ingredients(): bounds.append((0.0, oil_max * 0.6))
+        if i in oil_set:
+            if i in required_oils:
+                bounds.append((per_oil_min, oil_max * 0.6))
+            else:
+                bounds.append((0.0, oil_max * 0.6))
         elif "يوريا" in i: bounds.append((0.0, 1.0))
         elif "مولاس" in i: bounds.append((0.0, 10.0))
         elif "ملح الطعام" in i: bounds.append((0.3, 0.7))
@@ -708,8 +730,10 @@ def auto_formulate_smart(available_ingredients, prices, custom_standard,
         elif "تبن" in i or "قش" in i: bounds.append((0.0, 25.0))
         else: bounds.append((0.0, 100.0))
 
-    oil_indicator = [1.0 if i in get_oil_ingredients() else 0.0 for i in valid]
+    oil_indicator = [1.0 if i in oil_set else 0.0 for i in valid]
     has_oils = sum(oil_indicator) > 0
+    # الحد الأعلى للزيوت: عند وجود زيوت إلزامية، نرفع السقف قليلًا لتفادي Infeasibility
+    oil_upper_cap = max(oil_max, per_oil_min * n_req * 1.2) if n_req > 0 else oil_max
 
     try:
         A_eq = [[1.0] * n, rows["DP"]]
@@ -721,7 +745,7 @@ def auto_formulate_smart(available_ingredients, prices, custom_standard,
                 targets["NDF"] * 1.15 * 100.0,
                 targets["ADF"] * 1.15 * 100.0]
         if has_oils:
-            A_ub.append(oil_indicator); b_ub.append(oil_max * 100.0)
+            A_ub.append(oil_indicator); b_ub.append(oil_upper_cap * 100.0)
         res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq,
                       bounds=bounds, method='highs')
         if not res.success:
@@ -729,7 +753,7 @@ def auto_formulate_smart(available_ingredients, prices, custom_standard,
                 b_ub_r = [-1.0 * targets["SE"] * 100.0 * (2 - relax),
                           targets["NDF"] * relax * 100.0,
                           targets["ADF"] * relax * 100.0]
-                if has_oils: b_ub_r.append(oil_max * 100.0)
+                if has_oils: b_ub_r.append(oil_upper_cap * 100.0)
                 res = linprog(c, A_ub=A_ub, b_ub=b_ub_r, A_eq=A_eq, b_eq=b_eq,
                               bounds=bounds, method='highs')
                 if res.success: break
@@ -754,7 +778,7 @@ def auto_formulate_smart(available_ingredients, prices, custom_standard,
             b_ub = [-1.0 * cur_se * 100.0,
                     cur_ndf * 1.10 * 100.0, cur_adf * 1.10 * 100.0]
             if has_oils:
-                A_ub.append(oil_indicator); b_ub.append(oil_max * 100.0)
+                A_ub.append(oil_indicator); b_ub.append(oil_upper_cap * 100.0)
             res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq,
                           bounds=bounds, method='highs',
                           options={'presolve': True, 'time_limit': 15})
@@ -768,7 +792,7 @@ def auto_formulate_smart(available_ingredients, prices, custom_standard,
                 A_ub_s = [[-1.0 * x for x in rows["SE"]]]
                 b_ub_s = [-1.0 * cur_se * 100.0]
                 if has_oils:
-                    A_ub_s.append(oil_indicator); b_ub_s.append(oil_max * 100.0)
+                    A_ub_s.append(oil_indicator); b_ub_s.append(oil_upper_cap * 100.0)
                 res = linprog(c, A_ub=A_ub_s, b_ub=b_ub_s, A_eq=A_eq, b_eq=b_eq,
                               bounds=bounds, method='highs')
             except Exception:
@@ -2477,7 +2501,7 @@ def daily_feed_distribution(plan, formula):
             "المكوّن": ing,
             "النسبة %": f"{pct:.2f}%",
             "لكل حيوان (جم/يوم)": f"{per_animal_g:.1f}",
-            "للقطيع (كجم/يوم)": f"{total_kg:.3f}",
+            "للقتيط (كجم/يوم)": f"{total_kg:.3f}",
         })
     return rows
 
@@ -3340,11 +3364,19 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
                     custom_standard = requirement_to_standard(requirement)
                     basis_label = "DP" if use_dp else "CP"
 
+                    # ⬇️⬇️⬇️ استخراج الزيوت المُختارة وتمريرها للمحرك
+                    selected_oils = [ing for ing in selected_ingredients
+                                     if ing in get_oil_ingredients()]
+                    if selected_oils:
+                        st.info(f"🌰 الزيوت المُختارة (سيتم فرض حد أدنى لها): "
+                                + ", ".join(selected_oils))
+
                     with st.spinner(f"⏳ جاري التركيب على أساس {basis_label}..."):
                         result = auto_formulate_smart(
                             selected_ingredients, ingredient_prices, custom_standard,
                             standard_key=std_key_global, tolerance=0.3,
-                            max_iterations=50)
+                            max_iterations=50,
+                            required_oils=selected_oils)
 
                     if result["success"]:
                         formula = result["formula"]
@@ -3394,7 +3426,9 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
                         st.dataframe(pd.DataFrame(compare_rows),
                                      use_container_width=True, hide_index=True)
 
+                        # ⬇️⬇️⬇️ عرض الزيوت مع تحذير ذكي
                         st.markdown("### 🌰 تقييم الزيوت")
+                        oil_data_dict = get_oil_ingredients()
                         if total_oil > 0:
                             if total_oil > oil_std["max"]:
                                 st.error(f"⚠️ **تجاوز الحد الأقصى!** "
@@ -3407,7 +3441,7 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
                                            f"(المثالي {oil_std['optimal']}%)")
                             st.caption(f"📖 المرجع: {oil_std['source']}")
                             oils_used = [(ing, pct) for ing, pct in formula.items()
-                                         if ing in get_oil_ingredients()]
+                                         if ing in oil_data_dict]
                             if oils_used:
                                 for ing, pct in oils_used:
                                     kcal = pct * 90
@@ -3415,8 +3449,26 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
                                         f'<div class="oil-item">🌰 <b>{ing}:</b> '
                                         f'{pct:.2f}% | طاقة ≈ {kcal:.0f} kcal/kg</div>',
                                         unsafe_allow_html=True)
+
+                            # ⬇️⬇️⬇️ تحذير: زيوت مختارة لكن غير مُستخدمة
+                            oils_selected_check = [ing for ing in selected_ingredients
+                                                    if ing in oil_data_dict]
+                            oils_used_names = [ing for ing, _ in oils_used]
+                            oils_missing = [o for o in oils_selected_check
+                                            if o not in oils_used_names]
+                            if oils_missing:
+                                st.warning("⚠️ زيوت اخترتها لكن المحرك لم يستخدمها "
+                                           "(قد تعارضت مع القيود): "
+                                           + ", ".join(oils_missing))
                         else:
                             st.info("ℹ️ لم تستخدم أي زيوت في هذه الخلطة")
+                            oils_selected_check = [ing for ing in selected_ingredients
+                                                    if ing in oil_data_dict]
+                            if oils_selected_check:
+                                st.error("⚠️ **اختارت زيوت لكن النموذج أعطاها 0%!** "
+                                         "الزيوت المُختارة: "
+                                         + ", ".join(oils_selected_check)
+                                         + " — راجع الإعدادات أو أضف مكونات متنوعة.")
 
                         st.markdown("#### 🌾 المكونات:")
                         for ing, pct in formula.items():
@@ -4414,6 +4466,7 @@ with tab_map["📖 الدليل"]:
     - ⚖️ **حاسبة العليقة اليومية**: DMI + العلف + الماء + الوجبات
     - 🧬 **احتياجات متخصصة**: لكل حيوان دالة خاصة
     - 🧠 **محرك ذكي**: يطابق DP + SE + NDF + ADF + Ca + P + EE
+    - 🌰 **إصلاح الزيوت (جديد 10.2.1)**: الزيوت المُختارة تظهر بحد أدنى 0.5%
     - 🔬 **مختبر تحليل**: داخل تبويب النمذجة لفحص الخلطات الجاهزة
     - 🏗️ **تصميم الحظائر 3D**: مجسم تفاعلي + فيديو GIF + HTML
     - 🎬 **فيديو GIF**: دوران 360° للحظيرة
@@ -4421,6 +4474,12 @@ with tab_map["📖 الدليل"]:
     - 🔀 **DP أو CP**: اختيار أساس الحساب
     - 📷 **OCR**: تحليل صور المكونات
     - 📄 **PDF احترافي**: تقرير كامل بجداول الزيوت والأملاح
+
+    ### 🆕 ما الجديد في 10.2.1
+    - ✅ **إصلاح مشكلة الزيوت**: الزيوت المُختارة تظهر الآن بحد أدنى 0.5%
+    - ✅ حد أدنى ديناميكي لكل زيت = min(0.5, oil_max × 0.9 / n_oils)
+    - ✅ تحذير ذكي عند اختيار زيوت لم يستخدمها المحرك
+    - ✅ رفع سقف الزيوت تلقائياً لتفادي Infeasibility
 
     ### 🆕 ما الجديد في 10.2
     - ✅ حاسبة العليقة اليومية الكاملة (DMI/Feed/Water/Meals)
@@ -4464,5 +4523,5 @@ st.markdown(
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# نهاية الملف — Tawor Nology 10.2 Final
+# نهاية الملف — Tawor Nology 10.2.1 Final (إصلاح الزيوت)
 # ═══════════════════════════════════════════════════════════════════════════
