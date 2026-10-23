@@ -1,22 +1,123 @@
 # ============================================================================
-# تاور نولجي TAWOR NOLOGY 10.3 — النسخة الكاملة (نسخة واحدة)
+# تاور نولجي TAWOR NOLOGY 10.4 — النسخة الكاملة (نسخة واحدة)
 # إشراف: م. عبدالقادر إسماعيل تاور
 # 🕌 رحم الله والدي إسماعيل تاور وأختي ابتسام 🕌
 # ============================================================================
-import streamlit as st
-import numpy as np
-import pandas as pd
-import io, os, re, base64, tempfile, traceback, warnings, json
-import urllib.parse, urllib.request
-from datetime import datetime
-from functools import lru_cache
-from dataclasses import dataclass
+# الجزء 1 من 4 — الحماية + الاستيرادات + الثوابت + المكتبات
+# ============================================================================
+
+# ═══════════════════════════════════════════════════════════════════════
+# 🛡️ الطبقة الأمنية — تُنفّذ قبل أي شيء آخر
+# ═══════════════════════════════════════════════════════════════════════
+import sys, time, platform, socket, hashlib, hmac, base64
+import urllib.request, urllib.parse, json, os, re, io, tempfile
+import warnings
+from datetime import datetime, timedelta
 
 warnings.filterwarnings('ignore')
 
+# ─── مفاتيح مُعمّاة ───
+_K_OWNER = base64.b64decode(b"MjAyNjg3")
+_K_HMAC = base64.b64decode(b"dGF3b3Itbm9sb2d5LXNlY3JldC0yMDI2")
+
+def _dx(d, k):
+    kb = k if isinstance(k, bytes) else k.encode()
+    return bytes(b ^ kb[i % len(kb)] for i, b in enumerate(d))
+
+def _verify_license() -> dict:
+    """فحص ترخيص متعدد الطبقات"""
+    res = {"valid": True, "reasons": [], "fingerprint": "", "hmac": ""}
+    try:
+        ua, host = "", "unknown"
+        try:
+            import streamlit as st
+            ctx = st.runtime.scriptrunner.get_script_run_ctx()
+            if ctx and hasattr(ctx, "request"):
+                ua = ctx.request.headers.get("User-Agent", "")[:100]
+                host = ctx.request.headers.get("Host", "unknown")
+        except Exception:
+            pass
+        res["fingerprint"] = hashlib.sha256(
+            f"{ua}{host}{platform.node()}".encode()).hexdigest()[:16]
+    except Exception:
+        pass
+
+    try:
+        if datetime.now() > datetime(2028, 12, 31):
+            res["valid"] = False
+            res["reasons"].append("license_expired")
+    except Exception:
+        pass
+
+    try:
+        if "pdb" in sys.modules or "pydevd" in sys.modules:
+            res["valid"] = False
+            res["reasons"].append("debugger_detected")
+        if hasattr(sys, "gettrace") and sys.gettrace() is not None:
+            res["valid"] = False
+            res["reasons"].append("trace_detected")
+    except Exception:
+        pass
+
+    try:
+        loaded = " ".join(sys.modules.keys()).lower()
+        for tool in ["frida", "xposed", "cheatengine"]:
+            if tool in loaded:
+                res["valid"] = False
+                res["reasons"].append(f"suspicious_{tool}")
+    except Exception:
+        pass
+
+    try:
+        payload = f"{res['fingerprint']}|{datetime.now():%Y-%m-%d}".encode()
+        res["hmac"] = hmac.new(_K_HMAC, payload, hashlib.sha256).hexdigest()[:32]
+    except Exception:
+        pass
+
+    return res
+
+_LICENSE = _verify_license()
+_SECURITY_ENABLED = True
+
+def _add_watermark(text: str) -> str:
+    sig = f"¬{_LICENSE.get('fingerprint','?')}¬TWN{datetime.now():%y%m}"
+    return f"{text}{sig}"
+
+def _security_audit() -> dict:
+    """تُنفّذ دورياً — كشف التلاعب وإعادة المحاولة"""
+    issues = []
+    try:
+        import streamlit as st
+        if "user_role" in st.session_state:
+            if st.session_state["user_role"] not in ["owner", "guest", None]:
+                st.session_state["user_role"] = "guest"
+                issues.append("invalid_role_reset")
+        now = time.time()
+        attempts = st.session_state.get("_login_attempts", [])
+        attempts = [a for a in attempts if now - a < 300]
+        if len(attempts) > 10:
+            st.session_state["approved"] = False
+            issues.append("bruteforce_blocked")
+        st.session_state["_login_attempts"] = attempts + [now]
+    except Exception:
+        pass
+    return {"issues": issues, "fp": _LICENSE.get("fingerprint", "")}
+
+
 # ═══════════════════════════════════════════════════════════════════════
-# استيرادات محمية
+# استيرادات المكتبات (محمية)
 # ═══════════════════════════════════════════════════════════════════════
+try:
+    import streamlit as st
+    STREAMLIT_OK = True
+except ImportError:
+    STREAMLIT_OK = False
+
+import numpy as np
+import pandas as pd
+from functools import lru_cache
+from dataclasses import dataclass
+
 try:
     from scipy.optimize import linprog
     SCIPY_AVAILABLE = True
@@ -92,33 +193,36 @@ except ImportError:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# النصوص الثابتة
+# النصوص الثابتة — مع علامة مائية خفية
 # ═══════════════════════════════════════════════════════════════════════
 DUA_SHORT = "رحم الله والدي إسماعيل تاور وأختي ابتسام"
-DUA_FULL = "رحم الله والدي إسماعيل تاور وأختي ابتسام وأسكنهما فسيح جناته وجعل قبرهما روضة من رياض الجنة"
+DUA_FULL = ("رحم الله والدي إسماعيل تاور وأختي ابتسام وأسكنهما فسيح جناته "
+            "وجعل قبرهما روضة من رياض الجنة")
 DUA_QURAN = "﴿ رَبَّنَا اغْفِرْ لِي وَلِوَالِدَيَّ وَلِلْمُؤْمِنِينَ يَوْمَ يَقُومُ الْحِسَابُ ﴾"
 DUA_VERSE = "﴿ وَقُل رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا ﴾"
-DUA_VISITOR = """🕌 <b>إلى زوارنا الكرام:</b><br>
+DUA_VISITOR = ("""🕌 <b>إلى زوارنا الكرام:</b><br>
 هذه المنصة صدقةٌ جارية عن <b>والدي إسماعيل تاور</b> و<b>أختي ابتسام</b>.<br>
-نسألكم بظهر الغيب أن تشاركونا الدعاء لهما. 🤲"""
+نسألكم بظهر الغيب أن تشاركونا الدعاء لهما. 🤲""")
 
 APP_NAME = "تاور نولجي Tawor Nology"
 APP_TAGLINE = "للإنتاج الحيواني وتغذية الحيوان"
 SUPERVISOR = "م. عبدالقادر إسماعيل تاور"
 SUPERVISOR_TITLE = "اختصاصي تغذية الحيوان"
-OWNER_CODE = "202687"
+OWNER_CODE = _K_OWNER.decode()          # 202687 — مُعّمى
 PLATFORM_URL = "https://tawor-nology.streamlit.app"
 WHATSAPP_NUMBER = "+249123533489"
 OWNER_EMAIL = "abukram128@gmail.com"
 PHOTO_OPTIONS = ["14686.jpg", "1000069464.jpg", "14686.JPG"]
 LOGO_OPTIONS = ["logo.png", "logo.jpg"]
 
-st.set_page_config(
-    page_title=f"{APP_NAME} | {APP_TAGLINE}",
-    page_icon="🌾",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+if STREAMLIT_OK:
+    st.set_page_config(
+        page_title=f"{APP_NAME} | {APP_TAGLINE}",
+        page_icon="🌾",
+        layout="wide",
+        initial_sidebar_state="collapsed"
+    )
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # إدارة الخطوط العربية
@@ -151,7 +255,8 @@ class ArabicFontManager:
             if os.path.exists(p) and self._register(p):
                 return
         try:
-            url = "https://github.com/google/fonts/raw/main/ofl/amiri/Amiri-Regular.ttf"
+            url = ("https://github.com/google/fonts/raw/main/ofl/amiri/"
+                   "Amiri-Regular.ttf")
             target = os.path.join(FONT_DIR, "Amiri-Regular.ttf")
             if not os.path.exists(target):
                 urllib.request.urlretrieve(url, target)
@@ -190,6 +295,69 @@ class ArabicProcessor:
 
 def ar(text):
     return ArabicProcessor.fix(text)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 🌍 الكشف التلقائي للموقع (3 خدمات + ذاكرة 24 ساعة)
+# ═══════════════════════════════════════════════════════════════════════
+COUNTRY_AR_MAP = {
+    "Sudan": "السودان", "SD": "السودان",
+    "Libya": "ليبيا", "LY": "ليبيا",
+    "Egypt": "مصر", "EG": "مصر",
+    "Saudi Arabia": "السعودية", "SA": "السعودية",
+    "United Arab Emirates": "الإمارات", "AE": "الإمارات", "UAE": "الإمارات",
+}
+
+CITY_BY_COUNTRY = {
+    "السودان": ["الخرطوم", "أم درمان", "بورتسودان", "كسلا", "الأبيض",
+                "ود مدني", "نيالا", "الفاشر", "عطبرة", "دنقلا"],
+    "ليبيا": ["طرابلس", "بنغازي", "مصراتة", "الزاوية", "سبها", "البيضاء"],
+    "مصر": ["القاهرة", "الإسكندرية", "الجيزة", "المنصورة", "أسيوط", "طنطا"],
+    "السعودية": ["الرياض", "جدة", "مكة", "المدينة", "الدمام", "أبها"],
+    "الإمارات": ["دبي", "أبوظبي", "الشارقة", "عجمان", "الفجيرة"],
+    "باقي دول العالم": ["—"],
+}
+
+
+@st.cache_data(ttl=86400, show_spinner=False) if STREAMLIT_OK else (lambda f: f)
+def get_user_location() -> dict:
+    """كشف الموقع تلقائياً عبر IP — 3 خدمات احتياطية"""
+    services = [
+        ("https://ipapi.co/json/", "ipapi"),
+        ("https://ip-api.com/json/", "ip-api"),
+        ("https://ipinfo.io/json", "ipinfo"),
+    ]
+    for url, name in services:
+        try:
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "TaworNology/10.4"})
+            with urllib.request.urlopen(req, timeout=4) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                if name == "ipapi":
+                    c = data.get("country_name", "")
+                    ct = data.get("city", "")
+                    rg = data.get("region", "")
+                elif name == "ip-api":
+                    c = data.get("country", "")
+                    ct = data.get("city", "")
+                    rg = data.get("regionName", "")
+                else:
+                    c = data.get("country", "")
+                    ct = data.get("city", "")
+                    rg = data.get("region", "")
+
+                if c or ct:
+                    return {
+                        "country_en": c, "city": ct or rg, "region": rg,
+                        "country_ar": COUNTRY_AR_MAP.get(c, "باقي دول العالم"),
+                        "success": True, "source": name,
+                    }
+        except Exception:
+            continue
+    return {
+        "country_en": "Sudan", "city": "الخرطوم", "region": "الخرطوم",
+        "country_ar": "السودان", "success": False, "source": "default",
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -382,7 +550,28 @@ def get_oil_ingredients() -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# الاحتياجات الغذائية
+# 🏗️ خيارات دراسة الجدوى — أنواع البناء والتكاليف
+# ═══════════════════════════════════════════════════════════════════════
+BARN_CONSTRUCTION_TYPES = {
+    "خرساني مسلح (Concrete)": {"cost_per_m2_usd": 180, "lifespan_years": 40, "insulation": "ممتاز", "desc": "الأقوى والأطول عمراً — مناسب للمناطق الحارة"},
+    "هيكل حديدي (Steel Frame)": {"cost_per_m2_usd": 120, "lifespan_years": 25, "insulation": "جيد", "desc": "شائع جداً — تكلفة معتدلة وسرعة في التنفيذ"},
+    "خشبي (Wooden)": {"cost_per_m2_usd": 75, "lifespan_years": 15, "insulation": "متوسط", "desc": "اقتصادي — مناسب للمزارع الصغيرة"},
+    "قماشي PVC (Tent)": {"cost_per_m2_usd": 35, "lifespan_years": 8, "insulation": "ضعيف", "desc": "الأرخص — مؤقت أو للمناطق المعتدلة"},
+    "مفتوح مظلل (Shade)": {"cost_per_m2_usd": 20, "lifespan_years": 10, "insulation": "بدون", "desc": "للمجترات في المناطق الحارة فقط"},
+}
+
+BARN_PROJECT_OPTIONS = {
+    "barn_mode": [("build_new", "🏗️ إنشاء حظيرة جديدة"), ("use_existing", "🏠 استخدام حظيرة موجودة"), ("rent", "📝 استئجار حظيرة")],
+    "water_source": [("well", "بئر ارتوازي"), ("network", "شبكة مياه"), ("tank", "خزان / صهريج"), ("river", "نهر / ترعة")],
+    "power_source": [("grid", "شبكة كهرباء"), ("solar", "طاقة شمسية"), ("generator", "مولدة"), ("hybrid", "هجين (شمسي + مولدة)")],
+    "cooling_system": [("natural", "تهوية طبيعية"), ("fans", "مراوح"), ("fogger", "تبريد ضبابي"), ("ac", "تكييف")],
+    "heating_system": [("none", "بدون تدفئة"), ("gas", "دفايات غاز"), ("electric", "دفايات كهربائية"), ("heaters", "هيترات")],
+    "land_ownership": [("owned", "ملك"), ("rented", "مستأجرة"), ("family", "أراضي عائلية"), ("leased", "إيجار طويل الأمد")],
+}
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# الاحتياجات الغذائية (dataclass + دوال)
 # ═══════════════════════════════════════════════════════════════════════
 @dataclass
 class AnimalRequirement:
@@ -401,31 +590,24 @@ class AnimalRequirement:
 
 def get_cattle_requirements(production_type, milk_yield=20.0, weight_kg=500.0):
     if production_type == "حليب_عالي":
-        dp = 12.5 + (milk_yield * 0.30)
-        cp = dp / 0.70
-        return AnimalRequirement(round(dp, 2), round(cp, 2), round(60 + milk_yield * 0.35, 1),
-                                 30.0, 19.0, 5.5, 8.0, round(0.55 + milk_yield * 0.003, 3),
-                                 round(0.33 + milk_yield * 0.0015, 3), "أبقار حلابة عالية", f"{milk_yield} كجم")
+        dp = 12.5 + (milk_yield * 0.30); cp = dp / 0.70
+        return AnimalRequirement(round(dp,2), round(cp,2), round(60+milk_yield*0.35,1), 30.0, 19.0, 5.5, 8.0,
+                                 round(0.55+milk_yield*0.003,3), round(0.33+milk_yield*0.0015,3), "أبقار حلابة عالية", f"{milk_yield} كجم")
     elif production_type == "حليب_متوسط":
-        dp = 11.0 + (milk_yield * 0.25)
-        cp = dp / 0.72
-        return AnimalRequirement(round(dp, 2), round(cp, 2), round(55 + milk_yield * 0.30, 1),
-                                 33.0, 21.0, 4.5, 8.0, round(0.50 + milk_yield * 0.0025, 3),
-                                 round(0.30 + milk_yield * 0.0012, 3), "أبقار حلابة متوسطة", f"{milk_yield}")
+        dp = 11.0 + (milk_yield * 0.25); cp = dp / 0.72
+        return AnimalRequirement(round(dp,2), round(cp,2), round(55+milk_yield*0.30,1), 33.0, 21.0, 4.5, 8.0,
+                                 round(0.50+milk_yield*0.0025,3), round(0.30+milk_yield*0.0012,3), "أبقار حلابة متوسطة", f"{milk_yield}")
     elif production_type == "حليب_منخفض":
-        dp = 9.5 + (milk_yield * 0.20)
-        cp = dp / 0.75
-        return AnimalRequirement(round(dp, 2), round(cp, 2), round(50 + milk_yield * 0.25, 1),
-                                 38.0, 24.0, 4.0, 8.5, round(0.45 + milk_yield * 0.002, 3),
-                                 round(0.28 + milk_yield * 0.001, 3), "أبقار حلابة منخفضة", f"{milk_yield}")
+        dp = 9.5 + (milk_yield * 0.20); cp = dp / 0.75
+        return AnimalRequirement(round(dp,2), round(cp,2), round(50+milk_yield*0.25,1), 38.0, 24.0, 4.0, 8.5,
+                                 round(0.45+milk_yield*0.002,3), round(0.28+milk_yield*0.001,3), "أبقار حلابة منخفضة", f"{milk_yield}")
     elif production_type == "تسمين_مكثف":
         return AnimalRequirement(11.5, 14.5, 72.0, 32.0, 20.0, 4.5, 7.5, 0.65, 0.38, "تسمين عجول مكثف", "ADG >1.3")
     elif production_type == "تسمين_عادي":
         return AnimalRequirement(9.5, 12.0, 65.0, 38.0, 24.0, 4.0, 7.5, 0.55, 0.32, "تسمين عجول عادي", "ADG ~0.8")
     elif production_type == "حمل_أخير":
         return AnimalRequirement(11.5, 14.5, 67.0, 35.0, 22.0, 4.2, 8.0, 0.70, 0.42, "حمل آخر", "شهر 7-9")
-    else:
-        return AnimalRequirement(7.5, 10.0, 53.0, 45.0, 28.0, 3.0, 8.5, 0.42, 0.26, "أبقار صيانة", "بدون إنتاج")
+    return AnimalRequirement(7.5, 10.0, 53.0, 45.0, 28.0, 3.0, 8.5, 0.42, 0.26, "أبقار صيانة", "بدون إنتاج")
 
 
 def get_sheep_requirements(production_type, is_male=True, weight_kg=50.0, litter_size=1):
@@ -434,46 +616,37 @@ def get_sheep_requirements(production_type, is_male=True, weight_kg=50.0, litter
             return AnimalRequirement(11.5, 14.5, 64.0, 28.0, 17.0, 4.0, 8.0, 0.65, 0.36, "تسمين حملان مكثف", "ADG >250 جم")
         elif production_type == "تسمين_عادي":
             return AnimalRequirement(9.5, 12.0, 59.0, 33.0, 21.0, 3.6, 8.0, 0.55, 0.32, "تسمين حملان عادي", "ADG ~180 جم")
-        else:
-            return AnimalRequirement(8.5, 11.0, 55.0, 38.0, 24.0, 3.2, 8.5, 0.50, 0.30, "حملان تيد", "تسمين نهائي")
-    else:
-        if production_type == "مرضعات":
-            dp = 10.5 + (litter_size - 1) * 1.5
-            cp = dp / 0.72
-            return AnimalRequirement(round(dp, 2), round(cp, 2), round(60 + (litter_size - 1) * 5, 1),
-                                     30.0, 19.0, 4.5, 8.5, round(0.65 + (litter_size - 1) * 0.10, 3),
-                                     round(0.38 + (litter_size - 1) * 0.05, 3), f"نعاج مرضعات ({litter_size})", "إنتاج حليب")
-        elif production_type == "حامل_أخير":
-            return AnimalRequirement(10.5, 13.5, 62.0, 32.0, 20.0, 3.8, 8.0, 0.60, 0.35, "نعاج حامل (4-5)", "")
-        elif production_type == "حامل_متوسط":
-            return AnimalRequirement(8.5, 11.0, 55.0, 38.0, 24.0, 3.4, 8.0, 0.50, 0.30, "نعاج حامل (1-3)", "")
-        else:
-            return AnimalRequirement(7.2, 9.5, 48.0, 45.0, 28.0, 3.0, 8.5, 0.42, 0.26, "نعاج صيانة", "")
+        return AnimalRequirement(8.5, 11.0, 55.0, 38.0, 24.0, 3.2, 8.5, 0.50, 0.30, "حملان تيد", "تسمين نهائي")
+    if production_type == "مرضعات":
+        dp = 10.5 + (litter_size - 1) * 1.5; cp = dp / 0.72
+        return AnimalRequirement(round(dp,2), round(cp,2), round(60+(litter_size-1)*5,1), 30.0, 19.0, 4.5, 8.5,
+                                 round(0.65+(litter_size-1)*0.10,3), round(0.38+(litter_size-1)*0.05,3),
+                                 f"نعاج مرضعات ({litter_size})", "إنتاج حليب")
+    elif production_type == "حامل_أخير":
+        return AnimalRequirement(10.5, 13.5, 62.0, 32.0, 20.0, 3.8, 8.0, 0.60, 0.35, "نعاج حامل (4-5)", "")
+    elif production_type == "حامل_متوسط":
+        return AnimalRequirement(8.5, 11.0, 55.0, 38.0, 24.0, 3.4, 8.0, 0.50, 0.30, "نعاج حامل (1-3)", "")
+    return AnimalRequirement(7.2, 9.5, 48.0, 45.0, 28.0, 3.0, 8.5, 0.42, 0.26, "نعاج صيانة", "")
 
 
 def get_goat_requirements(production_type, is_male=True, milk_yield=2.0):
     if is_male:
         if production_type == "تسمين_جديان":
             return AnimalRequirement(11.0, 14.0, 62.0, 30.0, 19.0, 3.8, 8.0, 0.62, 0.34, "تسمين جديان", "")
-        else:
-            return AnimalRequirement(9.0, 11.5, 57.0, 36.0, 22.0, 3.5, 8.0, 0.55, 0.30, "تيوس تسمين", "")
-    else:
-        if production_type == "حلابة_عالي":
-            dp = 11.5 + (milk_yield * 0.45)
-            cp = dp / 0.70
-            return AnimalRequirement(round(dp, 2), round(cp, 2), round(58 + milk_yield * 0.45, 1),
-                                     29.0, 18.0, 4.5, 8.5, round(0.60 + milk_yield * 0.008, 3),
-                                     round(0.35 + milk_yield * 0.004, 3), f"عنزات حلابة ({milk_yield})", "")
-        elif production_type == "حلابة_متوسط":
-            dp = 10.0 + (milk_yield * 0.35)
-            cp = dp / 0.72
-            return AnimalRequirement(round(dp, 2), round(cp, 2), round(55 + milk_yield * 0.40, 1),
-                                     32.0, 20.0, 4.0, 8.5, round(0.55 + milk_yield * 0.006, 3),
-                                     round(0.32 + milk_yield * 0.003, 3), f"عنزات حلابة ({milk_yield})", "")
-        elif production_type == "حامل_أخير":
-            return AnimalRequirement(10.0, 13.0, 60.0, 33.0, 21.0, 3.8, 8.0, 0.60, 0.35, "عنزات حامل", "")
-        else:
-            return AnimalRequirement(6.8, 9.0, 46.0, 46.0, 28.0, 3.0, 8.5, 0.42, 0.26, "عنزات صيانة", "")
+        return AnimalRequirement(9.0, 11.5, 57.0, 36.0, 22.0, 3.5, 8.0, 0.55, 0.30, "تيوس تسمين", "")
+    if production_type == "حلابة_عالي":
+        dp = 11.5 + (milk_yield * 0.45); cp = dp / 0.70
+        return AnimalRequirement(round(dp,2), round(cp,2), round(58+milk_yield*0.45,1), 29.0, 18.0, 4.5, 8.5,
+                                 round(0.60+milk_yield*0.008,3), round(0.35+milk_yield*0.004,3),
+                                 f"عنزات حلابة ({milk_yield})", "")
+    elif production_type == "حلابة_متوسط":
+        dp = 10.0 + (milk_yield * 0.35); cp = dp / 0.72
+        return AnimalRequirement(round(dp,2), round(cp,2), round(55+milk_yield*0.40,1), 32.0, 20.0, 4.0, 8.5,
+                                 round(0.55+milk_yield*0.006,3), round(0.32+milk_yield*0.003,3),
+                                 f"عنزات حلابة ({milk_yield})", "")
+    elif production_type == "حامل_أخير":
+        return AnimalRequirement(10.0, 13.0, 60.0, 33.0, 21.0, 3.8, 8.0, 0.60, 0.35, "عنزات حامل", "")
+    return AnimalRequirement(6.8, 9.0, 46.0, 46.0, 28.0, 3.0, 8.5, 0.42, 0.26, "عنزات صيانة", "")
 
 
 def get_camel_requirements(production_type, weight_kg=400.0, milk_yield=5.0):
@@ -482,15 +655,13 @@ def get_camel_requirements(production_type, weight_kg=400.0, milk_yield=5.0):
     elif production_type == "تسمين":
         return AnimalRequirement(9.5, 12.0, 65.0, 35.0, 22.0, 4.5, 7.5, 0.60, 0.35, "إبل تسمين", f"{weight_kg}")
     elif production_type == "حليب":
-        dp = 12.0 + (milk_yield * 0.25)
-        cp = dp / 0.70
-        return AnimalRequirement(round(dp, 2), round(cp, 2), round(62 + milk_yield * 0.40, 1),
-                                 32.0, 20.0, 5.0, 8.5, round(0.70 + milk_yield * 0.006, 3),
-                                 round(0.40 + milk_yield * 0.003, 3), f"إبل حلابة ({milk_yield})", "")
+        dp = 12.0 + (milk_yield * 0.25); cp = dp / 0.70
+        return AnimalRequirement(round(dp,2), round(cp,2), round(62+milk_yield*0.40,1), 32.0, 20.0, 5.0, 8.5,
+                                 round(0.70+milk_yield*0.006,3), round(0.40+milk_yield*0.003,3),
+                                 f"إبل حلابة ({milk_yield})", "")
     elif production_type == "سباق":
         return AnimalRequirement(14.0, 17.0, 72.0, 28.0, 17.0, 6.0, 9.0, 0.85, 0.50, "إبل سباق", "")
-    else:
-        return AnimalRequirement(7.0, 9.0, 48.0, 48.0, 30.0, 3.5, 9.0, 0.42, 0.26, "إبل صيانة", f"{weight_kg}")
+    return AnimalRequirement(7.0, 9.0, 48.0, 48.0, 30.0, 3.5, 9.0, 0.42, 0.26, "إبل صيانة", f"{weight_kg}")
 
 
 def get_horse_requirements(production_type, weight_kg=450.0):
@@ -502,8 +673,7 @@ def get_horse_requirements(production_type, weight_kg=450.0):
         return AnimalRequirement(12.0, 15.0, 65.0, 30.0, 18.0, 5.0, 8.0, 0.75, 0.42, "أمهار نمو", "")
     elif production_type == "مرضعات":
         return AnimalRequirement(12.5, 16.0, 68.0, 32.0, 20.0, 5.5, 8.0, 0.80, 0.45, "فرسات مرضعات", "")
-    else:
-        return AnimalRequirement(7.2, 9.5, 53.0, 46.0, 29.0, 3.5, 8.0, 0.45, 0.28, "خيول صيانة", "")
+    return AnimalRequirement(7.2, 9.5, 53.0, 46.0, 29.0, 3.5, 8.0, 0.45, 0.28, "خيول صيانة", "")
 
 
 def get_poultry_requirements(strain, age_weeks=1):
@@ -514,27 +684,22 @@ def get_poultry_requirements(strain, age_weeks=1):
             return AnimalRequirement(18.5, 21.0, 74.0, 9.0, 5.0, 5.0, 6.0, 0.90, 0.45, "نامي لاحم", "Energy 3100")
         elif age_weeks <= 5:
             return AnimalRequirement(17.0, 19.5, 75.0, 10.0, 5.5, 4.5, 6.0, 0.87, 0.43, "ناهي لاحم", "Energy 3150")
-        else:
-            return AnimalRequirement(16.5, 19.0, 75.0, 10.0, 5.5, 4.5, 6.0, 0.85, 0.42, "ناهي لاحم+", "Energy 3200")
-    else:
-        if age_weeks <= 6:
-            return AnimalRequirement(17.0, 20.0, 72.0, 10.0, 5.5, 4.0, 7.0, 1.00, 0.50, "بادي بياض", "")
-        elif age_weeks <= 18:
-            return AnimalRequirement(14.5, 17.0, 70.0, 12.0, 6.5, 4.0, 9.0, 1.50, 0.45, "نامي بياض", "")
-        else:
-            return AnimalRequirement(15.5, 18.0, 72.0, 11.0, 6.0, 4.2, 11.5, 3.80, 0.45, "بياض إنتاجي", "")
+        return AnimalRequirement(16.5, 19.0, 75.0, 10.0, 5.5, 4.5, 6.0, 0.85, 0.42, "ناهي لاحم+", "Energy 3200")
+    if age_weeks <= 6:
+        return AnimalRequirement(17.0, 20.0, 72.0, 10.0, 5.5, 4.0, 7.0, 1.00, 0.50, "بادي بياض", "")
+    elif age_weeks <= 18:
+        return AnimalRequirement(14.5, 17.0, 70.0, 12.0, 6.5, 4.0, 9.0, 1.50, 0.45, "نامي بياض", "")
+    return AnimalRequirement(15.5, 18.0, 72.0, 11.0, 6.0, 4.2, 11.5, 3.80, 0.45, "بياض إنتاجي", "")
 
 
 def get_quail_requirements(strain, age_weeks=1):
     if strain == "بياض":
         return AnimalRequirement(15.0, 18.0, 68.0, 11.0, 5.5, 4.5, 9.0, 2.50, 0.45, "سمان بياض", "")
-    else:
-        if age_weeks <= 2:
-            return AnimalRequirement(20.5, 24.0, 74.0, 8.0, 4.0, 5.5, 6.5, 1.00, 0.55, "سمان بادي", "")
-        elif age_weeks <= 4:
-            return AnimalRequirement(18.5, 22.0, 72.0, 9.0, 4.5, 5.0, 6.0, 0.90, 0.50, "سمان نامي", "")
-        else:
-            return AnimalRequirement(17.0, 20.0, 70.0, 10.0, 5.0, 4.5, 6.0, 0.85, 0.45, "سمان ناهي", "")
+    if age_weeks <= 2:
+        return AnimalRequirement(20.5, 24.0, 74.0, 8.0, 4.0, 5.5, 6.5, 1.00, 0.55, "سمان بادي", "")
+    elif age_weeks <= 4:
+        return AnimalRequirement(18.5, 22.0, 72.0, 9.0, 4.5, 5.0, 6.0, 0.90, 0.50, "سمان نامي", "")
+    return AnimalRequirement(17.0, 20.0, 70.0, 10.0, 5.0, 4.5, 6.0, 0.85, 0.45, "سمان ناهي", "")
 
 
 def get_fish_requirements(species, stage):
@@ -542,17 +707,22 @@ def get_fish_requirements(species, stage):
         return AnimalRequirement(32.0, 40.0, 72.0, 8.0, 4.0, 10.0, 11.0, 1.50, 0.90, f"{species} بادئ", "")
     elif "نمو" in stage:
         return AnimalRequirement(25.0, 32.0, 70.0, 12.0, 6.0, 8.0, 9.0, 1.00, 0.70, f"{species} نمو", "")
-    else:
-        return AnimalRequirement(22.0, 28.0, 68.0, 13.0, 7.0, 8.0, 9.5, 0.90, 0.65, f"{species} تسمين", "")
+    return AnimalRequirement(22.0, 28.0, 68.0, 13.0, 7.0, 8.0, 9.5, 0.90, 0.65, f"{species} تسمين", "")
 
 
 def requirement_to_standard(req):
     return {"CP": req.CP, "DP": req.DP, "SE": req.SE, "NDF": req.NDF, "ADF": req.ADF,
             "EE": req.EE, "ASH": req.ASH, "Ca": req.Ca, "P": req.P}
 
+# ═══════════════════════════════════════════════════════════════════════
+# نهاية الجزء 1 من 4 — يتبع في الرد التالي
+# ═══════════════════════════════════════════════════════════════════════
+# ============================================================================
+# الجزء 2 من 4 — الحسابات + الرسوم + PDF + الحظائر + الجدوى
+# ============================================================================
 
 # ═══════════════════════════════════════════════════════════════════════
-# الحسابات
+# الحسابات الأساسية
 # ═══════════════════════════════════════════════════════════════════════
 def compute_formula_nutrients(formula):
     totals = {"CP": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0,
@@ -600,8 +770,7 @@ def evaluate_difference(pct_diff, standard_value=None):
         return {"label": "⚠️ مقبول بتحفظ", "color": "#ef6c00", "bg": "#fff3e0", "score": 50}
     elif a <= 40.0:
         return {"label": "🟠 ضعيف", "color": "#e65100", "bg": "#ffe0b2", "score": 35}
-    else:
-        return {"label": "❌ غير مطابق", "color": "#c62828", "bg": "#ffebee", "score": 20}
+    return {"label": "❌ غير مطابق", "color": "#c62828", "bg": "#ffebee", "score": 20}
 
 
 def get_overall_rating(compare_rows):
@@ -617,13 +786,12 @@ def get_overall_rating(compare_rows):
         return {"label": "✅ خلطة جيدة", "color": "#558b2f", "score": avg}
     elif avg >= 55:
         return {"label": "⭐ خلطة مقبولة", "color": "#f9a825", "score": avg}
-    else:
-        return {"label": "⚠️ تحتاج تحسين", "color": "#e65100", "score": avg}
+    return {"label": "⚠️ تحتاج تحسين", "color": "#e65100", "score": avg}
 
 
 def auto_formulate_smart(available_ingredients, prices, custom_standard,
                           standard_key="", tolerance=0.3, max_iterations=50, basis="DP"):
-    """⚠️ المفتاح: اسم المعامل standard_key (كان std_key في نسخة سابقة)"""
+    """محرك التركيب الذكي — linprog + تكرار تحسيني"""
     if not SCIPY_AVAILABLE:
         return {"success": False, "message": "SCIPY غير متوفرة"}
 
@@ -847,7 +1015,9 @@ def auto_add_salts_and_minerals(animal_type, requirement=None):
         salt["فوسفات ثنائي الكالسيوم"] = 1.5
         salt["بريمكس مجترات"] = 0.30
     return salt
-    # ═══════════════════════════════════════════════════════════════════════
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # الرسوم البيانية الملونة
 # ═══════════════════════════════════════════════════════════════════════
 def create_colorful_bar_chart(standard, actual):
@@ -990,7 +1160,7 @@ def create_gauge_chart(score):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# PDF Generator — الختم والتوقيع على كل صفحة
+# مولّد PDF — ختم وتوقيع على كل صفحة + علامة مائية
 # ═══════════════════════════════════════════════════════════════════════
 class PDFGenerator:
     def __init__(self):
@@ -1011,7 +1181,7 @@ class PDFGenerator:
             return str(text)
 
     def _draw_page(self, canvas_obj, doc):
-        """الهيدر + الفوتر + الختم الرسمي — على كل صفحة"""
+        """الهيدر + الفوتر + الختم الرسمي على كل صفحة"""
         try:
             canvas_obj.saveState()
             w, h = doc.pagesize
@@ -1089,27 +1259,22 @@ class PDFGenerator:
             except Exception:
                 pass
 
-            # ═══ 🎯 الختم الرسمي والتوقيع (على كل صفحة) ═══
+            # الختم الرسمي
             try:
                 sx, sy = w - 105, 145
                 canvas_obj.setStrokeColor(HexColor('#c62828'))
-                # 3 دوائر متراكزة
                 canvas_obj.setLineWidth(3.5)
                 canvas_obj.circle(sx, sy, 72, stroke=1, fill=0)
                 canvas_obj.setLineWidth(2.0)
                 canvas_obj.circle(sx, sy, 64, stroke=1, fill=0)
                 canvas_obj.setLineWidth(0.8)
                 canvas_obj.circle(sx, sy, 58, stroke=1, fill=0)
-                # 4 خطوط زخرفية
                 canvas_obj.setLineWidth(1.8)
                 for ang_deg in [-45, 45, 135, 225]:
                     rad = np.radians(ang_deg)
-                    x1 = sx + 58 * np.cos(rad)
-                    y1 = sy + 58 * np.sin(rad)
-                    x2 = sx + 72 * np.cos(rad)
-                    y2 = sy + 72 * np.sin(rad)
+                    x1 = sx + 58 * np.cos(rad); y1 = sy + 58 * np.sin(rad)
+                    x2 = sx + 72 * np.cos(rad); y2 = sy + 72 * np.sin(rad)
                     canvas_obj.line(x1, y1, x2, y2)
-                # النصوص
                 canvas_obj.setFillColor(HexColor('#c62828'))
                 canvas_obj.setFont(self.font_name, 9.5)
                 canvas_obj.drawCentredString(sx, sy + 42, self._ar("تاور نولجي"))
@@ -1121,6 +1286,15 @@ class PDFGenerator:
                 canvas_obj.drawCentredString(sx, sy - 12, self._ar("اختصاصي تغذية الحيوان"))
                 canvas_obj.drawCentredString(sx, sy - 24, self._ar("معتمد رسمياً"))
                 canvas_obj.drawCentredString(sx, sy - 36, self._ar("© 2026"))
+            except Exception:
+                pass
+
+            # علامة مائية خفية (بصمة الجهاز)
+            try:
+                canvas_obj.setFillColor(HexColor('#ffffff'))
+                canvas_obj.setFont(self.font_name, 3)
+                fp = _LICENSE.get("fingerprint", "TWN")
+                canvas_obj.drawString(5, 5, f"¬{fp}¬{datetime.now():%y%m%d}¬")
             except Exception:
                 pass
 
@@ -1156,13 +1330,11 @@ class PDFGenerator:
             diff = cv - sv
             pct = (diff / sv * 100) if sv else 0
             ev = evaluate_difference(pct, standard_value=sv)
-            unit = "%" if k in ("CP", "DP", "NDF", "ADF", "EE", "ASH", "Ca", "P") else ""
+            unit = "%"
             data.append([
                 self._ar(labels.get(k, k)),
-                f"{sv:.2f}{unit}",
-                f"{cv:.2f}{unit}",
-                f"{diff:+.3f}",
-                f"{pct:+.2f}%",
+                f"{sv:.2f}{unit}", f"{cv:.2f}{unit}",
+                f"{diff:+.3f}", f"{pct:+.2f}%",
                 self._ar(ev["label"])
             ])
             cmds.append(('BACKGROUND', (0, row), (-1, row), HexColor(ev["bg"])))
@@ -1247,8 +1419,7 @@ class PDFGenerator:
         for k in ["CP", "DP", "SE", "NDF", "ADF", "EE", "ASH", "Ca", "P"]:
             if k not in standard_vals:
                 continue
-            sv = standard_vals[k]
-            cv = calculated_vals.get(k, 0.0)
+            sv = standard_vals[k]; cv = calculated_vals.get(k, 0.0)
             pct = ((cv - sv) / sv * 100) if sv else 0
             scores.append({"score": evaluate_difference(pct, standard_value=sv)["score"]})
         overall = get_overall_rating(scores)
@@ -1280,7 +1451,6 @@ class PDFGenerator:
         story.append(st_tbl)
         story.append(Spacer(1, 15))
 
-        # الزيوت
         oil_tbl, total_oil, oil_std = self._oil_table(formula, standard_key)
         story.append(P("🌰 جدول الزيوت النباتية والحيوانية", size=14,
                        align=TA_RIGHT, color='#e65100'))
@@ -1291,9 +1461,7 @@ class PDFGenerator:
         else:
             story.append(oil_tbl)
             story.append(Spacer(1, 8))
-        oil_note = (f"الحد الأقصى: {oil_std['max']}% | "
-                    f"المثالي: {oil_std['optimal']}% | "
-                    f"المرجع: {oil_std['source']}")
+        oil_note = (f"الحد الأقصى: {oil_std['max']}% | المثالي: {oil_std['optimal']}% | المرجع: {oil_std['source']}")
         if total_oil > oil_std['max']:
             oil_note = f"⚠️ تجاوز الحد الأقصى! {oil_note}"
         elif total_oil > oil_std['optimal'] * 1.2:
@@ -1303,7 +1471,6 @@ class PDFGenerator:
         story.append(P(oil_note, size=10, align=TA_RIGHT, color='#bf360c'))
         story.append(Spacer(1, 15))
 
-        # الرسوم البيانية
         if include_charts:
             story.append(P("📈 الرسوم البيانية التحليلية", size=14,
                            align=TA_RIGHT, color='#1b5e20'))
@@ -1339,7 +1506,6 @@ class PDFGenerator:
 
         story.append(PageBreak())
 
-        # التكاليف
         story.append(P("💰 التكاليف", size=14, align=TA_RIGHT, color='#1b5e20'))
         story.append(Spacer(1, 8))
         cost_data = [
@@ -1365,7 +1531,6 @@ class PDFGenerator:
         story.append(tc)
         story.append(Spacer(1, 18))
 
-        # المكونات
         if formula:
             story.append(P("🌾 المكونات للطن", size=14, align=TA_RIGHT, color='#1b5e20'))
             story.append(Spacer(1, 8))
@@ -1388,7 +1553,6 @@ class PDFGenerator:
             story.append(ti)
             story.append(Spacer(1, 25))
 
-            # التوقيع
             sign = [
                 [self._ar("توقيع طالب الخدمة"), self._ar("توقيع المختص")],
                 [self._ar("........................"), self._ar(SUPERVISOR)],
@@ -1433,6 +1597,7 @@ def export_comparison_to_excel(standard, calculated, requester_name="",
     rt = Alignment(horizontal='right', vertical='center', wrap_text=True)
     thin = Side(border_style='thin', color='9E9E9E')
     bd = Border(left=thin, right=thin, top=thin, bottom=thin)
+
     ws.merge_cells('A1:F1')
     ws['A1'] = APP_NAME
     ws['A1'].font = tf
@@ -1450,13 +1615,12 @@ def export_comparison_to_excel(standard, calculated, requester_name="",
     ws['E4'].font = Font(bold=True)
     ws['E4'].alignment = rt
     ws['F4'] = datetime.now().strftime('%Y-%m-%d')
+
     headers = ["العنصر", "المعيار", "المحسوب", "الفرق", "% الفرق", "التقييم"]
     for c, h in enumerate(headers, 1):
         cell = ws.cell(row=6, column=c, value=h)
-        cell.font = hf
-        cell.fill = hfill
-        cell.alignment = ct
-        cell.border = bd
+        cell.font = hf; cell.fill = hfill; cell.alignment = ct; cell.border = bd
+
     labels = {"CP": "بروتين خام", "DP": "بروتين مهضوم", "SE": "معادل النشاء",
               "NDF": "NDF", "ADF": "ADF", "EE": "دهن", "ASH": "رماد",
               "Ca": "كالسيوم", "P": "فسفور"}
@@ -1464,8 +1628,7 @@ def export_comparison_to_excel(standard, calculated, requester_name="",
     for k in ["CP", "DP", "SE", "NDF", "ADF", "EE", "ASH", "Ca", "P"]:
         if k not in standard:
             continue
-        sv = standard[k]
-        cv = calculated.get(k, 0.0)
+        sv = standard[k]; cv = calculated.get(k, 0.0)
         diff = cv - sv
         pct = (diff / sv * 100) if sv else 0
         ev = evaluate_difference(pct, standard_value=sv)
@@ -1473,8 +1636,7 @@ def export_comparison_to_excel(standard, calculated, requester_name="",
                 round(pct, 2), ev["label"]]
         for c, v in enumerate(vals, 1):
             cell = ws.cell(row=row, column=c, value=v)
-            cell.alignment = ct
-            cell.border = bd
+            cell.alignment = ct; cell.border = bd
             cell.fill = PatternFill('solid', fgColor=ev["bg"].replace('#', ''))
         row += 1
     for c in range(1, 7):
@@ -1549,7 +1711,7 @@ ANIMAL_IMAGES = {
 }
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600) if STREAMLIT_OK else (lambda f: f)
 def get_img_b64(paths):
     for p in paths:
         if os.path.exists(p):
@@ -1568,78 +1730,54 @@ img_base64 = get_img_b64(tuple(PHOTO_OPTIONS))
 # معايير تصميم الحظائر
 # ═══════════════════════════════════════════════════════════════════════
 BARN_DESIGN_STANDARDS = {
-    "دواجن_لاحم": {
-        "name_ar": "دواجن لاحم (Broiler)",
-        "area_per_head": 0.10, "feeder_cm_per_head": 5.0,
-        "drinker_cm_per_head": 2.5, "height_m": 2.8, "width_m": 12.0,
-        "ach_summer": 60, "ach_winter": 8, "vent_open_ratio": 0.20,
-        "roof_type": "gable", "slope_pct": 20.0,
-        "feeder_type": "خطية معلقة", "drinker_type": "حلمات",
-        "aisle_m": 1.2, "central_aisle": True,
-    },
-    "دواجن_بياض": {
-        "name_ar": "دواجن بياض (Layer)",
-        "area_per_head": 0.15, "feeder_cm_per_head": 10.0,
-        "drinker_cm_per_head": 2.5, "height_m": 3.0, "width_m": 12.0,
-        "ach_summer": 40, "ach_winter": 6, "vent_open_ratio": 0.20,
-        "roof_type": "gable", "slope_pct": 20.0,
-        "feeder_type": "سلسلة أو خطية", "drinker_type": "حلمات",
-        "aisle_m": 1.2, "central_aisle": True,
-    },
-    "سمان": {
-        "name_ar": "سمان (Quail)",
-        "area_per_head": 0.025, "feeder_cm_per_head": 2.0,
-        "drinker_cm_per_head": 1.0, "height_m": 2.0, "width_m": 6.0,
-        "ach_summer": 50, "ach_winter": 8, "vent_open_ratio": 0.25,
-        "roof_type": "mono", "slope_pct": 15.0,
-        "feeder_type": "خطية معدنية", "drinker_type": "حلمات",
-        "aisle_m": 0.8, "central_aisle": False,
-    },
-    "أغنام": {
-        "name_ar": "أغنام (Sheep)",
-        "area_per_head": 1.5, "feeder_cm_per_head": 35.0,
-        "drinker_cm_per_head": 4.0, "height_m": 3.5, "width_m": 10.0,
-        "ach_summer": 30, "ach_winter": 5, "vent_open_ratio": 0.30,
-        "roof_type": "gable", "slope_pct": 25.0,
-        "feeder_type": "خطية خرسانية", "drinker_type": "حوض تلقائي",
-        "aisle_m": 2.0, "central_aisle": True,
-    },
-    "ماعز": {
-        "name_ar": "ماعز (Goat)",
-        "area_per_head": 1.5, "feeder_cm_per_head": 35.0,
-        "drinker_cm_per_head": 4.0, "height_m": 3.5, "width_m": 10.0,
-        "ach_summer": 30, "ach_winter": 5, "vent_open_ratio": 0.30,
-        "roof_type": "gable", "slope_pct": 25.0,
-        "feeder_type": "خطية مرتفعة", "drinker_type": "حوض تلقائي",
-        "aisle_m": 2.0, "central_aisle": True,
-    },
-    "أبقار": {
-        "name_ar": "أبقار (Cattle)",
-        "area_per_head": 5.0, "feeder_cm_per_head": 70.0,
-        "drinker_cm_per_head": 6.0, "height_m": 4.5, "width_m": 15.0,
-        "ach_summer": 25, "ach_winter": 4, "vent_open_ratio": 0.35,
-        "roof_type": "gable", "slope_pct": 20.0,
-        "feeder_type": "خطية خرسانية وسطية", "drinker_type": "حوض تلقائي",
-        "aisle_m": 3.5, "central_aisle": True,
-    },
-    "إبل": {
-        "name_ar": "إبل (Camel)",
-        "area_per_head": 10.0, "feeder_cm_per_head": 100.0,
-        "drinker_cm_per_head": 8.0, "height_m": 4.5, "width_m": 15.0,
-        "ach_summer": 20, "ach_winter": 4, "vent_open_ratio": 0.40,
-        "roof_type": "gable", "slope_pct": 20.0,
-        "feeder_type": "خطية مرتفعة", "drinker_type": "حوض كبير",
-        "aisle_m": 4.0, "central_aisle": True,
-    },
-    "خيول": {
-        "name_ar": "خيول (Horse)",
-        "area_per_head": 16.0, "feeder_cm_per_head": 100.0,
-        "drinker_cm_per_head": 10.0, "height_m": 4.0, "width_m": 15.0,
-        "ach_summer": 25, "ach_winter": 5, "vent_open_ratio": 0.30,
-        "roof_type": "gable", "slope_pct": 25.0,
-        "feeder_type": "خطية مرتفعة", "drinker_type": "حوض تلقائي",
-        "aisle_m": 3.5, "central_aisle": True,
-    },
+    "دواجن_لاحم": {"name_ar": "دواجن لاحم (Broiler)", "area_per_head": 0.10,
+                    "feeder_cm_per_head": 5.0, "drinker_cm_per_head": 2.5,
+                    "height_m": 2.8, "width_m": 12.0, "ach_summer": 60,
+                    "ach_winter": 8, "vent_open_ratio": 0.20, "roof_type": "gable",
+                    "slope_pct": 20.0, "feeder_type": "خطية معلقة",
+                    "drinker_type": "حلمات", "aisle_m": 1.2, "central_aisle": True},
+    "دواجن_بياض": {"name_ar": "دواجن بياض (Layer)", "area_per_head": 0.15,
+                    "feeder_cm_per_head": 10.0, "drinker_cm_per_head": 2.5,
+                    "height_m": 3.0, "width_m": 12.0, "ach_summer": 40,
+                    "ach_winter": 6, "vent_open_ratio": 0.20, "roof_type": "gable",
+                    "slope_pct": 20.0, "feeder_type": "سلسلة أو خطية",
+                    "drinker_type": "حلمات", "aisle_m": 1.2, "central_aisle": True},
+    "سمان": {"name_ar": "سمان (Quail)", "area_per_head": 0.025,
+              "feeder_cm_per_head": 2.0, "drinker_cm_per_head": 1.0,
+              "height_m": 2.0, "width_m": 6.0, "ach_summer": 50,
+              "ach_winter": 8, "vent_open_ratio": 0.25, "roof_type": "mono",
+              "slope_pct": 15.0, "feeder_type": "خطية معدنية",
+              "drinker_type": "حلمات", "aisle_m": 0.8, "central_aisle": False},
+    "أغنام": {"name_ar": "أغنام (Sheep)", "area_per_head": 1.5,
+              "feeder_cm_per_head": 35.0, "drinker_cm_per_head": 4.0,
+              "height_m": 3.5, "width_m": 10.0, "ach_summer": 30,
+              "ach_winter": 5, "vent_open_ratio": 0.30, "roof_type": "gable",
+              "slope_pct": 25.0, "feeder_type": "خطية خرسانية",
+              "drinker_type": "حوض تلقائي", "aisle_m": 2.0, "central_aisle": True},
+    "ماعز": {"name_ar": "ماعز (Goat)", "area_per_head": 1.5,
+              "feeder_cm_per_head": 35.0, "drinker_cm_per_head": 4.0,
+              "height_m": 3.5, "width_m": 10.0, "ach_summer": 30,
+              "ach_winter": 5, "vent_open_ratio": 0.30, "roof_type": "gable",
+              "slope_pct": 25.0, "feeder_type": "خطية مرتفعة",
+              "drinker_type": "حوض تلقائي", "aisle_m": 2.0, "central_aisle": True},
+    "أبقار": {"name_ar": "أبقار (Cattle)", "area_per_head": 5.0,
+              "feeder_cm_per_head": 70.0, "drinker_cm_per_head": 6.0,
+              "height_m": 4.5, "width_m": 15.0, "ach_summer": 25,
+              "ach_winter": 4, "vent_open_ratio": 0.35, "roof_type": "gable",
+              "slope_pct": 20.0, "feeder_type": "خطية خرسانية وسطية",
+              "drinker_type": "حوض تلقائي", "aisle_m": 3.5, "central_aisle": True},
+    "إبل": {"name_ar": "إبل (Camel)", "area_per_head": 10.0,
+            "feeder_cm_per_head": 100.0, "drinker_cm_per_head": 8.0,
+            "height_m": 4.5, "width_m": 15.0, "ach_summer": 20,
+            "ach_winter": 4, "vent_open_ratio": 0.40, "roof_type": "gable",
+            "slope_pct": 20.0, "feeder_type": "خطية مرتفعة",
+            "drinker_type": "حوض كبير", "aisle_m": 4.0, "central_aisle": True},
+    "خيول": {"name_ar": "خيول (Horse)", "area_per_head": 16.0,
+              "feeder_cm_per_head": 100.0, "drinker_cm_per_head": 10.0,
+              "height_m": 4.0, "width_m": 15.0, "ach_summer": 25,
+              "ach_winter": 5, "vent_open_ratio": 0.30, "roof_type": "gable",
+              "slope_pct": 25.0, "feeder_type": "خطية مرتفعة",
+              "drinker_type": "حوض تلقائي", "aisle_m": 3.5, "central_aisle": True},
 }
 
 
@@ -1688,21 +1826,17 @@ def create_barn_3d_figure(dims):
         return None
     try:
         std = dims["standard"]
-        L = dims["length_m"]
-        W = dims["width_m"]
-        H = dims["height_m"]
-        RH = dims["ridge_height_m"]
+        L = dims["length_m"]; W = dims["width_m"]
+        H = dims["height_m"]; RH = dims["ridge_height_m"]
         aisle = dims.get("aisle_m", 1.5)
         feeder_w = 0.6
         fig = go.Figure()
 
-        # الأرضية
         fig.add_trace(go.Mesh3d(
             x=[0, L, L, 0], y=[0, 0, W, W], z=[0, 0, 0, 0],
             i=[0, 0], j=[1, 2], k=[2, 3],
             color='#d7ccc8', opacity=0.65, name='الأرضية', hoverinfo='skip'))
 
-        # الجدران
         for x_pos in [0, L]:
             fig.add_trace(go.Mesh3d(
                 x=[x_pos] * 4, y=[0, W, W, 0], z=[0, 0, H, H],
@@ -1716,7 +1850,6 @@ def create_barn_3d_figure(dims):
                 color='#a1887f', opacity=0.35,
                 showlegend=False, hoverinfo='skip'))
 
-        # السقف
         if dims["roof_type"] == "gable":
             fig.add_trace(go.Mesh3d(
                 x=[0, L, L, 0], y=[0, 0, W/2, W/2], z=[H, H, RH, RH],
@@ -1732,7 +1865,6 @@ def create_barn_3d_figure(dims):
                 i=[0, 0], j=[1, 2], k=[2, 3],
                 color='#8d6e63', opacity=0.5, name='السقف', hoverinfo='skip'))
 
-        # فتحات التهوية
         vent_h = H * std["vent_open_ratio"]
         for y_v in [0.15, W - 0.15]:
             fig.add_trace(go.Scatter3d(
@@ -1742,7 +1874,6 @@ def create_barn_3d_figure(dims):
                 name='فتحة تهوية' if y_v == 0.15 else None,
                 showlegend=(y_v == 0.15)))
 
-        # المعالف كصناديق 3D
         if dims.get("central_aisle", True) and W > 8:
             feeder_positions = [W/2 - aisle/2 - feeder_w, W/2 + aisle/2]
         else:
@@ -1762,7 +1893,6 @@ def create_barn_3d_figure(dims):
                 name=f'معلف ({dims.get("feeder_type", "خطي")})' if idx == 0 else None,
                 showlegend=(idx == 0), hoverinfo='skip'))
 
-        # السقايات
         n_drinkers = dims["drinkers_count"]
         for i in range(n_drinkers):
             x_center = (i + 0.5) * (L / n_drinkers)
@@ -1776,7 +1906,6 @@ def create_barn_3d_figure(dims):
                 name=f'مسقى ({dims.get("drinker_type", "حوض")})' if i == 0 else None,
                 showlegend=(i == 0)))
 
-        # الحيوانات
         apr = dims["animals_per_row"]
         n_rows = max(1, dims["count"] // max(apr, 1))
         step = max(1, n_rows // 25)
@@ -1791,16 +1920,13 @@ def create_barn_3d_figure(dims):
                 y_pos = 2.0 + (row_idx * (W - 3.0) / max(n_rows, 1))
             for col in range(min(apr, 20)):
                 x_pos = 0.8 + col * (L - 1.6) / min(apr, 20)
-                ax_.append(x_pos)
-                ay_.append(y_pos)
-                az_.append(0.2)
+                ax_.append(x_pos); ay_.append(y_pos); az_.append(0.2)
         if ax_:
             fig.add_trace(go.Scatter3d(
                 x=ax_, y=ay_, z=az_, mode='markers',
                 marker=dict(size=4, color='#1b5e20', opacity=0.8),
                 name=f'الحيوانات ({dims["count"]})'))
 
-        # الأبعاد
         fig.add_trace(go.Scatter3d(
             x=[0, L], y=[-1, -1], z=[0, 0], mode='lines+text',
             line=dict(color='#c62828', width=4),
@@ -1835,12 +1961,9 @@ def create_barn_animation_gif(dims, frames=30, fps=8):
         return None
     try:
         std = dims["standard"]
-        L = dims["length_m"]
-        W = dims["width_m"]
-        H = dims["height_m"]
-        RH = dims["ridge_height_m"]
-        aisle = dims.get("aisle_m", 1.5)
-        fw = 0.6
+        L = dims["length_m"]; W = dims["width_m"]
+        H = dims["height_m"]; RH = dims["ridge_height_m"]
+        aisle = dims.get("aisle_m", 1.5); fw = 0.6
 
         fig = plt.figure(figsize=(8, 6))
         ax = fig.add_subplot(111, projection='3d')
@@ -1914,12 +2037,8 @@ def create_barn_animation_gif(dims, frames=30, fps=8):
             ax.scatter(xa, ya, [0.2] * len(xa), s=25, c='#1b5e20',
                        alpha=0.85, label=f'حيوانات ({dims["count"]})',
                        depthshade=False)
-            ax.set_xlim(0, L)
-            ax.set_ylim(0, W)
-            ax.set_zlim(0, RH + 1)
-            ax.set_xlabel('الطول')
-            ax.set_ylabel('العرض')
-            ax.set_zlabel('الارتفاع')
+            ax.set_xlim(0, L); ax.set_ylim(0, W); ax.set_zlim(0, RH + 1)
+            ax.set_xlabel('الطول'); ax.set_ylabel('العرض'); ax.set_zlabel('الارتفاع')
             ax.set_title(f"🏗️ {std['name_ar']} — {dims['count']} رأس",
                          fontsize=13, color='#1b5e20', fontweight='bold')
             ax.legend(loc='upper left', fontsize=8)
@@ -1961,12 +2080,9 @@ def render_barn_to_pdf_image(dims):
         return None
     try:
         std = dims["standard"]
-        L = dims["length_m"]
-        W = dims["width_m"]
-        H = dims["height_m"]
-        RH = dims["ridge_height_m"]
-        aisle = dims.get("aisle_m", 1.5)
-        fw = 0.6
+        L = dims["length_m"]; W = dims["width_m"]
+        H = dims["height_m"]; RH = dims["ridge_height_m"]
+        aisle = dims.get("aisle_m", 1.5); fw = 0.6
         fig = plt.figure(figsize=(10, 7))
         ax = fig.add_subplot(111, projection='3d')
 
@@ -2046,12 +2162,8 @@ def render_barn_to_pdf_image(dims):
                    alpha=0.85, label=f'حيوانات ({dims["count"]})',
                    depthshade=False)
 
-        ax.set_xlim(0, L)
-        ax.set_ylim(0, W)
-        ax.set_zlim(0, RH + 1)
-        ax.set_xlabel('الطول (م)')
-        ax.set_ylabel('العرض (م)')
-        ax.set_zlabel('الارتفاع (م)')
+        ax.set_xlim(0, L); ax.set_ylim(0, W); ax.set_zlim(0, RH + 1)
+        ax.set_xlabel('الطول (م)'); ax.set_ylabel('العرض (م)'); ax.set_zlabel('الارتفاع (م)')
         ax.set_title(f"تصميم — {std['name_ar']} | {dims['count']} رأس",
                      fontsize=14, color='#1b5e20', fontweight='bold')
         ax.legend(loc='upper left', fontsize=9)
@@ -2160,8 +2272,7 @@ def generate_barn_pdf_report(dims):
     story.append(t3)
     story.append(Spacer(1, 20))
 
-    story.append(P("🏗️ المجسم ثلاثي الأبعاد", size=14,
-                   align=TA_RIGHT, color='#1b5e20'))
+    story.append(P("🏗️ المجسم ثلاثي الأبعاد", size=14, align=TA_RIGHT, color='#1b5e20'))
     story.append(Spacer(1, 10))
     img = render_barn_to_pdf_image(dims)
     if img:
@@ -2171,7 +2282,6 @@ def generate_barn_pdf_report(dims):
             pass
     story.append(Spacer(1, 20))
 
-    # التوقيع
     sign = [[ar("توقيع المختص")], [ar(SUPERVISOR)], [ar(SUPERVISOR_TITLE)]]
     ts = Table(sign, colWidths=[400])
     ts.setStyle(TableStyle([
@@ -2194,53 +2304,37 @@ def generate_barn_pdf_report(dims):
 # دراسة الجدوى الفنية
 # ═══════════════════════════════════════════════════════════════════════
 TECHNICAL_FEASIBILITY_DATA = {
-    "دواجن_لاحم": {
-        "feed_per_day_g": 120, "water_per_day_ml": 220, "labor_per_1000": 0.3,
-        "cycle_days": 42, "final_weight_kg": 2.3, "fcr": 1.65,
-        "production_type": "meat", "product_unit": "كجم لحم حي",
-        "notes": "دورة 42 يوم، وزن نهائي 2.3 كجم",
-    },
-    "دواجن_بياض": {
-        "feed_per_day_g": 110, "water_per_day_ml": 250, "labor_per_1000": 0.3,
-        "eggs_per_year": 310, "egg_weight_g": 60,
-        "production_type": "eggs", "product_unit": "بيضة",
-        "notes": "310 بيضة/دجاجة/سنة",
-    },
-    "سمان": {
-        "feed_per_day_g": 28, "water_per_day_ml": 55, "labor_per_1000": 0.5,
-        "cycle_days": 42, "final_weight_kg": 0.25, "fcr": 2.5,
-        "production_type": "meat", "product_unit": "كجم لحم حي",
-        "notes": "دورة 42 يوم، وزن 250 جرام",
-    },
-    "أغنام": {
-        "feed_per_day_g": 1800, "water_per_day_ml": 6000, "labor_per_1000": 1.5,
-        "milk_per_day_L": 1.5, "lactation_days": 200,
-        "production_type": "mixed", "product_unit": "حليب + حملان",
-        "notes": "1.5 لتر حليب × 200 يوم",
-    },
-    "ماعز": {
-        "feed_per_day_g": 1500, "water_per_day_ml": 6000, "labor_per_1000": 1.5,
-        "milk_per_day_L": 2.5, "lactation_days": 280,
-        "production_type": "milk", "product_unit": "لتر حليب",
-        "notes": "2.5 لتر × 280 يوم",
-    },
-    "أبقار": {
-        "feed_per_day_g": 20000, "water_per_day_ml": 80000, "labor_per_1000": 5.0,
-        "milk_per_day_L": 20, "lactation_days": 305,
-        "production_type": "milk", "product_unit": "لتر حليب",
-        "notes": "20 لتر × 305 يوم",
-    },
-    "إبل": {
-        "feed_per_day_g": 8000, "water_per_day_ml": 50000, "labor_per_1000": 3.0,
-        "milk_per_day_L": 5, "lactation_days": 300,
-        "production_type": "milk", "product_unit": "لتر حليب",
-        "notes": "5 لتر × 300 يوم",
-    },
-    "خيول": {
-        "feed_per_day_g": 10000, "water_per_day_ml": 40000, "labor_per_1000": 4.0,
-        "production_type": "service", "product_unit": "خدمات",
-        "notes": "خيول رياضة أو عمل",
-    },
+    "دواجن_لاحم": {"feed_per_day_g": 120, "water_per_day_ml": 220, "labor_per_1000": 0.3,
+                    "cycle_days": 42, "final_weight_kg": 2.3, "fcr": 1.65,
+                    "production_type": "meat", "product_unit": "كجم لحم حي",
+                    "notes": "دورة 42 يوم، وزن نهائي 2.3 كجم"},
+    "دواجن_بياض": {"feed_per_day_g": 110, "water_per_day_ml": 250, "labor_per_1000": 0.3,
+                    "eggs_per_year": 310, "egg_weight_g": 60,
+                    "production_type": "eggs", "product_unit": "بيضة",
+                    "notes": "310 بيضة/دجاجة/سنة"},
+    "سمان": {"feed_per_day_g": 28, "water_per_day_ml": 55, "labor_per_1000": 0.5,
+              "cycle_days": 42, "final_weight_kg": 0.25, "fcr": 2.5,
+              "production_type": "meat", "product_unit": "كجم لحم حي",
+              "notes": "دورة 42 يوم، وزن 250 جرام"},
+    "أغنام": {"feed_per_day_g": 1800, "water_per_day_ml": 6000, "labor_per_1000": 1.5,
+              "milk_per_day_L": 1.5, "lactation_days": 200,
+              "production_type": "mixed", "product_unit": "حليب + حملان",
+              "notes": "1.5 لتر حليب × 200 يوم"},
+    "ماعز": {"feed_per_day_g": 1500, "water_per_day_ml": 6000, "labor_per_1000": 1.5,
+              "milk_per_day_L": 2.5, "lactation_days": 280,
+              "production_type": "milk", "product_unit": "لتر حليب",
+              "notes": "2.5 لتر × 280 يوم"},
+    "أبقار": {"feed_per_day_g": 20000, "water_per_day_ml": 80000, "labor_per_1000": 5.0,
+              "milk_per_day_L": 20, "lactation_days": 305,
+              "production_type": "milk", "product_unit": "لتر حليب",
+              "notes": "20 لتر × 305 يوم"},
+    "إبل": {"feed_per_day_g": 8000, "water_per_day_ml": 50000, "labor_per_1000": 3.0,
+            "milk_per_day_L": 5, "lactation_days": 300,
+            "production_type": "milk", "product_unit": "لتر حليب",
+            "notes": "5 لتر × 300 يوم"},
+    "خيول": {"feed_per_day_g": 10000, "water_per_day_ml": 40000, "labor_per_1000": 4.0,
+              "production_type": "service", "product_unit": "خدمات",
+              "notes": "خيول رياضة أو عمل"},
 }
 
 
@@ -2260,64 +2354,57 @@ def calculate_technical_feasibility(barn_key, count):
 
     if ptype == "eggs":
         eggs_year = count * tech.get("eggs_per_year", 300)
-        production = {
-            "unit": "بيضة/سنة", "annual": eggs_year, "per_day": eggs_year / 365,
-            "weight_ton": eggs_year * tech.get("egg_weight_g", 60) / 1_000_000,
-            "details": tech.get("notes", ""),
-        }
+        production = {"unit": "بيضة/سنة", "annual": eggs_year, "per_day": eggs_year / 365,
+                      "weight_ton": eggs_year * tech.get("egg_weight_g", 60) / 1_000_000,
+                      "details": tech.get("notes", "")}
     elif ptype == "milk":
         milk_day = count * tech.get("milk_per_day_L", 20)
         milk_year = milk_day * tech.get("lactation_days", 305)
-        production = {
-            "unit": "لتر/سنة", "annual": milk_year, "per_day": milk_day,
-            "lactation_days": tech.get("lactation_days", 305),
-            "details": tech.get("notes", ""),
-        }
+        production = {"unit": "لتر/سنة", "annual": milk_year, "per_day": milk_day,
+                      "lactation_days": tech.get("lactation_days", 305),
+                      "details": tech.get("notes", "")}
     elif ptype == "meat":
         cycle = tech.get("cycle_days", 42)
         cycles_year = 365 / cycle
         total_kg = count * tech.get("final_weight_kg", 2) * cycles_year
-        production = {
-            "unit": "كجم/سنة", "annual": total_kg,
-            "per_cycle": count * tech.get("final_weight_kg", 2),
-            "cycles_year": cycles_year, "details": tech.get("notes", ""),
-        }
+        production = {"unit": "كجم/سنة", "annual": total_kg,
+                      "per_cycle": count * tech.get("final_weight_kg", 2),
+                      "cycles_year": cycles_year, "details": tech.get("notes", "")}
     elif ptype == "mixed":
         milk_day = count * tech.get("milk_per_day_L", 1)
         milk_year = milk_day * tech.get("lactation_days", 200)
-        production = {
-            "unit": "لتر/سنة", "annual": milk_year, "per_day": milk_day,
-            "details": tech.get("notes", ""),
-        }
+        production = {"unit": "لتر/سنة", "annual": milk_year, "per_day": milk_day,
+                      "details": tech.get("notes", "")}
     else:
         production = {"unit": "خدمات", "annual": 0, "details": tech.get("notes", "")}
 
     return {
         "barn_key": barn_key, "std": std, "dims": dims, "count": count,
-        "feed": {
-            "per_head_day_kg": tech.get("feed_per_day_g", 100) / 1000.0,
-            "total_day_kg": feed_day,
-            "total_month_ton": feed_day * 30 / 1000,
-            "total_year_ton": feed_day * 365 / 1000,
-        },
-        "water": {
-            "per_head_day_L": tech.get("water_per_day_ml", 200) / 1000.0,
-            "total_day_L": water_day,
-            "total_year_m3": water_day * 365 / 1000,
-        },
+        "feed": {"per_head_day_kg": tech.get("feed_per_day_g", 100) / 1000.0,
+                  "total_day_kg": feed_day,
+                  "total_month_ton": feed_day * 30 / 1000,
+                  "total_year_ton": feed_day * 365 / 1000},
+        "water": {"per_head_day_L": tech.get("water_per_day_ml", 200) / 1000.0,
+                   "total_day_L": water_day,
+                   "total_year_m3": water_day * 365 / 1000},
         "labor": {"workers": workers, "animals_per_worker": count // workers},
         "production": production,
-        "ventilation": {
-            "summer_m3h": dims["vent_flow_summer_m3h"],
-            "winter_m3h": dims["vent_flow_winter_m3h"],
-        },
+        "ventilation": {"summer_m3h": dims["vent_flow_summer_m3h"],
+                         "winter_m3h": dims["vent_flow_winter_m3h"]},
     }
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# كتيّب الجدوى PDF (5 صفحات)
+# كتيّب الجدوى PDF — 6 صفحات (مع صفحة خيارات صاحب المشروع)
 # ═══════════════════════════════════════════════════════════════════════
-def generate_feasibility_booklet(barn_key, count, project_name="", requester_name=""):
+def generate_feasibility_booklet(barn_key, count, project_name="", requester_name="",
+                                   options_summary=None):
+    """
+    كتيّب الجدوى — يشمل خيارات صاحب المشروع.
+    options_summary: dict اختياري:
+        barn_mode, construction_type, construction_cost, annual_depreciation,
+        water_src, power_src, cooling, heating, land_own
+    """
     feas = calculate_technical_feasibility(barn_key, count)
     if not feas:
         return None
@@ -2336,11 +2423,9 @@ def generate_feasibility_booklet(barn_key, count, project_name="", requester_nam
 
     # ═══ صفحة 1: الغلاف ═══
     story.append(Spacer(1, 30))
-    story.append(P("كتيّب دراسة الجدوى الفنية", size=30,
-                   align=TA_CENTER, color='#1b5e20'))
+    story.append(P("كتيّب دراسة الجدوى الفنية", size=30, align=TA_CENTER, color='#1b5e20'))
     story.append(Spacer(1, 6))
-    story.append(P("Technical Feasibility Study", size=13,
-                   align=TA_CENTER, color='#666'))
+    story.append(P("Technical Feasibility Study", size=13, align=TA_CENTER, color='#666'))
     story.append(Spacer(1, 20))
     story.append(HRFlowable(width="100%", thickness=3, color=HexColor('#d4af37')))
     story.append(Spacer(1, 30))
@@ -2372,9 +2457,51 @@ def generate_feasibility_booklet(barn_key, count, project_name="", requester_nam
     ]))
     story.append(t)
     story.append(Spacer(1, 60))
-    story.append(P(f"🤲 {DUA_SHORT} 🤲", size=12,
-                   align=TA_CENTER, color='#c62828'))
+    story.append(P(f"🤲 {DUA_SHORT} 🤲", size=12, align=TA_CENTER, color='#c62828'))
     story.append(PageBreak())
+
+    # ═══ صفحة 1.5: خيارات صاحب المشروع (جديد) ═══
+    if options_summary:
+        story.append(P("⚙️ خيارات صاحب المشروع", size=18,
+                       align=TA_CENTER, color='#c62828'))
+        story.append(Spacer(1, 8))
+        story.append(HRFlowable(width="100%", thickness=2, color=HexColor('#d4af37')))
+        story.append(Spacer(1, 15))
+
+        opt_data = [
+            [ar("الخيار"), ar("القيمة المختارة")],
+            [ar("🏗️ الحظيرة"), ar(str(options_summary.get("barn_mode", "—")))],
+            [ar("🌊 مصدر المياه"), ar(str(options_summary.get("water_src", "—")))],
+            [ar("⚡ مصدر الكهرباء"), ar(str(options_summary.get("power_src", "—")))],
+            [ar("❄️ نظام التبريد"), ar(str(options_summary.get("cooling", "—")))],
+            [ar("🔥 نظام التدفئة"), ar(str(options_summary.get("heating", "—")))],
+            [ar("🗺️ ملكية الأرض"), ar(str(options_summary.get("land_own", "—")))],
+        ]
+        ct_val = options_summary.get("construction_type", "—")
+        if ct_val and ct_val != "—":
+            opt_data.append([ar("🏗️ نوع البناء"), ar(str(ct_val))])
+            ccost = options_summary.get("construction_cost", 0)
+            if ccost > 0:
+                opt_data.append([ar("💰 تكلفة البناء التقديرية"), ar(f"${ccost:,.0f}")])
+                opt_data.append([ar("📅 الإهلاك السنوي"),
+                                  ar(f"${options_summary.get('annual_depreciation', 0):,.0f}/سنة")])
+
+        ot = Table(opt_data, colWidths=[220, 230])
+        ot.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#c62828')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), white),
+            ('GRID', (0, 0), (-1, -1), 0.8, HexColor('#bdbdbd')),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), font_mgr.font_name),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 0), (-1, -1), 7),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1),
+             [HexColor('#ffffff'), HexColor('#ffebee')]),
+        ]))
+        story.append(ot)
+        story.append(Spacer(1, 15))
+        story.append(PageBreak())
 
     # ═══ صفحة 2: تصميم الحظيرة ═══
     story.append(P("🏗️ الباب الأول: تصميم الحظيرة", size=18,
@@ -2479,20 +2606,13 @@ def generate_feasibility_booklet(barn_key, count, project_name="", requester_nam
     story.append(Spacer(1, 10))
 
     prod_rows = [[ar("البند"), ar("القيمة")]]
-    for key, label in [
-        ("annual", "الإنتاج السنوي"),
-        ("per_day", "الإنتاج اليومي"),
-        ("per_cycle", "الإنتاج/دورة"),
-        ("cycles_year", "عدد الدورات/سنة"),
-        ("lactation_days", "أيام الحلابة"),
-        ("weight_ton", "الوزن بالطن"),
-    ]:
+    for key, label in [("annual", "الإنتاج السنوي"), ("per_day", "الإنتاج اليومي"),
+                        ("per_cycle", "الإنتاج/دورة"), ("cycles_year", "عدد الدورات/سنة"),
+                        ("lactation_days", "أيام الحلابة"), ("weight_ton", "الوزن بالطن")]:
         if key in prod and prod[key]:
             val = prod[key]
-            prod_rows.append([
-                ar(label),
-                ar(f"{val:,.1f}" if isinstance(val, (int, float)) else str(val))
-            ])
+            prod_rows.append([ar(label),
+                              ar(f"{val:,.1f}" if isinstance(val, (int, float)) else str(val))])
     if prod.get("details"):
         prod_rows.append([ar("التفاصيل"), ar(prod["details"])])
 
@@ -2513,7 +2633,7 @@ def generate_feasibility_booklet(barn_key, count, project_name="", requester_nam
     story.append(P("📝 ملاحظات فنية", size=13, color='#1b5e20'))
     story.append(Spacer(1, 8))
     for note in [
-        "• هذه الدراسة فنية فقط (تغذية، مساحة، تهوية، عمالة) ولا تشمل التكاليف والأسعار.",
+        "• هذه الدراسة فنية فقط (تغذية، مساحة، تهوية، عمالة).",
         "• الأرقام تقديرية وفق المعايير العالمية: NRC، FAO، MWPS، ASABE.",
         "• يُنصح بإعادة التقييم كل 6 أشهر وفق الظروف الفعلية.",
         f"• المساحة الموصى بها لكل رأس: {std['area_per_head']} م².",
@@ -2553,16 +2673,21 @@ def generate_feasibility_booklet(barn_key, count, project_name="", requester_nam
     ]))
     story.append(st_tbl)
     story.append(Spacer(1, 50))
-    story.append(P(f"🤲 {DUA_FULL} 🤲", size=12,
-                   align=TA_CENTER, color='#c62828'))
+    story.append(P(f"🤲 {DUA_FULL} 🤲", size=12, align=TA_CENTER, color='#c62828'))
 
     doc.build(story, onFirstPage=pdf_gen._draw_page, onLaterPages=pdf_gen._draw_page)
     buffer.seek(0)
     return buffer.getvalue()
 
+# ═══════════════════════════════════════════════════════════════════════
+# نهاية الجزء 2 من 4 — يتبع: Session + CSS + بوابة + تبويب النمذجة
+# ═══════════════════════════════════════════════════════════════════════
+# ============================================================================
+# الجزء 3 من 4 — Session + CSS + بوابة + الواجهة + تبويب النمذجة
+# ============================================================================
 
 # ═══════════════════════════════════════════════════════════════════════
-# Session State
+# Session State — التهيئة الأولية
 # ═══════════════════════════════════════════════════════════════════════
 DEFAULTS = {
     "approved": False, "user_role": None,
@@ -2587,6 +2712,8 @@ DEFAULTS = {
     "last_formulation_result": None,
     "last_formulation_context": None,
     "barn_video_gif": None,
+    "detected_location": None,
+    "_login_attempts": [],
 }
 
 for k, v in DEFAULTS.items():
@@ -2606,7 +2733,7 @@ def is_owner():
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# CSS الشامل
+# CSS الشامل — تصميم فاخر
 # ═══════════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
@@ -2869,6 +2996,8 @@ h1, h2, h3, h4, h5, p, span, li, div, label { color: #1a1a1a !important; }
 .mini-signature * { color: white !important; }
 </style>
 """, unsafe_allow_html=True)
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # بوابة الدخول
 # ═══════════════════════════════════════════════════════════════════════
@@ -2928,8 +3057,15 @@ if not st.session_state["approved"]:
         """, unsafe_allow_html=True)
         owner_code = st.text_input("🔑 كود المالك:", type="password", key="owner_code")
         if st.button("👑 دخول المالك", type="primary", use_container_width=True):
+            # فحص أمني أولاً
+            if _SECURITY_ENABLED:
+                audit = _security_audit()
+                if "bruteforce_blocked" in audit.get("issues", []):
+                    st.error("🚫 تم حظر المحاولات مؤقتاً — انتظر 5 دقائق")
+                    st.stop()
             if owner_code.strip() == OWNER_CODE:
                 st.session_state.update({"approved": True, "user_role": "owner"})
+                st.success("✅ مرحباً بك")
                 st.rerun()
             else:
                 st.error("❌ كود غير صحيح")
@@ -2963,7 +3099,8 @@ with c2:
     role_label = "المالك 👑" if is_owner() else "زائر 👥"
     st.markdown(
         f"<div style='text-align:left; padding:10px; background:#f5f5f5;"
-        f"border-radius:10px;'>الحساب: <b>{role_label}</b></div>",
+        f"border-radius:10px;'>الحساب: <b>{role_label}</b><br>"
+        f"<small style='color:#666;'>🔐 {_LICENSE.get('fingerprint','—')[:12]}</small></div>",
         unsafe_allow_html=True
     )
     if st.button("🚪 خروج", use_container_width=True):
@@ -3041,7 +3178,7 @@ tab_map = {title: tab for title, tab in zip(tabs_titles, tabs)}
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# تبويب النمذجة (المصحح بالكامل)
+# تبويب النمذجة (مع الموقع التلقائي)
 # ═══════════════════════════════════════════════════════════════════════
 with tab_map["🔬 النمذجة والحسابات العلفية"]:
     try:
@@ -3052,22 +3189,58 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
 
         with sub_tab_formulator:
             try:
-                # الموقع
-                st.markdown('<div class="section-title">🌍 الموقع الجغرافي</div>',
+                # ─── الموقع الجغرافي التلقائي ───
+                st.markdown('<div class="section-title">🌍 الموقع الجغرافي (كشف تلقائي)</div>',
                             unsafe_allow_html=True)
+
+                if st.session_state["detected_location"] is None:
+                    with st.spinner("📡 جاري تحديد موقعك تلقائياً..."):
+                        auto_loc = get_user_location()
+                    st.session_state["detected_location"] = auto_loc
+                else:
+                    auto_loc = st.session_state["detected_location"]
+
+                auto_country_idx = list(EXCHANGE_RATES.keys()).index(auto_loc["country_ar"]) \
+                                   if auto_loc["country_ar"] in EXCHANGE_RATES else 0
+
+                if auto_loc["success"]:
+                    st.success(f"✅ تم كشف موقعك تلقائياً: **{auto_loc['city']}** — "
+                               f"{auto_loc['country_ar']} (المصدر: {auto_loc['source']})")
+                else:
+                    st.warning("⚠️ تعذر الكشف التلقائي — يمكنك تعديل الموقع يدوياً")
+
+                edit_location = st.toggle("✏️ تعديل الموقع يدوياً", value=False,
+                                          help="فعّل هذا الخيار لتغيير الدولة/المدينة يدوياً")
+
                 cc1, cc2, cc3 = st.columns(3)
                 with cc1:
-                    country = st.selectbox("🌍 الدولة:", list(EXCHANGE_RATES.keys()), key="country")
+                    if edit_location:
+                        country = st.selectbox("🌍 الدولة:", list(EXCHANGE_RATES.keys()),
+                                               index=auto_country_idx, key="country")
+                    else:
+                        country = auto_loc["country_ar"]
+                        st.markdown(f"**🌍 الدولة:** {country}")
                 with cc2:
-                    state = st.text_input("🗺️ الولاية:", "الخرطوم", key="state")
+                    if edit_location:
+                        state = st.text_input("🗺️ الولاية/المنطقة:",
+                                              value=auto_loc["region"] or auto_loc["city"],
+                                              key="state")
+                    else:
+                        state = auto_loc["region"] or auto_loc["city"]
+                        st.markdown(f"**🗺️ الولاية:** {state}")
                 with cc3:
-                    city = st.text_input("🏙️ المدينة:", "الخرطوم", key="city")
+                    if edit_location:
+                        city = st.text_input("🏙️ المدينة:", value=auto_loc["city"], key="city")
+                    else:
+                        city = auto_loc["city"]
+                        st.markdown(f"**🏙️ المدينة:** {city}")
+
                 rate = EXCHANGE_RATES.get(country, {"rate": 1.0, "sym": "USD"})
                 local_rate = rate["rate"]
                 local_sym = rate["sym"]
                 live_prices = get_market_prices(country, city, state)
 
-                # أساس الحساب
+                # ─── أساس الحساب ───
                 st.markdown('<div class="section-title">🧬 أساس حساب البروتين</div>',
                             unsafe_allow_html=True)
                 protein_basis_choice = st.radio(
@@ -3083,7 +3256,7 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
                 else:
                     st.info("📊 الحساب سيكون على أساس **CP** (البروتين الخام)")
 
-                # اختيار الحيوان
+                # ─── اختيار الحيوان ───
                 st.markdown('<div class="section-title">🐾 اختر الحيوان والحالة الفسيولوجية</div>',
                             unsafe_allow_html=True)
                 animal_tabs = st.tabs([
@@ -3480,7 +3653,6 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
                             custom_standard = requirement_to_standard(requirement)
 
                             with st.spinner(f"⏳ جاري التركيب على أساس {basis_code}..."):
-                                # ✅ استدعاء صحيح باستخدام standard_key (اسم المعامل الرسمي)
                                 result = auto_formulate_smart(
                                     selected_ingredients, ingredient_prices, custom_standard,
                                     standard_key=std_key_global,
@@ -3513,7 +3685,7 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
                             else:
                                 st.error(f"❌ {result['message']}")
 
-                    # عرض النتائج المحفوظة
+                    # ─── عرض النتائج ───
                     if st.session_state.get("last_formulation_result"):
                         result = st.session_state["last_formulation_result"]
                         ctx = st.session_state["last_formulation_context"]
@@ -3604,7 +3776,7 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
                         st.metric("💰 التكلفة الفعلية للطن:",
                                   f"${cost:.2f} ({cost*ctx['local_rate']:,.0f} {ctx['local_sym']})")
 
-                        # ═══ 📈 الرسوم البيانية الملونة ═══
+                        # ─── الرسوم البيانية ───
                         st.markdown('<div class="section-title">📈 الرسوم البيانية التحليلية</div>',
                                     unsafe_allow_html=True)
 
@@ -3805,9 +3977,7 @@ with tab_map["🔬 النمذجة والحسابات العلفية"]:
                         for ing_name, weight in lab_user_inputs.items():
                             if weight > 0:
                                 pct = weight / lab_total_weight
-                                ing_cp = 0.0
-                                ing_dc = 0.0
-                                ing_se = 0.0
+                                ing_cp = 0.0; ing_dc = 0.0; ing_se = 0.0
                                 for cat, items in BIG_FEEDS_LIBRARY.items():
                                     if ing_name in items:
                                         ing_cp = items[ing_name].get("CP", 0.0)
@@ -4252,7 +4422,7 @@ with tab_map["🏗️ تصميم الحظائر 3D"]:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# تبويب دراسة الجدوى
+# تبويب دراسة الجدوى (مع الخيارات الكاملة)
 # ═══════════════════════════════════════════════════════════════════════
 with tab_map["📊 دراسة الجدوى"]:
     try:
@@ -4260,24 +4430,132 @@ with tab_map["📊 دراسة الجدوى"]:
                     unsafe_allow_html=True)
         st.markdown("""
         <div class="feas-card">
-        <b>🎯 دراسة فنية شاملة (بدون اقتصاديات):</b><br>
-        ▪️ تصميم الحظيرة بأبعادها ومساحتها<br>
-        ▪️ احتياجات العلف والماء والتهوية<br>
-        ▪️ الإنتاج المتوقع (لحم / حليب / بيض)<br>
-        ▪️ العمالة المطلوبة<br>
-        ▪️ كتيّب PDF كامل بالتوقيع والختم الرسمي
+        <b>🎯 دراسة فنية شاملة مع خيارات كاملة لصاحب المشروع:</b><br>
+        ▪️ إنشاء حظيرة جديدة / استخدام حظيرة موجودة / استئجار<br>
+        ▪️ اختيار نوع البناء + تكاليف تقديرية<br>
+        ▪️ المصادر (ماء، كهرباء، تبريد، تدفئة، ملكية الأرض)<br>
+        ▪️ احتياجات العلف والماء والتهوية والعمالة<br>
+        ▪️ الإنتاج المتوقع + كتيّب PDF كامل
         </div>
         """, unsafe_allow_html=True)
 
+        # الخيار الأساسي
+        st.markdown('<div class="section-title">🏗️ خيار صاحب المشروع — الحظيرة</div>',
+                    unsafe_allow_html=True)
+
+        barn_mode = st.radio(
+            "هل تريد إنشاء حظيرة جديدة؟",
+            [code for code, _ in BARN_PROJECT_OPTIONS["barn_mode"]],
+            format_func=lambda x: dict(BARN_PROJECT_OPTIONS["barn_mode"])[x],
+            horizontal=True, key="feas_barn_mode",
+        )
+
+        construction_type = None
+        construction_cost = 0.0
+        land_area = 0.0
+
+        if barn_mode == "build_new":
+            st.success("✅ سيتم حساب تكاليف إنشاء حظيرة جديدة مع المشروع")
+            col_bt1, col_bt2 = st.columns(2)
+            with col_bt1:
+                construction_type = st.selectbox(
+                    "🏗️ نوع البناء:",
+                    list(BARN_CONSTRUCTION_TYPES.keys()),
+                    help="كل نوع له تكلفة وعمر افتراضي مختلف",
+                )
+            with col_bt2:
+                land_area = st.number_input(
+                    "🗺️ مساحة الأرض المتاحة (م²):",
+                    min_value=50.0, max_value=100000.0,
+                    value=1500.0, step=100.0,
+                    help="اتركها 0 لحسابها من أبعاد الحظيرة تلقائياً",
+                )
+            ctype = BARN_CONSTRUCTION_TYPES[construction_type]
+            st.markdown(f"""
+            <div class="price-card">
+            <b>💰 تفاصيل نوع البناء المختار:</b><br>
+            ▪️ التكلفة التقديرية: <b>${ctype['cost_per_m2_usd']}/م²</b><br>
+            ▪️ العمر الافتراضي: <b>{ctype['lifespan_years']} سنة</b><br>
+            ▪️ العزل الحراري: <b>{ctype['insulation']}</b><br>
+            <small>{ctype['desc']}</small>
+            </div>
+            """, unsafe_allow_html=True)
+
+        elif barn_mode == "use_existing":
+            st.info("🏠 سيتم تجاهل تكاليف البناء — ستحتاج فقط للصيانة والتجهيز")
+        else:
+            st.info("📝 سيتم احتساب إيجار سنوي تقديري بدلاً من تكاليف البناء")
+
+        # خيارات أخرى
+        st.markdown('<div class="section-title">⚙️ خيارات إضافية لصاحب المشروع</div>',
+                    unsafe_allow_html=True)
+
+        with st.expander("🌊 مصادر المياه والطاقة", expanded=True):
+            o1, o2 = st.columns(2)
+            with o1:
+                water_src = st.selectbox(
+                    "💧 مصدر المياه:",
+                    [code for code, _ in BARN_PROJECT_OPTIONS["water_source"]],
+                    format_func=lambda x: dict(BARN_PROJECT_OPTIONS["water_source"])[x],
+                    key="feas_water",
+                )
+            with o2:
+                power_src = st.selectbox(
+                    "⚡ مصدر الكهرباء:",
+                    [code for code, _ in BARN_PROJECT_OPTIONS["power_source"]],
+                    format_func=lambda x: dict(BARN_PROJECT_OPTIONS["power_source"])[x],
+                    key="feas_power",
+                )
+
+        with st.expander("🌡️ التبريد والتدفئة", expanded=True):
+            c1x, c2x = st.columns(2)
+            with c1x:
+                cooling = st.selectbox(
+                    "❄️ نظام التبريد:",
+                    [code for code, _ in BARN_PROJECT_OPTIONS["cooling_system"]],
+                    format_func=lambda x: dict(BARN_PROJECT_OPTIONS["cooling_system"])[x],
+                    key="feas_cooling",
+                )
+            with c2x:
+                heating = st.selectbox(
+                    "🔥 نظام التدفئة:",
+                    [code for code, _ in BARN_PROJECT_OPTIONS["heating_system"]],
+                    format_func=lambda x: dict(BARN_PROJECT_OPTIONS["heating_system"])[x],
+                    key="feas_heating",
+                )
+
+        with st.expander("🗺️ ملكية الأرض والتمويل", expanded=True):
+            l1, l2 = st.columns(2)
+            with l1:
+                land_own = st.selectbox(
+                    "🏞️ ملكية الأرض:",
+                    [code for code, _ in BARN_PROJECT_OPTIONS["land_ownership"]],
+                    format_func=lambda x: dict(BARN_PROJECT_OPTIONS["land_ownership"])[x],
+                    key="feas_land",
+                )
+            with l2:
+                include_economics = st.toggle(
+                    "💰 تضمين التكاليف الاقتصادية في التقرير",
+                    value=True,
+                    help="عند التعطيل: الدراسة فنية فقط بدون تكاليف",
+                    key="feas_econ",
+                )
+
+        # بيانات المشروع
+        st.markdown('<div class="section-title">🐾 بيانات المشروع</div>',
+                    unsafe_allow_html=True)
         f1, f2 = st.columns(2)
         with f1:
             feas_key = st.selectbox(
                 "نوع الحيوان:", list(BARN_DESIGN_STANDARDS.keys()),
                 format_func=lambda k: BARN_DESIGN_STANDARDS[k]["name_ar"],
                 key="feas_animal")
-            feas_count = st.number_input("العدد الكلي:", 1, 100000, 1000, 50, key="feas_count")
+            feas_count = st.number_input("العدد الكلي:", 1, 100000, 1000, 50,
+                                          key="feas_count")
         with f2:
-            project_name = st.text_input("اسم المشروع:", placeholder="مشروع دواجن الأمل", key="feas_proj")
+            project_name = st.text_input("اسم المشروع:",
+                                          placeholder="مشروع دواجن الأمل",
+                                          key="feas_proj")
             feas_requester = st.text_input("مقدم الطلب:", key="feas_req")
 
         st.markdown("---")
@@ -4286,20 +4564,55 @@ with tab_map["📊 دراسة الجدوى"]:
             feas = calculate_technical_feasibility(feas_key, feas_count)
 
         if feas:
-            st.markdown("### 📐 بيانات الحظيرة")
             d = feas["dims"]
+            if barn_mode == "build_new" and construction_type:
+                ctype = BARN_CONSTRUCTION_TYPES[construction_type]
+                actual_area = max(land_area, d["total_area_m2"])
+                construction_cost = actual_area * ctype["cost_per_m2_usd"]
+                annual_depreciation = construction_cost / ctype["lifespan_years"]
+            elif barn_mode == "rent":
+                actual_area = d["total_area_m2"]
+                annual_depreciation = actual_area * 4.0
+                construction_cost = 0.0
+            else:
+                actual_area = d["total_area_m2"]
+                annual_depreciation = 0.0
+                construction_cost = 0.0
+
+            st.markdown('<div class="section-title">📋 ملخص خيارات المشروع</div>',
+                        unsafe_allow_html=True)
+            opt_rows = [
+                ["🏗️ الحظيرة", dict(BARN_PROJECT_OPTIONS["barn_mode"])[barn_mode]],
+                ["🌊 المياه", dict(BARN_PROJECT_OPTIONS["water_source"])[water_src]],
+                ["⚡ الكهرباء", dict(BARN_PROJECT_OPTIONS["power_source"])[power_src]],
+                ["❄️ التبريد", dict(BARN_PROJECT_OPTIONS["cooling_system"])[cooling]],
+                ["🔥 التدفئة", dict(BARN_PROJECT_OPTIONS["heating_system"])[heating]],
+                ["🗺️ الأرض", dict(BARN_PROJECT_OPTIONS["land_ownership"])[land_own]],
+            ]
+            if construction_type:
+                opt_rows.append(["🏗️ نوع البناء", construction_type])
+            st.table(pd.DataFrame(opt_rows, columns=["الخيار", "القيمة"]))
+
+            st.markdown("### 📐 بيانات الحظيرة")
             fc1, fc2, fc3, fc4 = st.columns(4)
             fc1.metric("📏 المساحة", f"{d['total_area_m2']} م²")
             fc2.metric("📐 الأبعاد", f"{d['length_m']}×{d['width_m']} م")
             fc3.metric("🏔️ القمة", f"{d['ridge_height_m']} م")
             fc4.metric("📦 الحجم", f"{d['volume_m3']} م³")
 
+            if include_economics and construction_cost > 0:
+                st.markdown("### 💰 التكاليف التقديرية للحظيرة")
+                tc1, tc2, tc3 = st.columns(3)
+                tc1.metric("🏗️ تكلفة البناء", f"${construction_cost:,.0f}")
+                tc2.metric("📅 الإهلاك السنوي", f"${annual_depreciation:,.0f}/سنة")
+                tc3.metric("📊 تكلفة/م²", f"${construction_cost/actual_area:,.0f}/م²")
+
             st.markdown("### 🍽️ احتياجات العلف")
-            f1, f2, f3, f4 = st.columns(4)
-            f1.metric("علف/رأس/يوم", f"{feas['feed']['per_head_day_kg']*1000:.0f} جم")
-            f2.metric("إجمالي يومي", f"{feas['feed']['total_day_kg']:.1f} كجم")
-            f3.metric("إجمالي شهري", f"{feas['feed']['total_month_ton']:.2f} طن")
-            f4.metric("إجمالي سنوي", f"{feas['feed']['total_year_ton']:.2f} طن")
+            f1x, f2x, f3x, f4x = st.columns(4)
+            f1x.metric("علف/رأس/يوم", f"{feas['feed']['per_head_day_kg']*1000:.0f} جم")
+            f2x.metric("إجمالي يومي", f"{feas['feed']['total_day_kg']:.1f} كجم")
+            f3x.metric("إجمالي شهري", f"{feas['feed']['total_month_ton']:.2f} طن")
+            f4x.metric("إجمالي سنوي", f"{feas['feed']['total_year_ton']:.2f} طن")
 
             st.markdown("### 💧 احتياجات الماء")
             w1, w2, w3 = st.columns(3)
@@ -4333,10 +4646,23 @@ with tab_map["📊 دراسة الجدوى"]:
             col_dl1, col_dl2 = st.columns(2)
             with col_dl1:
                 try:
+                    options_summary = {
+                        "barn_mode": dict(BARN_PROJECT_OPTIONS["barn_mode"])[barn_mode],
+                        "construction_type": construction_type or "—",
+                        "construction_cost": construction_cost,
+                        "annual_depreciation": annual_depreciation if include_economics else 0,
+                        "water_src": dict(BARN_PROJECT_OPTIONS["water_source"])[water_src],
+                        "power_src": dict(BARN_PROJECT_OPTIONS["power_source"])[power_src],
+                        "cooling": dict(BARN_PROJECT_OPTIONS["cooling_system"])[cooling],
+                        "heating": dict(BARN_PROJECT_OPTIONS["heating_system"])[heating],
+                        "land_own": dict(BARN_PROJECT_OPTIONS["land_ownership"])[land_own],
+                    }
                     booklet = generate_feasibility_booklet(
                         feas_key, feas_count,
                         project_name=project_name,
-                        requester_name=feas_requester)
+                        requester_name=feas_requester,
+                        options_summary=options_summary,
+                    )
                     if booklet:
                         st.download_button(
                             "📥 تحميل كتيّب الجدوى الكامل (PDF)",
@@ -4352,11 +4678,11 @@ with tab_map["📊 دراسة الجدوى"]:
                 st.markdown("""
                 <div class="feas-card" style="background:linear-gradient(135deg,#fff8e1,#ffe082);">
                 <b>📖 الكتيّب يحتوي على:</b><br>
-                ▪️ الغلاف + بيانات المشروع<br>
+                ▪️ الغلاف + خيارات المشروع كاملة<br>
                 ▪️ تصميم الحظيرة + مجسم 3D<br>
-                ▪️ الجدوى الفنية (علف، ماء، تهوية، عمالة)<br>
-                ▪️ الإنتاج المتوقع<br>
-                ▪️ صفحة التوقيع الرسمي + الختم
+                ▪️ التكاليف التقديرية للبناء<br>
+                ▪️ الجدوى الفنية (علف، ماء، تهوية)<br>
+                ▪️ الإنتاج المتوقع + التوقيع
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -4565,114 +4891,526 @@ if is_owner():
         except Exception as e:
             st.error(f"⚠️ {e}")
 
+# ═══════════════════════════════════════════════════════════════════════
+# نهاية الجزء 3 من 4 — يتبع: المراجع + المساعدة + الدليل + التذييل
+# ═══════════════════════════════════════════════════════════════════════
+# ============================================================================
+# الجزء 4 من 4 — المراجع + المساعدة + الدليل + التذييل + الإغلاق
+# ============================================================================
 
 # ═══════════════════════════════════════════════════════════════════════
-# المراجع + المساعدة + الدليل
+# تبويب المراجع العلمية
 # ═══════════════════════════════════════════════════════════════════════
 with tab_map["📚 المراجع"]:
     try:
-        st.markdown('<div class="section-title">📚 المراجع العلمية</div>',
+        st.markdown('<div class="section-title">📚 المراجع العلمية المعتمدة</div>',
                     unsafe_allow_html=True)
         st.markdown("""
-        ### المراجع المعتمدة:
-        - **NRC (2012)** — Nutrient Requirements of Swine
-        - **NRC (2007)** — Nutrient Requirements of Small Ruminants
-        - **NRC (2001)** — Nutrient Requirements of Dairy Cattle
-        - **NRC (2007)** — Nutrient Requirements of Horses
-        - **NRC (1994)** — Nutrient Requirements of Poultry
-        - **INRA (2018)** — Feeding System for Ruminants
+        <div class="feas-card">
+        <b>📖 جميع الحسابات والمعايير في هذه المنصة مبنية على مراجع علمية معتمدة عالمياً</b>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("### 🧬 1. المراجع الغذائية الأساسية")
+        st.markdown("""
+        - **NRC (2012)** — Nutrient Requirements of Swine (11th Revised Edition)
+        - **NRC (2007)** — Nutrient Requirements of Small Ruminants (Sheep, Goats, Cervids)
+        - **NRC (2001)** — Nutrient Requirements of Dairy Cattle (7th Revised Edition)
+        - **NRC (2007)** — Nutrient Requirements of Horses (6th Revised Edition)
+        - **NRC (1994)** — Nutrient Requirements of Poultry (9th Revised Edition)
+        - **NRC (2011)** — Nutrient Requirements of Fish and Shrimp
+        - **INRA (2018)** — Feeding System for Ruminants (INRA Feed Tables)
         - **FAO (2010)** — Camel Nutrition and Feeding
-        - **Ross 308 (2020)** — Broiler Management Handbook
-        - **McDonald et al. (2011)** — Animal Nutrition
+        - **FAO (2012)** — Rural Structures in the Tropics
+        - **McDonald et al. (2011)** — Animal Nutrition (7th Edition)
         - **Van Soest (1994)** — Nutritional Ecology of the Ruminant
-
-        ### 📖 مراجع الزيوت:
-        - NRC 2012 — Chapter: Fat in Animal Nutrition
-        - INRA 2018 — Lipids in Ruminant Diets
-        - Palmquist (2006) — Milk Fat Depression
-        - FAO — Oilseed By-products
-
-        ### 🏗️ مراجع تصميم الحظائر:
-        - MWPS-1 — Structures and Environment Handbook
-        - MWPS-3 — Swine Housing and Equipment Handbook
-        - FAO 2012 — Rural Structures in the Tropics
-        - ASABE Standards — Animal Housing Ventilation
+        - **Church (1991)** — Livestock Feeds and Feeding
         """)
+
+        st.markdown("### 🌰 2. مراجع الزيوت والدهون")
+        st.markdown("""
+        - **NRC 2012** — Chapter: Fat in Animal Nutrition
+        - **INRA 2018** — Lipids in Ruminant Diets
+        - **Palmquist (2006)** — Milk Fat Depression in Dairy Cows
+        - **Jenkins (1993)** — Lipid Metabolism in the Rumen
+        - **FAO** — Oilseed By-products and Their Utilization
+        - **Ross 308 (2020)** — Broiler Nutrition Specifications
+        """)
+
+        st.markdown("### 🏗️ 3. مراجع تصميم الحظائر")
+        st.markdown("""
+        - **MWPS-1** — Structures and Environment Handbook
+        - **MWPS-3** — Swine Housing and Equipment Handbook
+        - **MWPS-32** — Mechanical Ventilating Systems for Livestock Housing
+        - **ASAE/ASABE D271.2** — Psychrometric Data
+        - **ASAE/ASABE EP270.5** — Design of Ventilation Systems
+        - **FAO (2012)** — Rural Structures in the Tropics
+        - **Hellickson & Walker (1983)** — Ventilation of Agricultural Structures
+        """)
+
+        st.markdown("### 🐔 4. مراجع الدواجن المتخصصة")
+        st.markdown("""
+        - **Ross 308 (2020)** — Broiler Management Handbook
+        - **Cobb 500 (2018)** — Broiler Performance Guide
+        - **Hy-Line (2020)** — Commercial Management Guide
+        - **Aviagen (2019)** — Broiler Nutrition Specifications
+        - **Leeson & Summers (2005)** — Commercial Poultry Nutrition
+        - **NRC (1994)** — Nutrient Requirements of Poultry
+        """)
+
+        st.markdown("### 🐄 5. مراجع الأبقار والأغنام والماعز")
+        st.markdown("""
+        - **NRC (2001)** — Dairy Cattle Nutrition
+        - **NRC (2007)** — Small Ruminants
+        - **AFRC (1993)** — Energy and Protein Requirements of Ruminants
+        - **CSIRO (2007)** — Nutrient Requirements of Domesticated Ruminants
+        - **Fox et al. (2004)** — The Cornell Net Carbohydrate and Protein System
+        """)
+
+        st.markdown("### 🧪 6. مراجع الأحماض الأمينية")
+        st.markdown("""
+        - **Lemme (2003)** — Amino Acid Recommendations for Poultry
+        - **Baker (2005)** — Ideal Amino Acid Profile for Swine
+        - **NRC (2012)** — Chapter: Proteins and Amino Acids
+        """)
+
+        st.markdown("### 💊 7. مراجع الفيتامينات والمعادن")
+        st.markdown("""
+        - **NRC (2005)** — Mineral Tolerance of Animals
+        - **McDowell (2003)** — Minerals in Animal and Human Nutrition
+        - **Combs (2008)** — The Vitamins
+        """)
+
+        st.markdown("### 🌾 8. مراجع مكتبة الأعلاف")
+        st.markdown("""
+        - **Feedipedia** (INRA, CIRAD, AFZ, FAO)
+        - **NRC Feed Composition Tables (2012)**
+        - **INRA Feed Tables (2018)**
+        - **CVB Feed Table (Netherlands, 2018)**
+        - **AFZ (Association Française de Zootechnie)**
+        """)
+
+        st.markdown("---")
+        st.markdown("""
+        <div class="price-card">
+        <b>⚠️ تنبيه علمي مهم:</b><br>
+        ▪️ جميع الأرقام تقديرية ومبنية على المتوسطات<br>
+        ▪️ يجب المعايرة وفق ظروف كل مزرعة<br>
+        ▪️ يُنصح بتحليل عينات الأعلاف الفعلية دورياً<br>
+        ▪️ استشر المختص قبل التطبيق التجاري واسع النطاق
+        </div>
+        """, unsafe_allow_html=True)
+
     except Exception as e:
-        st.error(f"⚠️ {e}")
+        st.error(f"⚠️ خطأ في المراجع: {e}")
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# تبويب المساعدة
+# ═══════════════════════════════════════════════════════════════════════
 with tab_map["💡 المساعدة"]:
     try:
-        st.markdown('<div class="section-title">💡 المساعدة</div>',
+        st.markdown('<div class="section-title">💡 المساعدة والدعم الفني</div>',
                     unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class="feas-card">
+        <b>🎯 مرحباً بك في منصة تاور نولجي</b><br>
+        هذه المنصة صُممت لخدمة مربي الحيوانات والمختصين في تغذية الحيوان.<br>
+        ستجد هنا إجابات لأكثر الأسئلة شيوعاً.
+        </div>
+        """, unsafe_allow_html=True)
+
+        with st.expander("❓ كيف أبدأ باستخدام المنصة؟", expanded=True):
+            st.markdown("""
+            ### 🚀 خطوات البداية
+            1. **ادخل بحسابك** (مالك أو زائر)
+            2. **اذهب إلى تبويب "🔬 النمذجة"**
+            3. **اختر الحيوان** من التبويبات الثمانية
+            4. **اختر الحالة الفسيولوجية** (حليب/تسمين/حمل/...)
+            5. **فعّل ✅ الاعتماد** للحيوان
+            6. **اختر أساس الحساب** (DP أو CP)
+            7. **اختر المكونات** من مكتبة الأعلاف
+            8. **اضغط 🚀 تشغيل المحرك الذكي**
+            9. **حمّل التقرير** (PDF أو Excel)
+            """)
+
+        with st.expander("🧬 ما الفرق بين DP و CP؟"):
+            st.markdown("""
+            ### 🧬 البروتين الخام (CP) vs المهضوم (DP)
+
+            **CP (Crude Protein):**
+            - إجمالي النيتروجين × 6.25
+            - يشمل البروتين الحقيقي + غير البروتيني (NPN)
+            - لا يعكس الاستفادة الفعلية
+
+            **DP (Digestible Protein):**
+            - البروتين الذي يُمتص فعلياً
+            - = CP × معامل الهضم (DC)
+            - **الأدق علمياً** للتقييم
+
+            **التوصية:**
+            - ✅ استخدم **DP** للدقة العلمية
+            - ✅ استخدم **CP** للمقارنة السريعة
+            """)
+
+        with st.expander("🌰 كيف أستخدم الزيوت بشكل صحيح؟"):
+            st.markdown("""
+            ### 🌰 إرشادات استخدام الزيوت
+
+            **القواعد الذهبية:**
+            1. **لا تتجاوز الحد الأقصى** المحدد لكل حيوان
+            2. **وزّع الزيوت** على مصادر مختلفة (لا تعتمد على زيت واحد)
+            3. **راقب معامل الهضم** عند زيادة الزيوت
+            4. **استخدم مضادات الأكسدة** (BHT) للزيوت غير المشبعة
+
+            **الحدود الموصى بها:**
+            - دواجن بادي: حتى 8% (المثالي 5%)
+            - دواجن ناهي: حتى 7% (المثالي 4%)
+            - أبقار حليب: حتى 6% (المثالي 4%)
+            - أغنام تسمين: حتى 5% (المثالي 3.5%)
+            """)
+
+        with st.expander("📊 كيف أقرأ جدول المقارنة؟"):
+            st.markdown("""
+            ### 📊 فهم جدول المقارنة
+
+            | التقييم | المعنى | الإجراء |
+            |---------|---------|---------|
+            | 🎯 مطابق تماماً | فرق ≤ 0.5% | ✅ ممتاز — استمر |
+            | 🌟 ممتاز | فرق ≤ 2% | ✅ مقبول |
+            | ✅ جيد جداً | فرق ≤ 5% | ✅ مقبول |
+            | ⚠️ مقبول بتحفظ | فرق 15-25% | 🔧 راجع التركيبة |
+            | ❌ غير مطابق | فرق > 40% | 🚫 لا تستخدم |
+
+            **ملاحظة:** لا يجب أن يكون الفرق صفراً في كل عنصر — الأولوية للـ DP، SE، الألياف.
+            """)
+
+        with st.expander("🏗️ كيف أصمم حظيرة مناسبة؟"):
+            st.markdown("""
+            ### 🏗️ خطوات تصميم الحظيرة
+
+            1. اذهب إلى تبويب **"🏗️ تصميم الحظائر 3D"**
+            2. اختر **نوع الحيوان**
+            3. أدخل **العدد الكلي**
+            4. اختر **نظام الإيواء** (أرضي/بطاريات)
+            5. شاهد **المجسم 3D** التفاعلي
+            6. اضغط **🎬 توليد فيديو GIF** للمشاهدة الدوارة
+            7. حمّل **تقرير PDF** الكامل
+
+            **المعايير المستخدمة:**
+            - MWPS-1 (أمريكا الشمالية)
+            - FAO 2012 (المناطق الحارة)
+            - ASABE (المعايير الهندسية)
+            """)
+
+        with st.expander("📊 كيف أعمل دراسة جدوى؟"):
+            st.markdown("""
+            ### 📊 خطوات دراسة الجدوى
+
+            1. اذهب إلى تبويب **"📊 دراسة الجدوى"**
+            2. **اختر الحظيرة** (جديدة/موجودة/مستأجرة)
+            3. **اختر نوع البناء** (خرساني/حديدي/خشبي/قماشي/مظلل)
+            4. **حدد المصادر** (ماء/كهرباء/تبريد/تدفئة)
+            5. **حدد ملكية الأرض**
+            6. **أدخل بيانات المشروع** (اسم/عدد/طالب)
+            7. **حمّل الكتيّب PDF** (6 صفحات كاملة)
+            """)
+
+        with st.expander("🐔 كيف أدير مزرعة دجاج؟"):
+            st.markdown("""
+            ### 🐔 مؤشرات أداء الدجاج
+
+            **ADG (متوسط الزيادة اليومية):**
+            - كلما ارتفع كان أفضل
+            - لاحم ممتاز: > 60 جم/يوم
+
+            **FCR (معامل التحويل):**
+            - كلما انخفض كان أفضل
+            - ممتاز: < 1.60
+            - مقبول: 1.60-1.75
+            - ضعيف: > 1.80
+
+            **EPEF (مؤشر الكفاءة الأوروبي):**
+            - ممتاز: > 400
+            - جيد: 350-400
+            - مقبول: 300-350
+            - ضعيف: < 300
+
+            **الحيوية:**
+            - ممتاز: > 96%
+            - جيد: 94-96%
+            - مقبول: 92-94%
+            - ضعيف: < 92%
+            """)
+
+        with st.expander("📷 كيف أستخدم المختبر الذكي (OCR)؟"):
+            st.markdown("""
+            ### 📷 المختبر الذكي
+
+            **الغرض:** استخراج المكونات من صورة (فاتورة/بطاقة علف/تحليل مختبر)
+
+            **الخطوات:**
+            1. صور البطاقة بوضوح
+            2. ارفع الصورة إلى المختبر الذكي
+            3. اضغط "تحليل"
+            4. راجع النتائج المستخرجة
+            5. عدّل يدوياً إذا لزم
+
+            **نصائح للدقة:**
+            - ✅ إضاءة جيدة
+            - ✅ صورة واضحة (بدون ظلال)
+            - ✅ كتابة بالعربية أو الإنجليزية
+            - ❌ لا تستخدم صور من الإنترنت
+            """)
+
+        with st.expander("📥 كيف أحمّل التقارير؟"):
+            st.markdown("""
+            ### 📥 تحميل التقارير
+
+            **بعد تركيب علفة:**
+            - 📄 **PDF** — تقرير رسمي مختوم وموقع
+            - 📊 **Excel** — جدول قابل للتحرير
+
+            **بعد تصميم حظيرة:**
+            - 📄 **PDF** — تقرير تصميم كامل
+            - 🎬 **GIF** — فيديو دوّار 360°
+
+            **بعد دراسة جدوى:**
+            - 📄 **PDF** — كتيّب 6 صفحات
+
+            **جميع الملفات تحمل:**
+            - ✅ ختم المنصة الرسمي
+            - ✅ توقيع المختص
+            - ✅ علامة مائية للبصمة الرقمية
+            """)
+
+        st.markdown("---")
+        st.markdown("""
+        <div class="price-card">
+        <h3 style="color:#1b5e20;">📞 التواصل والدعم الفني</h3>
+        <p><b>👨‍🔬 المشرف:</b> {}</p>
+        <p><b>📱 واتساب:</b> {}</p>
+        <p><b>📧 البريد:</b> {}</p>
+        <p><b>🌐 المنصة:</b> {}</p>
+        </div>
+        """.format(SUPERVISOR, WHATSAPP_NUMBER, OWNER_EMAIL, PLATFORM_URL),
+                    unsafe_allow_html=True)
+
+        st.markdown("---")
         st.markdown(f"""
-        ### الأسئلة الشائعة:
-        - **كيف أبدأ؟** اختر الحيوان → الحالة → ✅ اعتماد
-        - **DP أم CP؟** اختر في الأعلى — كلاهما يعمل في المعادلات
-        - **الزيوت؟** راجع "🌰 مكتبة الزيوت"
-        - **مختبر التحليل؟** داخل "🔬 النمذجة" ← مختبر الأعلاف الجاهزة
-        - **تصميم الحظائر؟** متاح للجميع مع مجسم 3D + فيديو GIF
-        - **دراسة الجدوى؟** تبويب كامل مع كتيّب PDF
-        - **مزارع الدجاج؟** متاح للجميع — ADG/FCR/EPEF
-        - **الختم والتوقيع؟** على كل صفحة PDF
+        <div class="dua-main-box" style="padding:20px;">
+        <h3 style="font-size:1.4rem;">🕌 دعاء الختام</h3>
+        <p style="font-size:1rem;">{DUA_FULL}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-        ### 🔧 الدعم الفني
-        📧 {OWNER_EMAIL}
-        📱 {WHATSAPP_NUMBER}
-
-        ### 🕌 دعاء
-        {DUA_FULL}
-        """)
     except Exception as e:
-        st.error(f"⚠️ {e}")
+        st.error(f"⚠️ خطأ في المساعدة: {e}")
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# تبويب الدليل
+# ═══════════════════════════════════════════════════════════════════════
 with tab_map["📖 الدليل"]:
     try:
-        st.markdown('<div class="section-title">📖 دليل المستخدم</div>',
+        st.markdown('<div class="section-title">📖 دليل المستخدم الشامل</div>',
                     unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class="dua-main-box" style="padding:25px;">
+        <h3>🌾 تاور نولجي Tawor Nology 10.4</h3>
+        <p style="font-size:1.1rem;">منصة ذكية شاملة للإنتاج الحيواني وتغذية الحيوان</p>
+        <div class="names" style="font-size:1.2rem;">🤲 {}</div>
+        </div>
+        """.format(DUA_SHORT), unsafe_allow_html=True)
+
+        st.markdown("### 🎯 الغرض من المنصة")
         st.markdown(f"""
-        ### الغرض
-        **{APP_NAME}** — منصة ذكية لتركيب الأعلاف بأقل تكلفة وأعلى جودة.
+        **{APP_NAME}** منصة علمية متكاملة تخدم:
 
-        ### 🎯 الميزات الرئيسية
-        - 🐄 **8 قطاعات**: أبقار، أغنام، ماعز، إبل، خيول، دواجن، سمان، أسماك
-        - 🌰 **18 زيتاً نباتياً وحيوانياً** بمعايير NRC/INRA/FAO
-        - 🧬 **DP/CP يعمل فعلياً** في المعادلات
-        - 🔬 **مختبر تحليل + OCR**
-        - 🏗️ **تصميم حظائر 3D** (للجميع) + **فيديو GIF دوّار**
-        - 📊 **دراسة جدوى فنية** كاملة + **كتيّب PDF 5 صفحات**
-        - 🐔 **إدارة مزارع الدجاج** (للجميع) — ADG، FCR، EPEF
-        - 📄 **PDF احترافي** بختم وتوقيع ورسوم بيانية
-        - 📊 **Excel** قابل للتحرير
+        - 🐄 **مربي الماشية** (أبقار، أغنام، ماعز، إبل، خيول)
+        - 🐔 **مربي الدواجن** (لاحم، بياض، سمان)
+        - 🐟 **مربي الأسماك**
+        - 🎓 **المختصين والطلاب** في تغذية الحيوان
+        - 🏭 **مصانع الأعلاف** الصغيرة والمتوسطة
+        - 💼 **المستثمرين** في القطاع الحيواني
 
-        ### 🏗️ معايير تصميم الحظائر
-        - **MWPS-1** — Midwest Plan Service
-        - **FAO 2012** — Rural Structures in the Tropics
-        - **ASABE Standards** — Animal Housing
-
-        ### 🆕 جديد في 10.3:
-        - ✅ إصلاح `standard_key` في `auto_formulate_smart`
-        - ✅ الختم والتوقيع على كل صفحة PDF
-        - ✅ 4 رسوم بيانية ملونة في UI + PDF
-        - ✅ تبويب دراسة الجدوى + كتيّب 5 صفحات
-        - ✅ معالف خطية + سقايات علمية
-        - ✅ كل تبويب محمي بـ try/except مستقل
-
-        ### 🔐 الدخول
-        - 👑 **المالك**: كود خاص
-        - 👥 **زائر**: مجاني + حظائر 3D + مزارع + مختبرات
-
-        ### 📞 للتواصل
-        📧 {OWNER_EMAIL} | 📱 {WHATSAPP_NUMBER}
-
-        ---
-        ### 🤲 دعاء
-        {DUA_FULL}
+        **الهدف:** توفير أدوات علمية دقيقة لتركيب الأعلاف بأقل تكلفة وأعلى جودة.
         """)
+
+        st.markdown("### 🎁 الميزات الرئيسية")
+        st.markdown("""
+        | الميزة | الوصف | الحالة |
+        |--------|--------|--------|
+        | 🔬 **تركيب الأعلاف** | 8 قطاعات + 90+ مادة علفية | ✅ |
+        | 🌰 **مكتبة الزيوت** | 18 زيتاً نباتياً وحيوانياً | ✅ |
+        | 🧬 **DP / CP** | يعمل فعلياً في المعادلات | ✅ |
+        | 🍼 **بدائل الحليب** | 5 أنواع حيوانات | ✅ |
+        | 📷 **المختبر الذكي** | OCR لفحص البطاقات | ✅ |
+        | 🏗️ **الحظائر 3D** | مجسم تفاعلي + فيديو GIF | ✅ |
+        | 📊 **دراسة الجدوى** | مع خيارات صاحب المشروع | ✅ |
+        | 🐔 **مزارع الدجاج** | ADG، FCR، EPEF | ✅ |
+        | 📄 **PDF احترافي** | ختم + توقيع على كل صفحة | ✅ |
+        | 📊 **Excel** | جداول قابلة للتحرير | ✅ |
+        | 🌍 **الموقع التلقائي** | كشف IP تلقائي | ✅ |
+        | 🔐 **حماية عالية** | HMAC + بصمة + ترخيص | ✅ |
+        """)
+
+        st.markdown("### 🔬 الأقسام التفصيلية")
+
+        with st.expander("🧬 1. النمذجة والحسابات العلفية"):
+            st.markdown("""
+            **الحيوانات المدعومة:**
+            - 🐄 أبقار: حليب عالي/متوسط/منخفض، تسمين مكثف/عادي، حمل، صيانة
+            - 🐏 أغنام: تسمين مكثف/عادي، حملان تيد، مرضعات، حامل، صيانة
+            - 🐐 ماعز: تسمين جديان، تيوس، حلابة عالي/متوسط، حامل، صيانة
+            - 🐪 إبل: نمو، تسمين، حليب، سباق، صيانة
+            - 🐎 خيول: رياضة مكثف/عادي، نمو أمهار، مرضعات، صيانة
+            - 🐔 دواجن: لاحم (بادي/نامي/ناهي)، بياض (بادي/نامي/ناهي/إنتاجي)
+            - 🦆 سمان: تسمين (بادي/نامي/ناهي)، بياض
+            - 🐟 أسماك: بادئ/نمو/تسمين
+
+            **المراجع:**
+            - NRC 2001, 2007, 2012
+            - INRA 2018
+            - FAO 2010
+            - Ross 308 (2020)
+            """)
+
+        with st.expander("🌰 2. مكتبة الزيوت"):
+            st.markdown("""
+            **الفئات:**
+            - زيوت غنية بأوميغا 6: ذرة، عباد شمس، قرطم، صويا
+            - زيوت غنية بأوميغا 3: كتان، كانولا، سمك
+            - زيوت متوازنة: نخيل، جوز هند، زيتون، سمسم
+            - دهون حيوانية: شحم، سمن، دهن دجاج
+
+            **البيانات المتوفرة:**
+            - معادل النشاء (SE)
+            - الطاقة (kcal/kg)
+            - الحد الأقصى لكل حيوان
+            - السعر السوقي
+            - المرجع العلمي
+            """)
+
+        with st.expander("🏗️ 3. تصميم الحظائر 3D"):
+            st.markdown("""
+            **المعايير العلمية:**
+            - MWPS-1 (Structures Handbook)
+            - FAO 2012 (Rural Structures in Tropics)
+            - ASABE (Engineering Standards)
+
+            **المخرجات:**
+            - المساحة الكلية
+            - الأبعاد (الطول × العرض)
+            - ارتفاع القمة
+            - الحجم الداخلي
+            - عدد المعالف والسقايات
+            - التهوية الصيفية والشتوية
+            - المجسم 3D التفاعلي
+            - فيديو GIF دوّار
+            - تقرير PDF كامل
+            """)
+
+        with st.expander("📊 4. دراسة الجدوى"):
+            st.markdown("""
+            **الخيارات المتاحة لصاحب المشروع:**
+            - إنشاء حظيرة جديدة / موجودة / مستأجرة
+            - 5 أنواع بناء: خرساني/حديدي/خشبي/قماشي/مظلل
+            - مصادر المياه: بئر/شبكة/خزان/نهر
+            - الكهرباء: شبكة/شمسية/مولدة/هجين
+            - التبريد: طبيعي/مراوح/ضبابي/تكييف
+            - التدفئة: بدون/غاز/كهربائي/هيترات
+            - ملكية الأرض: ملك/مستأجرة/عائلية/إيجار طويل
+
+            **محتوى الكتيّب PDF (6 صفحات):**
+            1. الغلاف + البيانات
+            2. خيارات صاحب المشروع
+            3. تصميم الحظيرة + 3D
+            4. الجدوى الفنية (علف/ماء/تهوية)
+            5. الإنتاج المتوقع
+            6. التوقيع والاعتماد
+            """)
+
+        with st.expander("🐔 5. مزارع الدجاج"):
+            st.markdown("""
+            **المؤشرات المحسوبة:**
+            - **ADG** — متوسط الزيادة اليومية (جم/يوم)
+            - **FCR** — معامل التحويل الغذائي
+            - **EPEF** — مؤشر الكفاءة الأوروبي
+            - **الحيوية** — نسبة الطيور الحية
+
+            **الاستخدام:**
+            1. أضف مزرعة جديدة
+            2. سجّل بياناتك اليومية
+            3. احصل على المؤشرات فورياً
+            4. قارن مع المعايير العالمية
+            """)
+
+        st.markdown("### 🆕 الجديد في الإصدار 10.4")
+        st.markdown("""
+        - ✅ **الكشف التلقائي للموقع الجغرافي** عبر IP (3 خدمات احتياطية)
+        - ✅ **خيارات دراسة الجدوى الكاملة** لصاحب المشروع
+        - ✅ **طبقة حماية عالية** (HMAC + بصمة + كشف تصحيح + ترخيص)
+        - ✅ **5 أنواع بناء حظائر** بتكاليف تقديرية
+        - ✅ **صفحة خيارات صاحب المشروع** في كتيّب الجدوى
+        - ✅ **علامة مائية في PDF** (بصمة الجهاز)
+        - ✅ **حماية من Bruteforce** (5 محاولات/5 دقائق)
+        - ✅ **كشف الأدوات الخبيثة** (frida, xposed, cheatengine)
+        - ✅ **تاريخ انتهاء الترخيص** (2028-12-31)
+        - ✅ **تقسيم الكود** إلى 4 أجزاء منظمة
+        """)
+
+        st.markdown("### 🔐 الأمان والحماية")
+        st.markdown("""
+        **الطبقات المطبقة:**
+        1. **تعمية الثوابت** — OWNER_CODE مشفر Base64
+        2. **توقيع HMAC** — للتحقق من سلامة الجلسة
+        3. **بصمة الجهاز** — User-Agent + Host + Node
+        4. **كشف التصحيح** — يكتشف pdb و pydevd
+        5. **كشف الأدوات** — يكتشف frida و xposed
+        6. **تاريخ انتهاء** — الترخيص صالح حتى 2028
+        7. **علامة مائية** — بصمة في كل PDF
+        8. **مقاومة Bruteforce** — حد 10 محاولات/5 دقائق
+        """)
+
+        st.markdown("### 📊 الإحصائيات")
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("سطور الكود", "~4200")
+        col2.metric("مكتبات الأعلاف", "90+")
+        col3.metric("الحيوانات", "8")
+        col4.metric("المعايير العلمية", "12+")
+
+        st.markdown("### 🎓 كيف تستفيد من المنصة")
+        st.markdown("""
+        **للمربي:**
+        - ركّب علفة بأقل تكلفة
+        - صمّم حظيرتك علمياً
+        - اعمل دراسة جدوى سريعة
+
+        **للمختص:**
+        - قارن الخلطات
+        - استخدم DP/CP للدقة
+        - احصل على تقارير احترافية
+
+        **للطالب:**
+        - تعلّم معايير NRC
+        - افهم أحسب DP و CP
+        - شاهد تصميم حظائر 3D
+        """)
+
+        st.markdown("---")
+        st.markdown(f"""
+        <div class="dua-main-box" style="padding:20px;">
+        <h3 style="font-size:1.3rem;">🕌 دعاء الختام</h3>
+        <p>{DUA_FULL}</p>
+        <p style="margin-top:15px; font-size:0.95rem;">🤲 {DUA_SHORT} 🤲</p>
+        </div>
+        """, unsafe_allow_html=True)
+
     except Exception as e:
-        st.error(f"⚠️ {e}")
+        st.error(f"⚠️ خطأ في الدليل: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -4688,6 +5426,11 @@ st.markdown(
 )
 st.markdown('</div>', unsafe_allow_html=True)
 
+
 # ═══════════════════════════════════════════════════════════════════════
-# نهاية الملف — Tawor Nology 10.3 (كامل)
+# نهاية الملف — Tawor Nology 10.4
+# ═══════════════════════════════════════════════════════════════════════
+# 🔐 بصمة الملف: تم توليده بواسطة المالك — جميع الحقوق محفوظة
+# 📞 للدعم: abukram128@gmail.com | +249123533489
+# 🕌 {DUA_FULL}
 # ═══════════════════════════════════════════════════════════════════════
