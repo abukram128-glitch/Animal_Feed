@@ -45,10 +45,3 @@ openpyxl
 gtts
 pytesseract
 opencv-python-headless
-pip install streamlit numpy pandas plotly matplotlib pillow
-pip install pytesseract opencv-python reportlab openpyxl
-pip install arabic-reshaper python-bidi qrcode scipy
-
-# لينكس/ماك فقط (Tesseract OCR):
-sudo apt install tesseract-ocr tesseract-ocr-ara  # Linux
-brew install tesseract tesseract-lang              # Mac
