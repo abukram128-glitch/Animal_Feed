@@ -5000,10 +5000,10 @@ with tab_map["🐔 المزارع"]:
                 st.session_state["broiler_farms"][nf] = {
                     "data": {"age": 1, "birds": 1000, "weight_kg": 0.045,
                              "feed_kg": 0.0, "dead": 0,
-                             "temp": 33.0, "hum": 65.0}}
-st.success(f"✅ {nf}")
-st.rerun()
-        if st.session_state["broiler_farms"]:
+                   "temp": 33.0, "hum": 65.0}}
+                 st.success(f"✅ {nf}")
+                 st.rerun()
+ if st.session_state["broiler_farms"]:
             sel = st.selectbox("اختر:",
                 [""] + list(st.session_state["broiler_farms"].keys()))
             if sel:
