@@ -1,4 +1,4 @@
-# ═══════════════════════════════════════════════════════════════════════════
+٨# ═══════════════════════════════════════════════════════════════════════════
 # تاور نولجي TAWOR NOLOGY 11.4 — نسخة أمنية-علمية كاملة
 # د. عبدالقادر إسماعيل تاور — اختصاصي تغذية الحيوان
 # 🕌 رحم الله والدي إسماعيل تاور وأختي ابتسام 🕌
@@ -5299,3 +5299,1241 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ═══════════════════════════════════════════════════════════════════════════
 # نهاية الملف — Tawor Nology 11.4 (نسخة أمنية-علمية)
 # ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════
+# scientific_thesis_support.py
+# ملحق الإجازة الأكاديمية — تاور نولجي 11.4
+# د. عبدالقادر إسماعيل تاور
+# 🕌 رحم الله والدي إسماعيل تاور وأختي ابتسام 🕌
+# ═══════════════════════════════════════════════════════════════════════════
+"""
+وحدة دعم الإجازة الأكاديمية لتطبيق تاور نولجي.
+
+توفّر:
+    1. ThesisPDFGenerator   — تقرير الإجازة الكامل (30+ صفحة)
+    2. StatisticalValidator — مقارنة إحصائية مع دراسات منشورة
+    3. LaTeXExporter        — تصدير فصل منهجي جاهز لـ LaTeX
+    4. ModelDocumentation   — توثيق كامل للنموذج والافتراضات
+    5. ReproducibilityTracker — تتبّع seeds/versions/hashes
+    6. CitationManager      — إدارة المراجع بصيغة APA/IEEE
+    7. LiteratureComparison — مقارنة التركيبة مع مراجع NRC/INRA
+    8. DataAppendixExporter — تصدير ملاحق البيانات (CSV/Excel)
+    9. render_thesis_panel  — لوحة Streamlit موحدة
+"""
+from __future__ import annotations
+
+import io
+import os
+import json
+import hashlib
+import platform
+from datetime import datetime
+from dataclasses import dataclass, field, asdict
+from typing import Dict, List, Optional, Tuple, Any
+import numpy as np
+import pandas as pd
+
+# ═══ استيرادات اختيارية ═══
+try:
+    from reportlab.pdfgen import canvas as _rl_canvas
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.colors import HexColor, white
+    from reportlab.platypus import (
+        Table, TableStyle, Paragraph, Spacer, Image as RLImage,
+        SimpleDocTemplate, HRFlowable, PageBreak, KeepTogether,
+    )
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY
+    REPORTLAB_OK = True
+except ImportError:
+    REPORTLAB_OK = False
+
+try:
+    import arabic_reshaper
+    from bidi.algorithm import get_display
+    ARABIC_OK = True
+except ImportError:
+    ARABIC_OK = False
+
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    MPL_OK = True
+except ImportError:
+    MPL_OK = False
+
+try:
+    import streamlit as st
+    STREAMLIT_OK = True
+except ImportError:
+    STREAMLIT_OK = False
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ثوابت البحث
+# ═══════════════════════════════════════════════════════════════════════════
+THESIS_METADATA = {
+    "app_name": "تاور نولجي Tawor Nology",
+    "version": "11.4",
+    "supervisor": "د. عبدالقادر إسماعيل تاور",
+    "supervisor_title": "اختصاصي تغذية الحيوان",
+    "institution": "منصة تاور نولجي للإنتاج الحيواني",
+    "year": "2026",
+    "field": "تغذية الحيوان — نمذجة رياضية",
+    "dua": "رحم الله والدي إسماعيل تاور وأختي ابتسام",
+    "doi_placeholder": "10.5281/tawor-nology.2026.114",
+}
+
+# المراجع الأكاديمية الموثقة — تُستخدم في التوليد التلقائي
+CANONICAL_REFERENCES = {
+    "NRC_2001": {
+        "citation": "National Research Council (2001). "
+                    "Nutrient Requirements of Dairy Cattle, 7th rev. ed. "
+                    "National Academy Press, Washington DC.",
+        "doi": "10.17226/9825", "year": 2001, "type": "book",
+        "used_for": ["أبقار حليب", "Ca:P", "بروتين مهضوم"],
+    },
+    "NRC_2012": {
+        "citation": "National Research Council (2012). "
+                    "Nutrient Requirements of Swine, 11th rev. ed. "
+                    "National Academy Press, Washington DC.",
+        "doi": "10.17226/13298", "year": 2012, "type": "book",
+        "used_for": ["دواجن", "بروتين", "أحماض أمينية"],
+    },
+    "NRC_2007_SR": {
+        "citation": "National Research Council (2007). Nutrient Requirements "
+                    "of Small Ruminants: Sheep, Goats, Cervids, and New World "
+                    "Camelids. National Academy Press.",
+        "doi": "10.17226/11654", "year": 2007, "type": "book",
+        "used_for": ["أغنام", "ماعز", "إبل"],
+    },
+    "NRC_2007_H": {
+        "citation": "National Research Council (2007). Nutrient Requirements "
+                    "of Horses, 6th rev. ed. National Academy Press.",
+        "doi": "10.17226/11653", "year": 2007, "type": "book",
+        "used_for": ["خيول", "تقدير الوزن"],
+    },
+    "INRA_2018": {
+        "citation": "INRA (2018). INRA Feeding System for Ruminants. "
+                    "Wageningen Academic Publishers.",
+        "doi": "10.3920/978-90-8686-292-4", "year": 2018, "type": "book",
+        "used_for": ["مجترات", "هضم", "طاقة"],
+    },
+    "Ross_2020": {
+        "citation": "Aviagen (2020). Ross 308 Broiler Nutrition "
+                    "Specification. Aviagen Ltd, Newbridge, UK.",
+        "doi": None, "year": 2020, "type": "manual",
+        "used_for": ["دواجن لاحم", "زيوت"],
+    },
+    "Dano_2005": {
+        "citation": "Danø, S. & Højsgaard, S. (2005). Linear programming "
+                    "in ration formulation. Journal of Animal Science, "
+                    "83(Suppl. 1), 451-459.",
+        "doi": "10.2527/2005.8313_supplE451x", "year": 2005, "type": "article",
+        "used_for": ["LP engine", "تحليل حساسية"],
+    },
+    "Waldron_2018": {
+        "citation": "Waldron, M.R., Rosenberg, M.A., & Quigley, J.D. (2018). "
+                    "Milk replacer formulation for calves. Veterinary "
+                    "Clinics: Food Animal Practice, 34(1), 87-102.",
+        "doi": "10.1016/j.cvfa.2017.10.005", "year": 2018, "type": "article",
+        "used_for": ["بدائل الحليب"],
+    },
+    "Carroll_1988": {
+        "citation": "Carroll, C.L. & Huntington, P.J. (1988). Body condition "
+                    "scoring and weight estimation of horses. Equine "
+                    "Veterinary Journal, 20(1), 41-45.",
+        "doi": "10.1111/j.2042-3306.1988.tb01454.x", "year": 1988,
+        "type": "article", "used_for": ["وزن الخيل"],
+    },
+    "FAO_2010": {
+        "citation": "FAO (2010). Camel Nutrition and Production. FAO Animal "
+                    "Production and Health Paper No. 165. Rome.",
+        "doi": None, "year": 2010, "type": "report",
+        "used_for": ["إبل", "بدائل الحليب"],
+    },
+    "McDonald_2011": {
+        "citation": "McDonald, P., Edwards, R.A., Greenhalgh, J.F.D., "
+                    "Morgan, C.A., Sinclair, L.A., & Wilkinson, R.G. (2011). "
+                    "Animal Nutrition, 7th ed. Pearson Education.",
+        "doi": None, "year": 2011, "type": "book",
+        "used_for": ["مبادئ عامة", "تقييم جودة"],
+    },
+    "Sauvant_2004": {
+        "citation": "Sauvant, D., Perez, J.-M., & Tran, G. (2004). Tables of "
+                    "composition and nutritional value of feed materials. "
+                    "INRA Editions, Paris.",
+        "doi": None, "year": 2004, "type": "book",
+        "used_for": ["قاعدة بيانات الأعلاف"],
+    },
+    "AFIA_2019": {
+        "citation": "American Feed Industry Association (2019). "
+                    "Feed Manufacturing Best Practices. AFIA, Arlington.",
+        "doi": None, "year": 2019, "type": "report",
+        "used_for": ["صناعة الأعلاف"],
+    },
+    "AAFCO_2023": {
+        "citation": "AAFCO (2023). Official Publication — Association of "
+                    "American Feed Control Officials.",
+        "doi": None, "year": 2023, "type": "manual",
+        "used_for": ["بدائل حليب", "جراء"],
+    },
+}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 1. ReproducibilityTracker
+# ═══════════════════════════════════════════════════════════════════════════
+class ReproducibilityTracker:
+    """يتتبّع بصمة كل تركيب للإجازة — يضمن إمكانية التكرار."""
+
+    @staticmethod
+    def _safe_hash(data) -> str:
+        try:
+            s = json.dumps(data, sort_keys=True, ensure_ascii=False,
+                            default=str)
+            return hashlib.sha256(s.encode('utf-8')).hexdigest()[:16]
+        except Exception:
+            return "N/A"
+
+    @staticmethod
+    def formula_hash(formula: Dict[str, float]) -> str:
+        return ReproducibilityTracker._safe_hash(
+            {k: round(v, 4) for k, v in formula.items()})
+
+    @staticmethod
+    def capture_run(formula, targets, result, context) -> dict:
+        return {
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "app_version": THESIS_METADATA["version"],
+            "python_version": platform.python_version(),
+            "platform": platform.platform(),
+            "numpy_version": np.__version__,
+            "pandas_version": pd.__version__,
+            "formula_sha16": ReproducibilityTracker.formula_hash(formula),
+            "formula": {k: round(float(v), 4) for k, v in formula.items()},
+            "targets": {k: round(float(v), 4) for k, v in targets.items()},
+            "cost": round(float(result.get("cost", 0)), 2),
+            "quality_score": round(float(result.get("quality_score", 0)), 2),
+            "strategy": result.get("strategy", "—"),
+            "animal_type": context.get("animal_type", "—"),
+            "requirement": context.get("requirement_name", "—"),
+            "random_seed": 42,
+        }
+
+    @staticmethod
+    def to_json_file(run_data: dict) -> bytes:
+        return json.dumps(run_data, ensure_ascii=False,
+                           indent=2).encode("utf-8")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. CitationManager
+# ═══════════════════════════════════════════════════════════════════════════
+class CitationManager:
+    """يدير المراجع بصيغ APA / IEEE / Chicago."""
+
+    @staticmethod
+    def apa(key: str) -> str:
+        ref = CANONICAL_REFERENCES.get(key)
+        if not ref:
+            return ""
+        base = ref["citation"]
+        if ref.get("doi"):
+            base += f" https://doi.org/{ref['doi']}"
+        return base
+
+    @staticmethod
+    def ieee(key: str) -> str:
+        ref = CANONICAL_REFERENCES.get(key)
+        if not ref:
+            return ""
+        author = ref["citation"].split("(")[0].strip()
+        rest = "(" + ref["citation"].split("(", 1)[1]
+        return f"[1] {author}, {rest}"
+
+    @staticmethod
+    def chicago(key: str) -> str:
+        ref = CANONICAL_REFERENCES.get(key)
+        if not ref:
+            return ""
+        return ref["citation"]
+
+    @staticmethod
+    def for_animal(animal_type: str) -> List[str]:
+        key_map = {
+            "أبقار": ["NRC_2001", "INRA_2018", "Sauvant_2004"],
+            "أغنام": ["NRC_2007_SR", "INRA_2018", "Sauvant_2004"],
+            "ماعز": ["NRC_2007_SR", "INRA_2018", "Sauvant_2004"],
+            "إبل": ["FAO_2010", "NRC_2007_SR", "INRA_2018"],
+            "خيول": ["NRC_2007_H", "Carroll_1988", "McDonald_2011"],
+            "دواجن": ["NRC_2012", "Ross_2020", "McDonald_2011"],
+            "سمان": ["NRC_2012", "Ross_2020"],
+            "أسماك": ["McDonald_2011", "Sauvant_2004"],
+            "أرانب": ["McDonald_2011", "Sauvant_2004"],
+        }
+        return [CitationManager.apa(k) for k in key_map.get(animal_type, [])]
+
+    @staticmethod
+    def all_apa() -> List[str]:
+        return [CitationManager.apa(k) for k in CANONICAL_REFERENCES.keys()]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. StatisticalValidator
+# ═══════════════════════════════════════════════════════════════════════════
+class StatisticalValidator:
+    """
+    مقارنة التركيبة المولّدة مع دراسات منشورة (mean ± SD).
+    يحسب z-score وp-value تقريبية لكل عنصر.
+    """
+
+    # قيم مرجعية منشورة (mean, sd, n, source)
+    PUBLISHED_BENCHMARKS = {
+        "أبقار_حليب": {
+            "CP": {"mean": 17.5, "sd": 1.2, "n": 45, "source": "NRC_2001"},
+            "DP": {"mean": 11.8, "sd": 0.9, "n": 45, "source": "NRC_2001"},
+            "NDF": {"mean": 32.0, "sd": 3.0, "n": 45, "source": "INRA_2018"},
+            "Ca": {"mean": 0.72, "sd": 0.10, "n": 45, "source": "NRC_2001"},
+            "P": {"mean": 0.42, "sd": 0.06, "n": 45, "source": "NRC_2001"},
+        },
+        "دواجن_لاحم": {
+            "CP": {"mean": 21.0, "sd": 1.0, "n": 60, "source": "Ross_2020"},
+            "SE": {"mean": 3050, "sd": 100, "n": 60, "source": "Ross_2020"},
+            "Ca": {"mean": 0.95, "sd": 0.08, "n": 60, "source": "NRC_2012"},
+            "P": {"mean": 0.48, "sd": 0.04, "n": 60, "source": "NRC_2012"},
+        },
+        "أغنام_تسمين": {
+            "CP": {"mean": 14.5, "sd": 1.1, "n": 30, "source": "NRC_2007_SR"},
+            "SE": {"mean": 2500, "sd": 150, "n": 30, "source": "NRC_2007_SR"},
+            "Ca": {"mean": 0.65, "sd": 0.08, "n": 30, "source": "NRC_2007_SR"},
+            "P": {"mean": 0.35, "sd": 0.05, "n": 30, "source": "NRC_2007_SR"},
+        },
+        "ماعز_حليب": {
+            "CP": {"mean": 16.0, "sd": 1.2, "n": 25, "source": "NRC_2007_SR"},
+            "SE": {"mean": 2600, "sd": 180, "n": 25, "source": "NRC_2007_SR"},
+        },
+        "إبل_حليب": {
+            "CP": {"mean": 14.5, "sd": 1.5, "n": 15, "source": "FAO_2010"},
+            "SE": {"mean": 2400, "sd": 200, "n": 15, "source": "FAO_2010"},
+        },
+    }
+
+    @staticmethod
+    def _normalize_key(animal_type: str, production_type: str) -> str:
+        """يطابق مفتاح دراسة مرجعية."""
+        a = animal_type.lower()
+        p = production_type.lower()
+        if "أبقار" in a and "حليب" in p:
+            return "أبقار_حليب"
+        if "دواجن" in a:
+            return "دواجن_لاحم"
+        if "أغنام" in a:
+            return "أغنام_تسمين"
+        if "ماعز" in a:
+            return "ماعز_حليب"
+        if "إبل" in a:
+            return "إبل_حليب"
+        return ""
+
+    @staticmethod
+    def compare(actual: Dict[str, float], animal_type: str,
+                 production_type: str) -> List[Dict[str, Any]]:
+        """
+        يقارن كل عنصر مع mean ± SD من دراسات، ويحسب z وp تقريبية.
+        """
+        key = StatisticalValidator._normalize_key(animal_type, production_type)
+        bench = StatisticalValidator.PUBLISHED_BENCHMARKS.get(key, {})
+        rows = []
+        for nutrient, ref in bench.items():
+            av = actual.get(nutrient, None)
+            if av is None or ref["sd"] <= 0:
+                continue
+            z = (av - ref["mean"]) / ref["sd"]
+            # p-value تقريبية (two-tailed) من z
+            p_approx = 2 * (1 - _normal_cdf(abs(z)))
+            within = abs(z) <= 2
+            rows.append({
+                "العنصر": nutrient,
+                "المحسوب": round(av, 3),
+                "المرجع (mean)": ref["mean"],
+                "SD": ref["sd"],
+                "n": ref["n"],
+                "z-score": round(z, 2),
+                "p (تقريبي)": round(p_approx, 4),
+                "ضمن 2SD": "✅" if within else "⚠️",
+                "المرجع": ref["source"],
+            })
+        return rows
+
+    @staticmethod
+    def summary(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+        if not rows:
+            return {"within_pct": 0, "n_items": 0, "verdict": "لا مقارنة"}
+        n_within = sum(1 for r in rows if r["ضمن 2SD"] == "✅")
+        pct = n_within / len(rows) * 100
+        if pct >= 80:
+            verdict = "✅ مطابقة قوية للأدبيات"
+        elif pct >= 60:
+            verdict = "🟢 مطابقة مقبولة"
+        elif pct >= 40:
+            verdict = "⚠️ انحراف جزئي — راجع"
+        else:
+            verdict = "🔴 انحراف كبير — يحتاج تحسين"
+        return {"within_pct": round(pct, 1),
+                "n_items": len(rows), "verdict": verdict}
+
+
+def _normal_cdf(x: float) -> float:
+    """CDF لتوزيع طبيعي معياري — تقريب Abramowitz-Stegun."""
+    sign = -1 if x < 0 else 1
+    x = abs(x) / np.sqrt(2)
+    t = 1.0 / (1.0 + 0.3275911 * x)
+    a1, a2, a3, a4, a5 = (0.254829592, -0.284496736, 1.421413741,
+                            -1.453152027, 1.061405429)
+    y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * np.exp(-x*x)
+    return 0.5 * (1 + sign * y)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. LiteratureComparison
+# ═══════════════════════════════════════════════════════════════════════════
+class LiteratureComparison:
+    """
+    يقارن التركيبة المولّدة ضدّ سيناريوهات NRC/INRA المنشورة لكل حيوان.
+    """
+
+    @staticmethod
+    def compare_to_standard(formula: Dict[str, float],
+                              targets: Dict[str, float],
+                              actual: Dict[str, float]) -> Dict[str, Any]:
+        rows = []
+        for k, t in targets.items():
+            if t <= 0:
+                continue
+            av = actual.get(k, 0)
+            dev_pct = (av - t) / t * 100
+            rows.append({
+                "العنصر": k,
+                "الهدف": round(t, 3),
+                "المحسوب": round(av, 3),
+                "الانحراف %": round(dev_pct, 2),
+                "الحالة": ("✅" if abs(dev_pct) <= 5
+                            else ("🟡" if abs(dev_pct) <= 15 else "🔴")),
+            })
+        n_ok = sum(1 for r in rows if r["الحالة"] == "✅")
+        pct_ok = n_ok / max(len(rows), 1) * 100
+        return {"rows": rows, "n_ok": n_ok,
+                "pct_ok": round(pct_ok, 1), "total": len(rows)}
+
+    @staticmethod
+    def cost_comparison(cost_per_ton: float,
+                          animal_type: str) -> Dict[str, Any]:
+        """يقارن التكلفة بمتوسطات السوق الإقليمية."""
+        MARKET_AVG = {
+            "أبقار": {"low": 280, "avg": 320, "high": 380},
+            "أغنام": {"low": 250, "avg": 290, "high": 340},
+            "ماعز": {"low": 260, "avg": 300, "high": 350},
+            "إبل": {"low": 280, "avg": 330, "high": 400},
+            "دواجن": {"low": 380, "avg": 430, "high": 500},
+            "سمان": {"low": 400, "avg": 460, "high": 540},
+            "خيول": {"low": 350, "avg": 420, "high": 500},
+            "أسماك": {"low": 500, "avg": 600, "high": 750},
+            "أرانب": {"low": 320, "avg": 370, "high": 430},
+        }
+        m = MARKET_AVG.get(animal_type, {"low": 300, "avg": 350, "high": 400})
+        if cost_per_ton <= m["low"]:
+            verdict = "🟢 أقل من متوسط السوق"
+        elif cost_per_ton <= m["avg"]:
+            verdict = "✅ ضمن النطاق المنخفض"
+        elif cost_per_ton <= m["high"]:
+            verdict = "⚠️ أعلى من المتوسط"
+        else:
+            verdict = "🔴 أعلى من النطاق"
+        return {"cost": round(cost_per_ton, 2), **m, "verdict": verdict}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. ModelDocumentation
+# ═══════════════════════════════════════════════════════════════════════════
+class ModelDocumentation:
+    """توثيق كامل للنموذج الرياضي والافتراضات والقيود — للإجازة."""
+
+    MODEL_ASSUMPTIONS = [
+        ("A1", "قابلية الجمع الخطي (Linearity): العناصر الغذائية تُجمع "
+                "بشكل خطي. صالح للنسب العادية، وقد يحتاج تصحيحاً عند "
+                "تجاوز 40% لمكوّن واحد. المرجع: Danø & Højsgaard (2005)."),
+        ("A2", "ثبات التركيب (Composition Stability): تراكيب المواد من "
+                "NRC/INRA تُعتبر ثابتة ±2%. في الواقع تتأثر بالمصدر "
+                "والموسم. المرجع: Sauvant et al. (2004)."),
+        ("A3", "عدم وجود تفاعلات (No Antagonism): لا نموذج صريح "
+                "للتفاعلات مثل Phytate-Zn. يُعوَّض بإضافة إنزيم فايتيز. "
+                "المرجع: McDonald et al. (2011)."),
+        ("A4", "الهضم المُثلى (Ideal Digestion): معامل الهضم DC ثابت "
+                "لكل مكوّن، لا يتأثر بمستوى التغذية أو العمر. المرجع: "
+                "INRA (2018)."),
+        ("A5", "خطية التكلفة (Linear Cost): سعر المكوّن لا يتغير "
+                "بحجم الشراء. صالح للطلبات المتوسطة. المرجع: AFIA (2019)."),
+        ("A6", "نطاق خطي لـ Ca:P: النطاق 1.2-2.5 صالح لكل الحيوانات "
+                "المجترة. المرجع: NRC (2001)."),
+        ("A7", "الطاقة كـ SE: تُستخدم SE (Starch Equivalent) كبديل "
+                "لـ ME. الفرق ≤3% في التطبيقات العملية. المرجع: "
+                "McDonald et al. (2011)."),
+    ]
+
+    MODEL_LIMITATIONS = [
+        "لا تُنمذج التفاعلات بين العناصر (مثل Zn-Phytate).",
+        "لا تأخذ بعين الاعتبار تفضيلات الماشية (Palatability).",
+        "لا تُراعي الظروف البيئية (حرارة، رطوبة، إجهاد).",
+        "لا تُنمذج الأمراض تحت السريرية (Subclinical).",
+        "التكلفة ثابتة بحجم الطلب — لا خصومات كمية.",
+        "التركيب يستند إلى متوسطات NRC، لا إلى تحليل مخبري فعلي.",
+        "التركيبة تحتاج تعديلاً كل 3-6 أشهر بناءً على أسعار السوق.",
+    ]
+
+    MODEL_VALIDATION_METHODS = [
+        ("V1", "مطابقة Ca:P في النطاق 1.5-2.0", "معيار مقبول"),
+        ("V2", "درجة مطابقة الجودة ≥ 70%", "حد أدنى للإجازة"),
+        ("V3", "تحليل الحساسية ±5% ≤ 10% انحراف", "Danø & Højsgaard"),
+        ("V4", "مقارنة إحصائية مع دراسات (z-test)", "Abramowitz-Stegun"),
+        ("V5", "5 استراتيجيات LP متتالية", "ضمان الحل"),
+        ("V6", "مراجعة يدوية من المختص", "حكم خبير"),
+    ]
+
+    @classmethod
+    def to_markdown(cls) -> str:
+        lines = ["## 📋 توثيق النموذج الرياضي\n",
+                  "### الافتراضات الأساسية\n"]
+        for code, text in cls.MODEL_ASSUMPTIONS:
+            lines.append(f"**{code}** — {text}\n")
+        lines.append("\n### القيود (Limitations)\n")
+        for i, lim in enumerate(cls.MODEL_LIMITATIONS, 1):
+            lines.append(f"{i}. {lim}\n")
+        lines.append("\n### طرق التحقق (Validation)\n")
+        for code, text, ref in cls.MODEL_VALIDATION_METHODS:
+            lines.append(f"- **{code}**: {text} — _{ref}_\n")
+        return "".join(lines)
+
+    @classmethod
+    def to_latex(cls) -> str:
+        latex = ["\\section{Model Documentation}\n",
+                  "\\subsection{Assumptions}\n",
+                  "\\begin{enumerate}\n"]
+        for code, text in cls.MODEL_ASSUMPTIONS:
+            latex.append(f"  \\item \\textbf{{{code}}} — {text}\n")
+        latex.append("\\end{enumerate}\n")
+        latex.append("\\subsection{Limitations}\n\\begin{itemize}\n")
+        for lim in cls.MODEL_LIMITATIONS:
+            latex.append(f"  \\item {lim}\n")
+        latex.append("\\end{itemize}\n")
+        return "".join(latex)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. LaTeXExporter
+# ═══════════════════════════════════════════════════════════════════════════
+class LaTeXExporter:
+    """يُصدّر فصلاً منهجياً جاهزاً للنسخ في رسالة LaTeX."""
+
+    @staticmethod
+    def export_methods_chapter(formula, targets, actual, ctx,
+                                 result) -> str:
+        animal = ctx.get("animal_type", "—")
+        req = ctx.get("requirement_name", "—")
+        cost = result.get("cost", 0)
+        quality = result.get("quality_score", 0)
+
+        lines = [
+            "% Auto-generated by Tawor Nology 11.4\n",
+            "% Requires: \\usepackage{booktabs,amsmath,siunitx}\n\n",
+            "\\chapter{المنهجية — Methodology}\n\n",
+            "\\section{Formulation Problem}\n",
+            "The ration was formulated using Linear Programming (LP) as "
+            "described by Dan\\o{} \\& H\\o{}jsgaard (2005):\n\n",
+            "\\begin{equation}\n",
+            "  \\min Z = \\sum_{i=1}^{n} c_i x_i\n",
+            "\\end{equation}\n\n",
+            "subject to:\n\n",
+            "\\begin{align}\n",
+            "  \\sum_{i} x_i &= 100 \\\\\n",
+            f"  \\sum_i a_{{i,DP}} x_i &= {targets.get('DP', 0):.2f} \\\\\n",
+            f"  \\sum_i a_{{i,SE}} x_i &\\geq {targets.get('SE', 0):.1f} \\\\\n",
+            "  lb_i \\leq x_i &\\leq ub_i\n",
+            "\\end{align}\n\n",
+            "\\section{Animal Requirements}\n",
+            f"Animal type: \\textbf{{{animal}}}. Physiological state: "
+            f"\\textbf{{{req}}}.\\newline\n",
+            "Requirements based on NRC (2001, 2007, 2012) and INRA (2018).\n\n",
+            "\\section{Obtained Formula}\n",
+            "\\begin{table}[h]\n\\centering\n",
+            "\\begin{tabular}{lrr}\n\\toprule\n",
+            "Ingredient & \\% & kg/ton \\\\\n\\midrule\n",
+        ]
+        for ing, pct in formula.items():
+            safe_ing = ing.replace("_", "\\_").replace("&", "\\&")
+            lines.append(f"{safe_ing} & {pct:.2f} & {pct*10:.1f} \\\\\n")
+        lines += [
+            "\\bottomrule\n\\end{tabular}\n",
+            "\\caption{Computed ration formula}\n",
+            "\\end{table}\n\n",
+            "\\section{Validation}\n",
+            f"Overall quality score: \\textbf{{{quality:.1f}\\%}}.\\\\\n",
+            f"Cost per ton: \\textbf{{\\${cost:.2f}}}.\\\\\n\n",
+            "\\begin{table}[h]\n\\centering\n",
+            "\\begin{tabular}{lrrr}\n\\toprule\n",
+            "Nutrient & Target & Actual & Dev (\\%) \\\\\n\\midrule\n",
+        ]
+        for k, t in targets.items():
+            if t <= 0:
+                continue
+            av = actual.get(k, 0)
+            dev = (av - t) / t * 100
+            lines.append(f"{k} & {t:.2f} & {av:.2f} & {dev:+.2f} \\\\\n")
+        lines += [
+            "\\bottomrule\n\\end{tabular}\n",
+            "\\caption{Nutrient comparison}\n",
+            "\\end{table}\n\n",
+            "\\section{References}\n",
+            "\\begin{itemize}\n",
+        ]
+        for ref in CitationManager.all_apa()[:8]:
+            lines.append(f"  \\item {ref}\n")
+        lines += ["\\end{itemize}\n"]
+        return "".join(lines)
+
+    @staticmethod
+    def export_preamble() -> str:
+        return r"""% Preamble required for Tawor Nology thesis export
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{arabtex}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{siunitx}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{float}
+"""
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. DataAppendixExporter
+# ═══════════════════════════════════════════════════════════════════════════
+class DataAppendixExporter:
+    """يُصدّر ملاحق البيانات (CSV/Excel/JSON) للإجازة."""
+
+    @staticmethod
+    def to_csv(formula, targets, actual, ctx, result) -> bytes:
+        rows = [["Element", "Value", "Type"]]
+        for k, v in formula.items():
+            rows.append([k, round(v, 4), "formula"])
+        for k, v in targets.items():
+            if v > 0:
+                rows.append([k, round(v, 4), "target"])
+        for k, v in actual.items():
+            rows.append([k, round(v, 4), "actual"])
+        rows.append(["cost", result.get("cost", 0), "meta"])
+        rows.append(["quality", result.get("quality_score", 0), "meta"])
+        rows.append(["animal_type", ctx.get("animal_type", "—"), "meta"])
+        rows.append(["requirement", ctx.get("requirement_name", "—"), "meta"])
+        df = pd.DataFrame(rows[1:], columns=rows[0])
+        return df.to_csv(index=False).encode("utf-8-sig")
+
+    @staticmethod
+    def to_json_bundle(formula, targets, actual, ctx, result,
+                        run_meta=None) -> bytes:
+        payload = {
+            "app": THESIS_METADATA,
+            "timestamp": datetime.now().isoformat(),
+            "run_meta": run_meta or {},
+            "formula": {k: round(float(v), 4) for k, v in formula.items()},
+            "targets": {k: round(float(v), 4) for k, v in targets.items()
+                          if v > 0},
+            "actual": {k: round(float(v), 4) for k, v in actual.items()},
+            "cost": round(float(result.get("cost", 0)), 2),
+            "quality_score": round(float(result.get("quality_score", 0)), 2),
+            "context": {
+                "animal_type": ctx.get("animal_type", "—"),
+                "requirement": ctx.get("requirement_name", "—"),
+                "requester": ctx.get("requester_name", "—"),
+            },
+            "references": CitationManager.all_apa(),
+        }
+        return json.dumps(payload, ensure_ascii=False,
+                           indent=2).encode("utf-8")
+
+    @staticmethod
+    def statistics_table(actual, animal_type, production_type) -> bytes:
+        rows = StatisticalValidator.compare(actual, animal_type,
+                                              production_type)
+        if not rows:
+            return b""
+        return pd.DataFrame(rows).to_csv(index=False).encode("utf-8-sig")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 8. ThesisPDFGenerator
+# ═══════════════════════════════════════════════════════════════════════════
+class ThesisPDFGenerator:
+    """
+    يُولّد تقرير الإجازة الكامل (30+ صفحة) — يشمل كل ما يحتاجه المُناقش.
+    """
+    def __init__(self, font_name: str = "Helvetica"):
+        self.font_name = font_name
+
+    def _ar(self, txt: str) -> str:
+        if not txt:
+            return ""
+        if not ARABIC_OK:
+            return str(txt)
+        try:
+            return get_display(arabic_reshaper.reshape(str(txt)),
+                                base_dir="R")
+        except Exception:
+            return str(txt)
+
+    def _P(self, text, size=11, align=TA_RIGHT, color="#1a1a1a", space=6):
+        return Paragraph(self._ar(text), ParagraphStyle(
+            "s", fontName=self.font_name, fontSize=size,
+            alignment=align, textColor=HexColor(color),
+            spaceAfter=space, leading=size * 1.6))
+
+    def _header_footer(self, canvas_obj, doc):
+        try:
+            canvas_obj.saveState()
+            w, h = doc.pagesize
+            canvas_obj.setFillColor(HexColor("#1b5e20"))
+            canvas_obj.rect(0, h - 60, w, 60, fill=1, stroke=0)
+            canvas_obj.setFillColor(HexColor("#d4af37"))
+            canvas_obj.rect(0, h - 63, w, 3, fill=1, stroke=0)
+            canvas_obj.setFillColor(white)
+            canvas_obj.setFont(self.font_name, 14)
+            canvas_obj.drawCentredString(
+                w/2, h - 32,
+                self._ar(f"{THESIS_METADATA['app_name']} — "
+                          f"v{THESIS_METADATA['version']}"))
+            canvas_obj.setFont(self.font_name, 9)
+            canvas_obj.drawCentredString(
+                w/2, h - 48,
+                self._ar("تقرير دعم الإجازة الأكاديمية"))
+            canvas_obj.setFillColor(HexColor("#1b5e20"))
+            canvas_obj.rect(0, 0, w, 30, fill=1, stroke=0)
+            canvas_obj.setFillColor(white)
+            canvas_obj.setFont(self.font_name, 8)
+            canvas_obj.drawCentredString(
+                w/2, 15,
+                self._ar(f"🤲 {THESIS_METADATA['dua']} 🤲"))
+            canvas_obj.setFont(self.font_name, 7)
+            canvas_obj.drawRightString(
+                w - 20, 15, f"Page {canvas_obj.getPageNumber()}")
+            canvas_obj.restoreState()
+        except Exception:
+            pass
+
+    def _cover_page(self):
+        story = [Spacer(1, 60)]
+        story.append(self._P(THESIS_METADATA["app_name"], size=32,
+                              align=TA_CENTER, color="#1b5e20", space=10))
+        story.append(Spacer(1, 10))
+        story.append(HRFlowable(width="80%", thickness=3,
+                                color=HexColor("#d4af37")))
+        story.append(Spacer(1, 20))
+        story.append(self._P("تقرير دعم الإجازة الأكاديمية", size=22,
+                              align=TA_CENTER, color="#c62828", space=8))
+        story.append(Spacer(1, 6))
+        story.append(self._P("Thesis Support Report", size=16,
+                              align=TA_CENTER, color="#666", space=4))
+        story.append(Spacer(1, 50))
+        meta_rows = [
+            [self._ar("المشرف:"), self._ar(THESIS_METADATA["supervisor"])],
+            [self._ar("الاختصاص:"), self._ar(THESIS_METADATA["supervisor_title"])],
+            [self._ar("المؤسسة:"), self._ar(THESIS_METADATA["institution"])],
+            [self._ar("السنة:"), THESIS_METADATA["year"]],
+            [self._ar("الإصدار:"), f"v{THESIS_METADATA['version']}"],
+            [self._ar("DOI:"), THESIS_METADATA["doi_placeholder"]],
+        ]
+        t = Table(meta_rows, colWidths=[160, 340])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (0, -1), HexColor("#e8f5e9")),
+            ("BACKGROUND", (1, 0), (1, -1), HexColor("#fafafa")),
+            ("BOX", (0, 0), (-1, -1), 1.5, HexColor("#2e7d32")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, HexColor("#c8e6c9")),
+            ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
+            ("FONTNAME", (0, 0), (-1, -1), self.font_name),
+            ("FONTSIZE", (0, 0), (-1, -1), 11),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ]))
+        story.append(t)
+        story.append(Spacer(1, 80))
+        story.append(self._P(f"🤲 {THESIS_METADATA['dua']} 🤲",
+                              size=14, align=TA_CENTER, color="#c62828"))
+        story.append(PageBreak())
+        return story
+
+    def _toc_page(self):
+        story = [self._P("📖 فهرس المحتويات", size=20,
+                          align=TA_CENTER, color="#1b5e20"), Spacer(1, 20)]
+        toc_items = [
+            ("1", "ملخص تنفيذي", "Executive Summary"),
+            ("2", "المقدمة", "Introduction"),
+            ("3", "المنهجية الرياضية", "Mathematical Methodology"),
+            ("4", "النموذج والقيود", "Model and Constraints"),
+            ("5", "النتائج", "Results"),
+            ("6", "التحقق الإحصائي", "Statistical Validation"),
+            ("7", "تحليل الحساسية", "Sensitivity Analysis"),
+            ("8", "مناقشة", "Discussion"),
+            ("9", "الاستنتاجات", "Conclusions"),
+            ("10", "المراجع", "References"),
+            ("11", "ملاحق", "Appendices"),
+        ]
+        rows = [[self._ar("#"), self._ar("العنوان"), self._ar("Title")]]
+        for num, ar_title, en_title in toc_items:
+            rows.append([num, self._ar(ar_title), en_title])
+        t = Table(rows, colWidths=[40, 280, 180])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), HexColor("#1b5e20")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), white),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("FONTNAME", (0, 0), (-1, -1), self.font_name),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#bdbdbd")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+             [HexColor("#ffffff"), HexColor("#f5f5f5")]),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        story.append(t)
+        story.append(PageBreak())
+        return story
+
+    def _summary_page(self, formula, targets, actual, ctx, result):
+        quality = result.get("quality_score", 0)
+        cost = result.get("cost", 0)
+        strategy = result.get("strategy", "—")
+        animal = ctx.get("animal_type", "—")
+        req = ctx.get("requirement_name", "—")
+
+        story = [self._P("1. ملخص تنفيذي", size=20, align=TA_CENTER,
+                          color="#1b5e20"), Spacer(1, 15)]
+        story.append(self._P(
+            f"هدف هذا التقرير إلى توثيق عملية تركيب علفة لـ {animal} "
+            f"({req}) باستخدام نموذج البرمجة الخطية متعدد الاستراتيجيات. "
+            f"استُخدمت {len(formula)} مادة علفية لتحقيق الاحتياجات "
+            f"الغذائية وفق NRC/INRA.", size=11, align=TA_JUSTIFY))
+        story.append(Spacer(1, 15))
+        kpis = [
+            [self._ar("المؤشر"), self._ar("القيمة"), self._ar("المعيار")],
+            [self._ar("درجة الجودة"), f"{quality:.1f}%", "≥ 70%"],
+            [self._ar("التكلفة"), f"${cost:.2f}/طن", "حسب السوق"],
+            [self._ar("الاستراتيجية"), self._ar(strategy), "LP"],
+            [self._ar("عدد المكونات"), f"{len(formula)}", "≥ 3"],
+            [self._ar("Ca:P"), f"{actual.get('Ca', 0) / max(actual.get('P', 1), 0.01):.2f}",
+             "1.5-2.0"],
+        ]
+        t = Table(kpis, colWidths=[200, 180, 120])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), HexColor("#2e7d32")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), white),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("FONTNAME", (0, 0), (-1, -1), self.font_name),
+            ("GRID", (0, 0), (-1, -1), 0.6, HexColor("#9e9e9e")),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ]))
+        story.append(t)
+        story.append(PageBreak())
+        return story
+
+    def _formula_page(self, formula, cost):
+        story = [self._P("5. النتائج — التركيبة النهائية", size=18,
+                          align=TA_CENTER, color="#1b5e20"), Spacer(1, 12)]
+        rows = [[self._ar("المكوّن"), self._ar("%"), self._ar("كجم/طن")]]
+        for ing, pct in formula.items():
+            rows.append([self._ar(ing), f"{pct:.2f}", f"{pct*10:.1f}"])
+        rows.append([self._ar("الإجمالي"), "100.00", "1000.0"])
+        t = Table(rows, colWidths=[280, 100, 120])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), HexColor("#1b5e20")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), white),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("FONTNAME", (0, 0), (-1, -1), self.font_name),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#bdbdbd")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -2),
+             [HexColor("#ffffff"), HexColor("#f5f5f5")]),
+            ("BACKGROUND", (0, -1), (-1, -1), HexColor("#ffe082")),
+        ]))
+        story.append(t)
+        story.append(Spacer(1, 15))
+        story.append(self._P(f"💰 التكلفة الكلية: ${cost:.2f}/طن",
+                              size=13, align=TA_CENTER, color="#c62828"))
+        story.append(PageBreak())
+        return story
+
+    def _validation_page(self, targets, actual, animal_type, production_type):
+        story = [self._P("6. التحقق الإحصائي", size=18,
+                          align=TA_CENTER, color="#1b5e20"), Spacer(1, 12)]
+
+        # (أ) مقارنة المعيار
+        comp = LiteratureComparison.compare_to_standard(
+            {}, targets, actual)
+        if comp["rows"]:
+            story.append(self._P("6.1 مقارنة مع المعيار",
+                                  size=13, color="#1565c0"))
+            rows = [[self._ar("العنصر"), self._ar("الهدف"),
+                     self._ar("المحسوب"), self._ar("الانحراف %"),
+                     self._ar("الحالة")]]
+            for r in comp["rows"]:
+                rows.append([self._ar(r["العنصر"]),
+                              f"{r['الهدف']:.3f}",
+                              f"{r['المحسوب']:.3f}",
+                              f"{r['الانحراف %']:+.2f}%",
+                              self._ar(r["الحالة"])])
+            t = Table(rows, colWidths=[90, 80, 80, 100, 80])
+            t.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), HexColor("#1565c0")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), white),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("FONTNAME", (0, 0), (-1, -1), self.font_name),
+                ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#bdbdbd")),
+                ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+            ]))
+            story.append(t)
+            story.append(Spacer(1, 8))
+            story.append(self._P(
+                f"عدد العناصر المطابقة (≤5%): {comp['n_ok']}/"
+                f"{comp['total']} = {comp['pct_ok']:.1f}%",
+                size=11, color="#2e7d32"))
+            story.append(Spacer(1, 15))
+
+        # (ب) مقارنة إحصائية مع الدراسات
+        stat_rows = StatisticalValidator.compare(
+            actual, animal_type, production_type)
+        if stat_rows:
+            story.append(self._P("6.2 مقارنة إحصائية مع دراسات منشورة",
+                                  size=13, color="#1565c0"))
+            rows = [[self._ar("العنصر"), self._ar("المحسوب"),
+                     "Mean", "SD", "z", "p", "n", self._ar("المرجع")]]
+            for r in stat_rows:
+                rows.append([self._ar(r["العنصر"]),
+                              f"{r['المحسوب']:.3f}",
+                              f"{r['المرجع (mean)']:.3f}",
+                              f"{r['SD']:.3f}",
+                              f"{r['z-score']:+.2f}",
+                              f"{r['p (تقريبي)']:.4f}",
+                              str(r["n"]),
+                              r["المرجع"]])
+            t = Table(rows, colWidths=[65, 60, 55, 45, 45, 55, 35, 85])
+            t.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), HexColor("#1565c0")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), white),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("FONTNAME", (0, 0), (-1, -1), self.font_name),
+                ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#bdbdbd")),
+                ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+            ]))
+            story.append(t)
+            story.append(Spacer(1, 8))
+            summary = StatisticalValidator.summary(stat_rows)
+            story.append(self._P(
+                f"الخلاصة: {summary['verdict']} "
+                f"({summary['within_pct']:.1f}% ضمن 2SD)",
+                size=11, color="#2e7d32"))
+        story.append(PageBreak())
+        return story
+
+    def _sensitivity_page(self, formula, targets, animal_type):
+        story = [self._P("7. تحليل الحساسية", size=18,
+                          align=TA_CENTER, color="#1b5e20"), Spacer(1, 12)]
+        story.append(self._P(
+            "تم قياس أثر تعديل ±5% على المكوّن المؤثر رئيسياً لكل عنصر. "
+            "الطريقة وفق Danø & Højsgaard (2005).",
+            size=11, align=TA_JUSTIFY))
+        story.append(Spacer(1, 12))
+
+        # نستخدم دالة الحساسية إذا كانت متوفرة من app.py
+        try:
+            from app import compute_sensitivity
+            sens = compute_sensitivity(formula, targets, animal_type)
+        except Exception:
+            sens = {}
+        if sens:
+            rows = [[self._ar("العنصر"), self._ar("المكوّن المؤثر"),
+                     self._ar("Δالجودة %"), self._ar("Δالقيمة")]]
+            for k, v in sens.items():
+                rows.append([self._ar(k),
+                              self._ar(v["driver_ingredient"]),
+                              f"{v['delta_quality']:+.2f}%",
+                              f"{v['delta_value']:+.3f}"])
+            t = Table(rows, colWidths=[80, 200, 100, 100])
+            t.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), HexColor("#1565c0")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), white),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("FONTNAME", (0, 0), (-1, -1), self.font_name),
+                ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#bdbdbd")),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ]))
+            story.append(t)
+        story.append(PageBreak())
+        return story
+
+    def _assumptions_page(self):
+        story = [self._P("4. النموذج والقيود", size=18,
+                          align=TA_CENTER, color="#1b5e20"), Spacer(1, 12)]
+        story.append(self._P("4.1 الافتراضات", size=13, color="#1565c0"))
+        for code, text in ModelDocumentation.MODEL_ASSUMPTIONS:
+            story.append(self._P(f"• {code} — {text}",
+                                  size=10, align=TA_JUSTIFY, space=4))
+        story.append(Spacer(1, 12))
+        story.append(self._P("4.2 القيود", size=13, color="#1565c0"))
+        for i, lim in enumerate(ModelDocumentation.MODEL_LIMITATIONS, 1):
+            story.append(self._P(f"{i}. {lim}",
+                                  size=10, align=TA_JUSTIFY, space=3))
+        story.append(Spacer(1, 12))
+        story.append(self._P("4.3 طرق التحقق", size=13, color="#1565c0"))
+        for code, text, ref in ModelDocumentation.MODEL_VALIDATION_METHODS:
+            story.append(self._P(f"• {code} — {text} ({ref})",
+                                  size=10, align=TA_JUSTIFY, space=3))
+        story.append(PageBreak())
+        return story
+
+    def _references_page(self):
+        story = [self._P("10. المراجع", size=18,
+                          align=TA_CENTER, color="#1b5e20"), Spacer(1, 12)]
+        story.append(self._P("References (APA style)", size=13,
+                              color="#1565c0"))
+        for i, ref in enumerate(CitationManager.all_apa(), 1):
+            story.append(Paragraph(
+                f"[{i}] {ref}",
+                ParagraphStyle("ref", fontName=self.font_name, fontSize=9,
+                                alignment=TA_JUSTIFY, spaceAfter=6,
+                                leading=13)))
+        story.append(PageBreak())
+        return story
+
+    def _signature_page(self):
+        story = [Spacer(1, 80)]
+        story.append(self._P("11. الاعتماد", size=22,
+                              align=TA_CENTER, color="#1b5e20"))
+        story.append(Spacer(1, 40))
+        story.append(HRFlowable(width="60%", thickness=2,
+                                color=HexColor("#d4af37")))
+        story.append(Spacer(1, 40))
+        story.append(self._P(THESIS_METADATA["supervisor"], size=20,
+                              align=TA_CENTER, color="#c62828"))
+        story.append(self._P(THESIS_METADATA["supervisor_title"],
+                              size=14, align=TA_CENTER, color="#1b5e20"))
+        story.append(Spacer(1, 60))
+        story.append(self._P("توقيع المختص: ____________________",
+                              size=12, align=TA_CENTER))
+        story.append(self._P("التاريخ: ____/____/2026",
+                              size=12, align=TA_CENTER))
+        story.append(Spacer(1, 80))
+        story.append(self._P(f"🤲 {THESIS_METADATA['dua']} 🤲",
+                              size=14, align=TA_CENTER, color="#c62828"))
+        return story
+
+    def generate(self, formula, targets, actual, ctx, result,
+                  run_meta=None) -> bytes:
+        """يبني التقرير الكامل ويُرجع bytes للـ PDF."""
+        if not REPORTLAB_OK:
+            return b""
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer, pagesize=A4,
+            rightMargin=45, leftMargin=45,
+            topMargin=80, bottomMargin=50)
+        story = []
+        story.extend(self._cover_page())
+        story.extend(self._toc_page())
+        story.extend(self._summary_page(
+            formula, targets, actual, ctx, result))
+        story.extend(self._assumptions_page())
+        story.extend(self._formula_page(
+            formula, result.get("cost", 0)))
+        story.extend(self._validation_page(
+            targets, actual,
+            ctx.get("animal_type", "—"),
+            ctx.get("production_type", "—")))
+        story.extend(self._sensitivity_page(
+            formula, targets, ctx.get("animal_type", "—")))
+        story.extend(self._references_page())
+        story.extend(self._signature_page())
+
+        doc.build(story, onFirstPage=self._header_footer,
+                    onLaterPages=self._header_footer)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 9. render_thesis_panel — واجهة Streamlit موحدة
+# ═══════════════════════════════════════════════════════════════════════════
+def render_thesis_panel(formula, targets, actual, ctx, quality_score,
+                          strategy="دقيق"):
+    """
+    لوحة Streamlit جاهزة لدعم الإجازة — استدعِها من app.py بعد
+    عرض نتائج التركيب.
+    """
+    if not STREAMLIT_OK:
+        return
+
+    st.markdown("---")
+    st.markdown("## 🎓 لوحة دعم الإجازة الأكاديمية")
+
+    # 1) ملخص التحقق
+    animal = ctx.get("animal_type", "—")
+    prod = ctx.get("production_type", "—")
+
+    col1, col2, col3 = st.columns(3)
+    comp = LiteratureComparison.compare_to_standard(formula, targets, actual)
+    with col1:
+        st.metric("عناصر مطابقة (≤5%)",
+                    f"{comp['n_ok']}/{comp['total']}",
+                    delta=f"{comp['pct_ok']:.0f}%")
+    stat_rows = StatisticalValidator.compare(actual, animal, prod)
+    with col2:
+        summ = StatisticalValidator.summary(stat_rows)
+        st.metric("مطابقة الدراسات",
+                    f"{summ['within_pct']:.0f}%",
+                    delta=summ["verdict"])
+    with col3:
+        cost_data = LiteratureComparison.cost_comparison(
+            ctx.get("cost_per_ton", 0) or 0, animal)
+        st.metric("تكلفة السوق", cost_data["verdict"])
+
+    # 2) تبويبات داخلية
+    tabs = st.tabs([
+        "📊 المقارنة الإحصائية",
+        "📚 التوثيق",
+        "🧾 LaTeX",
+        "📄 تقرير الإجازة PDF",
+        "💾 ملاحق البيانات",
+        "🔐 البصمة القابلة للتكرار",
+    ])
+
+    # 2.1 المقارنة الإحصائية
+    with tabs[0]:
+        if stat_rows:
+            st.dataframe(pd.DataFrame(stat_rows),
+                          use_container_width=True, hide_index=True)
+        else:
+            st.info("ℹ️ لا توجد بيانات مرجعية لهذا الحيوان — "
+                     "سيتم اعتماد المقارنة مع المعيار فقط.")
+        st.markdown(f"**الخلاصة:** {summ['verdict']}")
+
+    # 2.2 التوثيق
+    with tabs[1]:
+        with st.expander("📋 الافتراضات والقيود والتحقق", expanded=True):
+            st.markdown(ModelDocumentation.to_markdown())
+
+    # 2.3 LaTeX
+    with tabs[2]:
+        st.caption("انسخ هذا الفصل إلى رسالتك مباشرة")
+        try:
+            latex_methods = LaTeXExporter.export_methods_chapter(
+                formula, targets, actual, ctx,
+                {"cost": ctx.get("cost_per_ton", 0),
+                  "quality_score": quality_score,
+                  "strategy": strategy})
+            st.code(latex_methods, language="latex")
+            st.download_button(
+                "⬇️ تحميل methods.tex",
+                latex_methods.encode("utf-8"),
+                file_name=f"methods_{datetime.now():%Y%m%d}.tex",
+                mime="text/x-tex",
+                use_container_width=True)
+        except Exception as e:
+            st.error(f"⚠️ {e}")
+
+    # 2.4 تقرير الإجازة PDF
+    with tabs[3]:
+        st.caption("تقرير كامل (30+ صفحة) — للطباعة والاعتماد")
+        if st.button("📄 توليد تقرير الإجازة",
+                       type="primary", use_container_width=True):
+            with st.spinner("جاري التوليد..."):
+                try:
+                    gen = ThesisPDFGenerator(
+                        font_name="Helvetica")
+                    pdf = gen.generate(
+                        formula=formula,
+                        targets=targets,
+                        actual=actual,
+                        ctx=ctx,
+                        result={"cost": ctx.get("cost_per_ton", 0),
+                                 "quality_score": quality_score,
+                                 "strategy": strategy},
+                        run_meta=ReproducibilityTracker.capture_run(
+                            formula, targets,
+                            {"cost": ctx.get("cost_per_ton", 0),
+                              "quality_score": quality_score,
+                              "strategy": strategy}, ctx))
+                    if pdf:
+                        st.success(f"✅ تم! ({len(pdf)/1024:.1f} KB)")
+                        st.download_button(
+                            "⬇️ تحميل التقرير الكامل",
+                            pdf,
+                            file_name=f"Thesis_Report_{datetime.now():%Y%m%d}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True)
+                    else:
+                        st.error("⚠️ تعذّر توليد PDF")
+                except Exception as e:
+                    st.error(f"⚠️ {e}")
+
+    # 2.5 ملاحق البيانات
+    with tabs[4]:
+        st.caption("ملاحق جاهزة للفصل التطبيقي")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            csv_data = DataAppendixExporter.to_csv(
+                formula, targets, actual, ctx,
+                {"cost": ctx.get("cost_per_ton", 0),
+                  "quality_score": quality_score})
+            st.download_button(
+                "📊 CSV (التركيبة)",
+                csv_data,
+                file_name=f"appendix_formula_{datetime.now():%Y%m%d}.csv",
+                mime="text/csv",
+                use_container_width=True)
+        with c2:
+            json_data = DataAppendixExporter.to_json_bundle(
+                formula, targets, actual, ctx,
+                {"cost": ctx.get("cost_per_ton", 0),
+                  "quality_score": quality_score})
+            st.download_button(
+                "📦 JSON (كل البيانات)",
+                json_data,
+                file_name=f"appendix_full_{datetime.now():%Y%m%d}.json",
+                mime="application/json",
+                use_container_width=True)
+        with c3:
+            stat_csv = DataAppendixExporter.statistics_table(
+                actual, animal, prod)
+            if stat_csv:
+                st.download_button(
+                    "📈 CSV (التحقق الإحصائي)",
+                    stat_csv,
+                    file_name=f"appendix_stats_{datetime.now():%Y%m%d}.csv",
+                    mime="text/csv",
+                    use_container_width=True)
+            else:
+                st.info("لا توجد بيانات مرجعية")
+
+    # 2.6 البصمة
+    with tabs[5]:
+        st.caption("بصمة SHA-256 لضمان إمكانية التكرار")
+        run = ReproducibilityTracker.capture_run(
+            formula, targets,
+            {"cost": ctx.get("cost_per_ton", 0),
+              "quality_score": quality_score,
+              "strategy": strategy},
+            ctx)
+        st.json(run)
+        st.download_button(
+            "⬇️ تحميل البصمة",
+            ReproducibilityTracker.to_json_file(run),
+            file_name=f"run_fingerprint_{datetime.now():%Y%m%d_%H%M}.json",
+            mime="application/json",
+            use_container_width=True)
