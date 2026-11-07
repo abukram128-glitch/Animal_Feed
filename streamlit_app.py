@@ -8539,7 +8539,39 @@ with tab_map["📖 الدليل"]:
 على Streamlit Cloud، أضف `.streamlit/secrets.toml`:
 ```toml
 OWNER_CODE = "202687"
+   محلياً: export TAWOR_OWNER_CODE=202687
 
-محلياً (Linux/Mac):
-```bash
-export TAWOR_OWNER_CODE="202687"
+### الدخول
+- مالك: يحتاج OWNER_CODE في secrets.toml
+- زائر: دخول مجاني
+
+### التواصل
+📧 {OWNER_EMAIL}
+📱 {WHATSAPP_NUMBER}
+
+---
+{DUA_FULL}
+        """)
+    except Exception as e:
+        st.error(f"خطأ: {e}")
+
+
+# ============================================================
+# التذييل الثابت
+# ============================================================
+
+st.markdown(
+    f'<div class="mini-signature">'
+    f'🌾 {APP_NAME} v{APP_VERSION} | '
+    f'{SUPERVISOR} © 2026</div>',
+    unsafe_allow_html=True)
+st.markdown(
+    f'<div class="dua-fixed-banner">'
+    f'🤲 {DUA_SHORT} 🤲</div>',
+    unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ============================================================
+# نهاية الملف — Tawor Nology 11.7
+# ============================================================     
