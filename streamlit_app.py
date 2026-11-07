@@ -304,6 +304,47 @@ def ar(text):
     """اختصار لدالة التعريب."""
     return _ar_cached(text)
 
+# ═══════════════════════════════════════════════════════════════════════════
+# [إصلاح 11.7 — قسم مفقود من القطعة 8]
+# الثوابت: أسعار الصرف + صور الحيوانات + img_base64
+# ═══════════════════════════════════════════════════════════════════════════
+
+EXCHANGE_RATES = {
+    "السودان": {"rate": 600.0, "sym": "SDG"},
+    "ليبيا": {"rate": 4.80, "sym": "LYD"},
+    "مصر": {"rate": 48.0, "sym": "EGP"},
+    "السعودية": {"rate": 3.75, "sym": "SAR"},
+    "الإمارات": {"rate": 3.67, "sym": "AED"},
+    "باقي دول العالم": {"rate": 1.0, "sym": "USD"},
+}
+
+ANIMAL_IMAGES = {
+    "أبقار": "https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?q=80&w=600",
+    "ماعز": "https://images.unsplash.com/photo-1524388680868-377a2e6bbb1c?q=80&w=600",
+    "أغنام": "https://images.unsplash.com/photo-1484557985045-edf25e08da73?q=80&w=600",
+    "خيول": "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?q=80&w=600",
+    "إبل": "https://images.unsplash.com/photo-1516467508483-a7212febe31a?q=80&w=600",
+    "دواجن": "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?q=80&w=600",
+    "أسماك": "https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?q=80&w=600",
+    "سمان": "https://images.unsplash.com/photo-1516467508483-a7212febe31a?q=80&w=600",
+    "أرانب": "https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?q=80&w=600",
+    "عام": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600",
+}
+
+
+@st.cache_data(ttl=3600)
+def get_img_b64(paths):
+    for p in paths:
+        if os.path.exists(p):
+            try:
+                with open(p, "rb") as f:
+                    return base64.b64encode(f.read()).decode()
+            except Exception:
+                pass
+    return None
+
+
+img_base64 = get_img_b64(tuple(PHOTO_OPTIONS))
 
 # ═══════════════════════════════════════════════════════════════════════════
 # [نهاية القطعة 1 من 12 — الأساس + الأمان + الثوابت + الخطوط]
