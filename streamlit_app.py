@@ -8539,3 +8539,7 @@ with tab_map["📖 الدليل"]:
 على Streamlit Cloud، أضف `.streamlit/secrets.toml`:
 ```toml
 OWNER_CODE = "202687"
+
+محلياً (Linux/Mac):
+```bash
+export TAWOR_OWNER_CODE="202687"
