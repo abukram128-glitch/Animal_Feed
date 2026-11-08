@@ -6991,15 +6991,19 @@ with tab_map["🏗️ الحظائر 3D"]:
             unsafe_allow_html=True)
 
         c1, c2, c3 = st.columns(3)
-        with c1:
-            barn_a = st.selectbox(
-                "🐾 الحيوان:",
-                list(BARN_DESIGN_STANDARDS.keys()),
-                format_func=lambda k: BARN_DESIGN_STANDARDS[k]["name_ar"],
-                key="barn_animal")
-        with c2:
-            barn_c = st.number_input(
-                "🔢 العدد:", 1, 100000, 1000, 50, key="barn_count")
+        _DEFAULT_BARN_COUNTS = {
+    "دواجن_لاحم": 1000, "دواجن_بياض": 1000, "سمان": 500,
+    "أغنام": 50, "ماعز": 50, "أبقار": 20, "إبل": 20,
+    "خيول": 20, "أرانب": 100, "أسماك_أحواض": 1000,
+}
+with c2:
+    _def_count = _DEFAULT_BARN_COUNTS.get(barn_a, 20)
+    _step = max(1, _def_count // 10)
+    barn_c = st.number_input(
+        "🔢 العدد:",
+        min_value=1, max_value=100000,
+        value=_def_count, step=_step,
+        key=f"barn_count_{barn_a}")
         with c3:
             barn_s = st.selectbox(
                 "🏠 النظام:", ["أرضي مفتوح", "بطاريات"], key="barn_system")
@@ -7091,8 +7095,13 @@ with tab_map["📊 الجدوى"]:
                 list(BARN_DESIGN_STANDARDS.keys()),
                 format_func=lambda k: BARN_DESIGN_STANDARDS[k]["name_ar"],
                 key="feas_animal")
-            feas_c = st.number_input(
-                "العدد:", 1, 100000, 1000, 50, key="feas_count")
+            _def_count_f = _DEFAULT_BARN_COUNTS.get(feas_k, 20)
+_step_f = max(1, _def_count_f // 10)
+feas_c = st.number_input(
+    "العدد:",
+    min_value=1, max_value=100000,
+    value=_def_count_f, step=_step_f,
+    key=f"feas_count_{feas_k}")
             proj_name = st.text_input("اسم المشروع:", key="feas_proj")
         with f2:
             feas_r = st.text_input("مقدم الطلب:", key="feas_req")
