@@ -1674,6 +1674,241 @@ def _normalize_ingredient_name(name: str) -> str:
 # 🟢 محرك LP v11.7.0 — 7 استراتيجيات + إنزيمات + سمية
 # ═══════════════════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════════════════════
+# 🟢 v11.7.1 — محرك LP بتراجع تصاعدي (15 مستوى) + fallback مضمون
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _build_lp_rows(valid, ing_data):
+    """يبني صفوف العناصر الغذائية لكل مكون."""
+    rows = {}
+    for nut in ["CP", "SE", "NDF", "ADF", "EE", "ASH",
+                "Ca", "P", "Lys", "Met"]:
+        rows[nut] = [ing_data[i].get(nut, 0) for i in valid]
+    rows["DP"] = [ing_data[i].get("CP", 0) * ing_data[i].get("DC", 0)
+                   for i in valid]
+    return rows
+
+
+def _solve_lp_level(valid, rows, prices, bounds, baseline_applied,
+                     custom_standard, animal_type, level,
+                     enzyme_adjust, target_key, oil_std):
+    """
+    يحل LP عند مستوى محدد من الصرامة (0 = الأسهل).
+    
+    الفكرة: كل مستوى يضيف قيوداً على الذي قبله.
+    """
+    n = len(valid)
+    c = [prices.get(i, 300.0) for i in valid]
+
+    A_eq, b_eq = [[1.0] * n], [100.0]
+    for b_ing, b_pct in baseline_applied.items():
+        idx = valid.index(b_ing)
+        row = [0.0] * n
+        row[idx] = 1.0
+        A_eq.append(row)
+        b_eq.append(float(b_pct))
+
+    A_ub, b_ub = [], []
+
+    is_poultry = animal_type in ("دواجن", "سمان")
+    is_ruminant = animal_type in ("أبقار", "أغنام", "ماعز", "إبل")
+
+    t_protein = custom_standard.get(target_key, 0)
+    t_se = max(0, custom_standard.get("SE", 0) - enzyme_adjust["SE"])
+    t_ca = max(0, custom_standard.get("Ca", 0) - enzyme_adjust["Ca"])
+    t_p  = max(0, custom_standard.get("P", 0) - enzyme_adjust["P"])
+    t_ndf = custom_standard.get("NDF", 0)
+    t_adf = custom_standard.get("ADF", 0)
+    t_lys = custom_standard.get("Lys", 0)
+    t_met = custom_standard.get("Met", 0)
+
+    if level >= 1 and t_se > 0:              # SE ≥ 80%
+        A_ub.append([-x for x in rows["SE"]])
+        b_ub.append(-t_se * 0.80 * 100)
+    if level >= 2 and t_protein > 0:         # DP ≥ 85%
+        A_ub.append([-x for x in rows[target_key]])
+        b_ub.append(-t_protein * 0.85 * 100)
+    if level >= 3 and t_ca > 0:              # Ca ≥ 60%
+        A_ub.append([-x for x in rows["Ca"]])
+        b_ub.append(-t_ca * 0.60 * 100)
+    if level >= 4 and t_p > 0:               # P ≥ 60%
+        A_ub.append([-x for x in rows["P"]])
+        b_ub.append(-t_p * 0.60 * 100)
+    if level >= 5 and t_ca > 0 and t_p > 0:  # Ca:P ∈ [1.0, 3.0]
+        A_ub.append([-rows["Ca"][i] + 1.0 * rows["P"][i]
+                     for i in range(n)])
+        b_ub.append(0)
+        A_ub.append([rows["Ca"][i] - 3.0 * rows["P"][i]
+                     for i in range(n)])
+        b_ub.append(0)
+    if level >= 6 and t_se > 0:              # SE ≥ 88%
+        A_ub.append([-x for x in rows["SE"]])
+        b_ub.append(-t_se * 0.88 * 100)
+    if level >= 7 and t_protein > 0:         # DP ≥ 90%
+        A_ub.append([-x for x in rows[target_key]])
+        b_ub.append(-t_protein * 0.90 * 100)
+    if level >= 8 and t_ca > 0:              # Ca ≥ 75%
+        A_ub.append([-x for x in rows["Ca"]])
+        b_ub.append(-t_ca * 0.75 * 100)
+    if level >= 9 and t_p > 0:               # P ≥ 75%
+        A_ub.append([-x for x in rows["P"]])
+        b_ub.append(-t_p * 0.75 * 100)
+    if level >= 10 and t_ca > 0 and t_p > 0: # Ca:P ∈ [1.2, 2.5]
+        lo, hi = (1.2, 2.8) if is_ruminant else (1.2, 2.5)
+        A_ub.append([-rows["Ca"][i] + lo * rows["P"][i]
+                     for i in range(n)])
+        b_ub.append(0)
+        A_ub.append([rows["Ca"][i] - hi * rows["P"][i]
+                     for i in range(n)])
+        b_ub.append(0)
+    if level >= 11 and t_se > 0:             # SE ≥ 92%
+        A_ub.append([-x for x in rows["SE"]])
+        b_ub.append(-t_se * 0.92 * 100)
+    if level >= 12 and t_protein > 0:        # DP ≥ 95%
+        A_ub.append([-x for x in rows[target_key]])
+        b_ub.append(-t_protein * 0.95 * 100)
+    if level >= 13 and t_ca > 0:             # Ca ≥ 85%
+        A_ub.append([-x for x in rows["Ca"]])
+        b_ub.append(-t_ca * 0.85 * 100)
+    if level >= 14 and t_p > 0:              # P ≥ 85%
+        A_ub.append([-x for x in rows["P"]])
+        b_ub.append(-t_p * 0.85 * 100)
+    if level >= 15 and t_ndf > 0:            # NDF نطاق واسع
+        if is_ruminant:
+            A_ub.append([-x for x in rows["NDF"]])
+            b_ub.append(-t_ndf * 0.80 * 100)
+            A_ub.append(rows["NDF"])
+            b_ub.append(t_ndf * 1.30 * 100)
+        else:
+            A_ub.append(rows["NDF"])
+            b_ub.append(t_ndf * 1.20 * 100)
+    if level >= 16 and t_adf > 0:            # ADF نطاق واسع
+        mult = 1.40 if is_ruminant else (1.20 if is_poultry else 1.30)
+        A_ub.append(rows["ADF"])
+        b_ub.append(t_adf * mult * 100)
+    if level >= 17 and t_lys > 0:            # Lys ≥ 80%
+        A_ub.append([-x for x in rows["Lys"]])
+        b_ub.append(-t_lys * 0.80 * 100)
+    if level >= 18 and t_met > 0:            # Met ≥ 80%
+        A_ub.append([-x for x in rows["Met"]])
+        b_ub.append(-t_met * 0.80 * 100)
+    if level >= 19:                          # قيد الزيوت
+        oil_ind = [1.0 if i in get_oil_ingredients() else 0.0
+                    for i in valid]
+        if sum(oil_ind) > 0:
+            A_ub.append(oil_ind)
+            b_ub.append(oil_std["max"] * 100)
+    if level >= 20 and t_se > 0:             # SE = 100% (دقيق)
+        A_ub.append(rows["SE"])
+        b_ub.append(t_se * 1.10 * 100)
+    if level >= 21 and t_protein > 0:        # DP = 100% (دقيق)
+        A_ub.append(rows[target_key])
+        b_ub.append(t_protein * 1.10 * 100)
+    if level >= 22 and t_ndf > 0:            # NDF ضيق
+        if is_ruminant:
+            A_ub.append([-x for x in rows["NDF"]])
+            b_ub.append(-t_ndf * 0.85 * 100)
+            A_ub.append(rows["NDF"])
+            b_ub.append(t_ndf * 1.20 * 100)
+        else:
+            A_ub.append(rows["NDF"])
+            b_ub.append(t_ndf * 1.10 * 100)
+    if level >= 23 and t_adf > 0:            # ADF ضيق
+        mult = 1.30 if is_ruminant else (1.10 if is_poultry else 1.20)
+        A_ub.append(rows["ADF"])
+        b_ub.append(t_adf * mult * 100)
+    if level >= 24 and t_lys > 0:            # Lys ≥ 90%
+        A_ub.append([-x for x in rows["Lys"]])
+        b_ub.append(-t_lys * 0.90 * 100)
+    if level >= 25 and t_met > 0:            # Met ≥ 90%
+        A_ub.append([-x for x in rows["Met"]])
+        b_ub.append(-t_met * 0.90 * 100)
+
+    return linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq,
+                   bounds=bounds, method='highs',
+                   options={'presolve': True, 'time_limit': 10})
+
+
+def _heuristic_fallback(valid, ing_data, prices, baseline_applied,
+                         custom_standard, animal_type, target_key):
+    """
+    حل احتياطي مضمون — يبني تركيبة يدوياً:
+      1. مصدر طاقة رئيسي (60%)
+      2. مصدر بروتين رئيسي (25%)
+      3. مصدر ألياف (10%)
+      4. ثوابت إلزامية
+      5. ضبط دقيق
+    """
+    lookup = ing_data
+    formula = {}
+
+    def _pick(keywords, pool):
+        for kw in keywords:
+            for ing in pool:
+                if kw in ing and ing not in formula:
+                    return ing
+        return None
+
+    # 1) الطاقة
+    energy_ing = _pick(
+        ["ذرة صفراء", "ذرة بيضاء", "ذرة شامية", "قمح محلي",
+         "شعير مطحون", "جريش أرز", "قمح مستورد"],
+        valid)
+    # 2) البروتين
+    protein_ing = _pick(
+        ["كسب فول صويا 44%", "كسب فول صويا 48%",
+         "أمباز الفول السوداني", "كسب عباد الشمس 36%",
+         "كسب الكانولا", "فول صويا كامل"],
+        valid)
+    # 3) الألياف (للمجترات)
+    is_rum = animal_type in ("أبقار", "أغنام", "ماعز", "إبل", "أرانب")
+    fiber_ing = None
+    if is_rum:
+        fiber_ing = _pick(
+            ["البرسيم الجاف", "برسيم حجازي", "تبن قمح", "تبن فول",
+             "نخالة قمح (ردة)", "قش أرز"],
+            valid)
+
+    # توزيع أولي
+    if energy_ing:
+        formula[energy_ing] = 55.0 if is_rum else 60.0
+    if protein_ing:
+        formula[protein_ing] = 20.0 if is_rum else 28.0
+    if fiber_ing:
+        formula[fiber_ing] = 20.0 if is_rum else 0.0
+
+    # إضافة الثوابت
+    for b_ing, b_pct in baseline_applied.items():
+        if b_ing in valid:
+            formula[b_ing] = b_pct
+
+    # توزيع المتبقي على مصدر الطاقة/البروتين
+    used = sum(formula.values())
+    remaining = 100.0 - used
+    if remaining > 0:
+        if energy_ing:
+            formula[energy_ing] = formula.get(energy_ing, 0) + remaining * 0.6
+            remaining *= 0.4
+        if protein_ing and remaining > 0:
+            formula[protein_ing] = formula.get(protein_ing, 0) + remaining
+    elif remaining < 0:
+        # خصم من المكونات الكبيرة
+        total = sum(formula.values())
+        for k in formula:
+            formula[k] = formula[k] * 100.0 / total
+
+    # تقييم
+    q, actual = evaluate_quality_weighted(
+        formula, custom_standard, animal_type, target_key)
+    return {
+        "formula": formula,
+        "cost": sum(prices.get(k, 300.0) * v / 100 for k, v in formula.items()),
+        "actual": actual,
+        "quality": q,
+        "strategy": "🚨 Fallback يدوي (مضمون)",
+    }
+
+
 def auto_formulate_smart(available_ingredients: List[str],
                            prices: Dict[str, float],
                            custom_standard: Dict[str, float],
@@ -1684,11 +1919,16 @@ def auto_formulate_smart(available_ingredients: List[str],
                            production_type: str = "",
                            requirement: Optional[AnimalRequirement] = None
                            ) -> Dict:
-    """محرك التركيب v11.7.0 — التحسينات الكاملة."""
+    """
+    محرك التركيب v11.7.1 — تراجع تصاعدي مضمون:
+      • 25 مستوى قيود تدريجية (من الأسهل للأصعب)
+      • يتوقف عند أول فشل → يستخدم آخر نجاح
+      • إن فشل المستوى 0 (نادر) → fallback heuristic مضمون
+    """
     if not SCIPY_AVAILABLE:
         return {"success": False, "message": "SCIPY غير متوفرة"}
 
-    # ─── تطبيع + ثوابت إلزامية ────────────────────────────────────
+    # ─── تحضير ──────────────────────────────────────────────────
     available_ingredients = [_normalize_ingredient_name(i)
                               for i in available_ingredients]
     baseline = get_mandatory_baseline(animal_type, production_type,
@@ -1699,68 +1939,43 @@ def auto_formulate_smart(available_ingredients: List[str],
     lookup = _get_ingredient_lookup()
     ing_data = {i: lookup[i] for i in available_ingredients if i in lookup}
     valid = list(ing_data.keys())
-    if len(valid) < 3:
-        return {"success": False, "message": "اختر 3 مكونات على الأقل"}
+    if len(valid) < 2:
+        return {"success": False,
+                "message": "اختر مادتين على الأقل (الثوابت تُضاف تلقائياً)"}
 
     for b_ing in baseline:
         if b_ing not in prices:
             prices[b_ing] = float(lookup.get(b_ing, {}).get("price", 300.0))
 
-    # ─── المعالجة بالإنزيمات ─────────────────────────────────────
-    has_phytase  = "إنزيم فايتيز" in valid
-    has_nsp      = "إنزيم NSP" in valid
-
-    enzyme_adjust = {"P": 0.0, "Ca": 0.0, "SE": 0.0, "CP": 0.0}
-    enzyme_report: Dict[str, Any] = {}
-
+    # ─── إنزيمات ─────────────────────────────────────────────────
+    has_phytase = "إنزيم فايتيز" in valid
+    has_nsp = "إنزيم NSP" in valid
+    enzyme_adjust = {"P": 0.0, "Ca": 0.0, "SE": 0.0}
+    enzyme_report = {}
     if has_phytase:
         info = apply_phytase_matrix({}, 1000.0)
-        enzyme_adjust["P"]  = info["P_release_pct"]
+        enzyme_adjust["P"] = info["P_release_pct"]
         enzyme_adjust["Ca"] = info["Ca_release_pct"]
         enzyme_report["phytase"] = info
-
     if has_nsp:
         key_nsp = "broiler" if animal_type in ("دواجن", "سمان") else "pig"
         info_nsp = NSP_RELEASE_MATRIX.get(key_nsp, {})
         enzyme_adjust["SE"] = info_nsp.get("SE_release_kcal", 0) / 100.0
-        enzyme_report["nsp"] = {
-            "SE_release_kcal": info_nsp.get("SE_release_kcal", 0),
-            "SE_in_units": enzyme_adjust["SE"],
-        }
+        enzyme_report["nsp"] = info_nsp
 
-    orig_targets = {
+    adjusted_targets = {
         "CP": custom_standard.get("CP", 0),
         "DP": custom_standard.get("DP", 0),
-        "SE": custom_standard.get("SE", 0),
-        "Ca": custom_standard.get("Ca", 0),
-        "P":  custom_standard.get("P", 0),
+        "SE": max(0, custom_standard.get("SE", 0) - enzyme_adjust["SE"]),
+        "Ca": max(0, custom_standard.get("Ca", 0) - enzyme_adjust["Ca"]),
+        "P":  max(0, custom_standard.get("P", 0) - enzyme_adjust["P"]),
     }
-    adjusted_targets = dict(orig_targets)
-    adjusted_targets["P"]  = max(0.0, orig_targets["P"]  - enzyme_adjust["P"])
-    adjusted_targets["Ca"] = max(0.0, orig_targets["Ca"] - enzyme_adjust["Ca"])
-    adjusted_targets["SE"] = max(0.0, orig_targets["SE"] - enzyme_adjust["SE"])
 
     is_ruminant = animal_type in ("أبقار", "أغنام", "ماعز", "إبل")
-    is_poultry  = animal_type in ("دواجن", "سمان")
+    is_poultry = animal_type in ("دواجن", "سمان")
     n = len(valid)
 
-    c = [prices.get(i, 300.0) for i in valid]
-
-    rows = {}
-    for nut in ["CP", "SE", "NDF", "ADF", "EE", "ASH", "Ca", "P", "Lys", "Met"]:
-        rows[nut] = [ing_data[i].get(nut, 0) for i in valid]
-    rows["DP"] = [ing_data[i].get("CP", 0) * ing_data[i].get("DC", 0)
-                   for i in valid]
-
-    target_key     = "DP" if basis == "DP" else "CP"
-    target_protein = adjusted_targets[target_key]
-    target_ca      = adjusted_targets["Ca"]
-    target_p       = adjusted_targets["P"]
-    target_se      = adjusted_targets["SE"]
-    target_ndf     = custom_standard.get("NDF", 0)
-    target_adf     = custom_standard.get("ADF", 0)
-
-    # 🟢 إصلاح Lys/Met — تحسب من النسب إذا لم تكن محددة
+    # ─── Lys/Met ──────────────────────────────────────────────────
     _LYS_RATIO = {"دواجن": 5.5, "سمان": 5.0, "أبقار": 3.5,
                    "أغنام": 3.0, "ماعز": 3.0, "إبل": 3.2,
                    "خيول": 3.5, "أسماك": 5.0, "أرانب": 4.0}
@@ -1768,23 +1983,33 @@ def auto_formulate_smart(available_ingredients: List[str],
                    "أغنام": 0.9, "ماعز": 0.9, "إبل": 1.0,
                    "خيول": 1.0, "أسماك": 1.5, "أرانب": 1.2}
 
-    target_lys = (custom_standard.get("Lys", 0)
-                  or target_protein * _LYS_RATIO.get(animal_type, 3.0) / 100.0)
-    target_met = (custom_standard.get("Met", 0)
-                  or target_protein * _MET_RATIO.get(animal_type, 1.0) / 100.0)
+    target_key = "DP" if basis == "DP" else "CP"
+    t_protein = custom_standard.get(target_key, 0)
 
-    # ─── الحدود + الثوابت ─────────────────────────────────────────
+    if custom_standard.get("Lys", 0) > 0:
+        t_lys = custom_standard["Lys"]
+    else:
+        t_lys = t_protein * _LYS_RATIO.get(animal_type, 3.0) / 100.0
+    if custom_standard.get("Met", 0) > 0:
+        t_met = custom_standard["Met"]
+    else:
+        t_met = t_protein * _MET_RATIO.get(animal_type, 1.0) / 100.0
+
+    std_full = dict(custom_standard)
+    std_full["Lys"] = t_lys
+    std_full["Met"] = t_met
+
+    # ─── Bounds ──────────────────────────────────────────────────
     limits = get_animal_limits(animal_type)
     bounds = [list(limits.get(i, (0.0, 100.0))) for i in valid]
 
-    # 🟢 قيد Trypsin للدواجن/السمان
     if is_poultry:
         for idx, ing in enumerate(valid):
             if ing == "فول صويا كامل":
                 lo, hi = bounds[idx]
                 bounds[idx][1] = min(hi, 5.0)
 
-    baseline_applied: Dict[str, float] = {}
+    baseline_applied = {}
     for b_ing, b_pct in baseline.items():
         if b_ing in valid:
             idx = valid.index(b_ing)
@@ -1796,200 +2021,140 @@ def auto_formulate_smart(available_ingredients: List[str],
             baseline_applied[b_ing] = float(b_pct)
     bounds = [tuple(b) for b in bounds]
 
-    # ─── قيود المساواة ───────────────────────────────────────────
-    A_eq_base = [[1.0] * n, rows[target_key]]
-    b_eq_base = [100.0, target_protein * 100.0]
-
-    for b_ing, b_pct in baseline_applied.items():
-        idx = valid.index(b_ing)
-        row = [0.0] * n
-        row[idx] = 1.0
-        A_eq_base.append(row)
-        b_eq_base.append(float(b_pct))
-
-    # ─── قيود عدم المساواة ───────────────────────────────────────
-    A_ub_base, b_ub_base = [], []
-
-    if target_ca > 0 and target_p > 0:
-        if is_poultry:
-            ca_p_min, ca_p_max = 1.5, 2.2
-        elif is_ruminant:
-            ca_p_min, ca_p_max = 1.4, 2.5
-        else:
-            ca_p_min, ca_p_max = 1.5, 2.0
-        A_ub_base.append([-rows["Ca"][i] + ca_p_min * rows["P"][i]
-                          for i in range(n)])
-        b_ub_base.append(0)
-        A_ub_base.append([rows["Ca"][i] - ca_p_max * rows["P"][i]
-                          for i in range(n)])
-        b_ub_base.append(0)
-
-    if target_se > 0:
-        A_ub_base.append([-x for x in rows["SE"]])
-        b_ub_base.append(-target_se * 0.92 * 100.0)
-
-    if target_ndf > 0:
-        if is_ruminant:
-            A_ub_base.append([-x for x in rows["NDF"]])
-            b_ub_base.append(-target_ndf * 0.85 * 100.0)
-            A_ub_base.append(rows["NDF"])
-            b_ub_base.append(target_ndf * 1.20 * 100.0)
-        else:
-            A_ub_base.append(rows["NDF"])
-            b_ub_base.append(target_ndf *
-                              (1.10 if is_poultry else 1.15) * 100.0)
-
-    if target_adf > 0:
-        A_ub_base.append(rows["ADF"])
-        mult = 1.30 if is_ruminant else (1.10 if is_poultry else 1.20)
-        b_ub_base.append(target_adf * mult * 100.0)
-
-    if target_lys > 0:
-        A_ub_base.append([-x for x in rows["Lys"]])
-        b_ub_base.append(-target_lys * 0.85 * 100.0)
-    if target_met > 0:
-        A_ub_base.append([-x for x in rows["Met"]])
-        b_ub_base.append(-target_met * 0.85 * 100.0)
-
+    rows = _build_lp_rows(valid, ing_data)
     oil_std = get_oil_standard(standard_key)
-    oil_ind = [1.0 if i in get_oil_ingredients() else 0.0 for i in valid]
-    if sum(oil_ind) > 0:
-        A_ub_base.append(oil_ind)
-        b_ub_base.append(oil_std["max"] * 100.0)
 
-    # ─── 7 استراتيجيات ──────────────────────────────────────────
-    strategies = [
-        ("1) صارم — Ca+P+SE", "strict", []),
-        ("2) دقيق — Ca+P",    "eq",     []),
-        ("3) مرن ±5%",        "r05",    []),
-        ("4) مرن ±10%",       "r10",    []),
-        ("5) مرن ±15%",       "r15",    []),
-        ("6) مرن ±20%",       "r20",    []),
-        ("7) طوارئ — بدون Ca/P", "none", ["Ca", "P"]),
-    ]
+    # ─── التراجع التصاعدي: 25 مستوى ─────────────────────────────
+    best = None
+    best_level = -1
+    attempts_log = []
 
-    best, best_q = None, 0.0
-    attempts_log: List[Dict] = []
-
-    for label, mode, relaxed in strategies:
+    for level in range(0, 26):
         try:
-            A_eq, b_eq = list(A_eq_base), list(b_eq_base)
-            A_ub, b_ub = list(A_ub_base), list(b_ub_base)
-
-            if mode == "strict":
-                if target_ca > 0:
-                    A_eq.append(rows["Ca"]); b_eq.append(target_ca * 100.0)
-                if target_p > 0:
-                    A_eq.append(rows["P"]);  b_eq.append(target_p * 100.0)
-                if target_se > 0:
-                    A_eq.append(rows["SE"]); b_eq.append(target_se * 100.0)
-            elif mode == "eq":
-                if target_ca > 0:
-                    A_eq.append(rows["Ca"]); b_eq.append(target_ca * 100.0)
-                if target_p > 0:
-                    A_eq.append(rows["P"]);  b_eq.append(target_p * 100.0)
-            elif mode.startswith("r"):
-                try:
-                    tol = int(mode[1:]) / 100.0
-                except ValueError:
-                    tol = 0.10
-                if target_ca > 0:
-                    A_ub.append(rows["Ca"])
-                    b_ub.append(target_ca * (1 + tol) * 100.0)
-                    A_ub.append([-x for x in rows["Ca"]])
-                    b_ub.append(-target_ca * (1 - tol) * 100.0)
-                if target_p > 0:
-                    A_ub.append(rows["P"])
-                    b_ub.append(target_p * (1 + tol) * 100.0)
-                    A_ub.append([-x for x in rows["P"]])
-                    b_ub.append(-target_p * (1 - tol) * 100.0)
-
-            res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq,
-                          bounds=bounds, method='highs',
-                          options={'presolve': True, 'time_limit': 10})
-
-            attempts_log.append({"strategy": label, "mode": mode,
-                                  "success": bool(res.success)})
+            res = _solve_lp_level(
+                valid, rows, prices, bounds, baseline_applied,
+                std_full, animal_type, level, enzyme_adjust,
+                target_key, oil_std)
 
             if not res.success:
+                attempts_log.append({
+                    "level": level, "success": False,
+                    "message": res.message[:80] if res.message else "—",
+                })
                 continue
 
             formula = {valid[i]: res.x[i] for i in range(n)
                        if res.x[i] > 0.001}
 
-            # التقييم بالقيم الفعلية + تحرير الإنزيمات
             raw_actual = compute_formula_nutrients(formula)
-            actual_with_enzymes = dict(raw_actual)
-            actual_with_enzymes["P"]  = raw_actual.get("P", 0) + enzyme_adjust["P"]
-            actual_with_enzymes["Ca"] = raw_actual.get("Ca", 0) + enzyme_adjust["Ca"]
-            actual_with_enzymes["SE"] = raw_actual.get("SE", 0) + enzyme_adjust["SE"]
+            actual_with_enz = dict(raw_actual)
+            actual_with_enz["P"] += enzyme_adjust["P"]
+            actual_with_enz["Ca"] += enzyme_adjust["Ca"]
+            actual_with_enz["SE"] += enzyme_adjust["SE"]
 
             q_raw, _ = evaluate_quality_weighted(
-                formula, custom_standard, animal_type, basis)
+                formula, std_full, animal_type, basis)
             q_enz, _ = evaluate_quality_weighted(
-                formula, custom_standard, animal_type, basis,
-                actual_override=actual_with_enzymes)
+                formula, std_full, animal_type, basis,
+                actual_override=actual_with_enz)
             q = max(q_raw, q_enz)
 
-            if q > best_q:
-                best_q = q
-                best = {
-                    "success": True,
-                    "formula": formula,
-                    "cost": res.fun / 100.0,
-                    "actual_nutrients": actual_with_enzymes,
-                    "actual_raw": raw_actual,
-                    "quality_score": q,
-                    "strategy": label,
-                    "relaxed_constraints": relaxed,
-                    "meets_standard": q >= min_quality,
-                    "targets": custom_standard,
-                    "adjusted_targets": adjusted_targets,
-                    "basis": basis,
-                    "oil_std": oil_std,
-                    "total_oil": compute_total_oil_percentage(formula),
-                    "baseline_applied": baseline_applied,
-                    "enzyme_report": enzyme_report,
-                }
+            attempts_log.append({
+                "level": level, "success": True,
+                "quality": round(q, 1),
+                "cost": round(res.fun / 100, 2),
+            })
 
-            if q >= 92:
+            best = {
+                "success": True,
+                "formula": formula,
+                "cost": res.fun / 100.0,
+                "actual_nutrients": actual_with_enz,
+                "actual_raw": raw_actual,
+                "quality_score": q,
+                "strategy": f"مستوى {level}/25",
+                "level_reached": level,
+                "meets_standard": q >= min_quality,
+                "targets": std_full,
+                "adjusted_targets": adjusted_targets,
+                "basis": basis,
+                "oil_std": oil_std,
+                "total_oil": compute_total_oil_percentage(formula),
+                "baseline_applied": baseline_applied,
+                "enzyme_report": enzyme_report,
+            }
+            best_level = level
+
+            if q >= 92 and level >= 15:
                 break
 
         except Exception as exc:
-            attempts_log.append({"strategy": label,
-                                  "error": str(exc)[:120]})
+            attempts_log.append({"level": level,
+                                  "error": str(exc)[:100]})
             continue
 
-    if not best:
-        return {
-            "success": False,
-            "message": "تعذر إيجاد حل — جرّب مواد أكثر أو أسعارًا مرنة",
-            "attempts": attempts_log,
-        }
+    # ─── Fallback heuristic (إن فشلت كل المستويات) ─────────────
+    if best is None:
+        try:
+            fallback = _heuristic_fallback(
+                valid, ing_data, prices, baseline_applied,
+                std_full, animal_type, target_key)
+            formula = fallback["formula"]
+            raw_actual = compute_formula_nutrients(formula)
+            actual_with_enz = dict(raw_actual)
+            actual_with_enz["P"] += enzyme_adjust["P"]
+            actual_with_enz["Ca"] += enzyme_adjust["Ca"]
+            actual_with_enz["SE"] += enzyme_adjust["SE"]
 
-    # ─── إضافات v11.7.0 ─────────────────────────────────────────
+            q, _ = evaluate_quality_weighted(
+                formula, std_full, animal_type, basis,
+                actual_override=actual_with_enz)
+
+            best = {
+                "success": True,
+                "formula": formula,
+                "cost": fallback["cost"],
+                "actual_nutrients": actual_with_enz,
+                "actual_raw": raw_actual,
+                "quality_score": q,
+                "strategy": "🚨 Fallback يدوي",
+                "level_reached": -1,
+                "meets_standard": q >= min_quality,
+                "targets": std_full,
+                "adjusted_targets": adjusted_targets,
+                "basis": basis,
+                "oil_std": oil_std,
+                "total_oil": compute_total_oil_percentage(formula),
+                "baseline_applied": baseline_applied,
+                "enzyme_report": enzyme_report,
+                "is_fallback": True,
+            }
+            attempts_log.append({"fallback": True,
+                                  "quality": round(q, 1)})
+        except Exception as exc:
+            return {
+                "success": False,
+                "message": f"تعذر إيجاد أي حل: {exc}",
+                "attempts": attempts_log,
+            }
+
+    # ─── إضافات ─────────────────────────────────────────────────
     best["enzymes"] = suggest_enzymes(
-        best["formula"], animal_type, custom_standard,
-        best["actual_raw"])
-
+        best["formula"], animal_type, std_full, best["actual_raw"])
     best["toxicity_warnings"] = detect_toxicity_risks(
         best["formula"], animal_type)
-
     if is_ruminant:
         best["dcr"] = compute_dcr_index(best["formula"])
-
     best["energy_prediction"] = predict_metabolizable_energy(
         best["formula"], animal_type)
-
     best["attempts"] = attempts_log
 
     if not best["meets_standard"]:
         best["warning"] = (
-            f"⚠️ الجودة {best_q:.1f}% < {min_quality}% — "
-            f"أضف مصادر طاقة/بروتين/أملاح")
+            f"⚠️ الجودة {best['quality_score']:.1f}% < {min_quality}% — "
+            f"المستوى الذي وصلناه: {best.get('strategy', '—')}")
 
     return best
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # تحليل الحساسية
