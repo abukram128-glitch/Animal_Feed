@@ -1,14 +1,16 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# تاور نولجي TAWOR NOLOGY 11.8.1 — النسخة الكاملة المُصححة
+# تاور نولجي TAWOR NOLOGY 11.8.2 — النسخة الكاملة النهائية
 # د. عبدالقادر إسماعيل تاور — اختصاصي تغذية الحيوان
 # 🕌 رحم الله والدي إسماعيل تاور وأختي ابتسام 🕌
 # ═══════════════════════════════════════════════════════════════════════════
-# الإصلاحات في 11.8.1:
-#   🔐 كود المالك: TAWOR2026 (مشفّر)
-#   ⚡ قيود البروتين < الطاقة (إصلاح جذري)
-#   📄 PDF شامل: 6 رسوم + مقارنة + تصنيف + مراجع
-#   🎯 كل التبويبات تعمل 100%
-#   🔬 تصنيف المكونات (8 فئات)
+# v11.8.2:
+#   🔐 كود المالك: TAWOR2026
+#   ⚡ 8 استراتيجيات LP لتجنب "تعذر إيجاد حل"
+#   🎯 NLP صارم + مرن
+#   📄 PDF شامل: 6 رسوم + مراجع + تصنيف + حساسية + ختم
+#   🔬 5 تبويبات النمذجة كاملة (LP, NLP, Milk, Oils, Lab)
+#   🐾 تصنيف 8 فئات (طاقة/بروتين/ألياف/زيت/معدن/بريمكس/أميني/أخرى)
+#   💡 تشخيص ذكي مع اقتراحات عند فشل الحل
 # ═══════════════════════════════════════════════════════════════════════════
 
 import streamlit as st
@@ -19,7 +21,7 @@ import time as _time
 from datetime import datetime
 from functools import lru_cache, wraps
 from dataclasses import dataclass
-from typing import Optional, Dict, List, Tuple, Any, Set
+from typing import Optional, Dict, List, Tuple
 
 warnings.filterwarnings('ignore')
 
@@ -44,12 +46,6 @@ try:
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
-
-try:
-    import pytesseract, cv2
-    OCR_AVAILABLE = True
-except ImportError:
-    OCR_AVAILABLE = False
 
 try:
     import openpyxl
@@ -84,23 +80,18 @@ except ImportError:
 # الأمان — كود المالك TAWOR2026
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _sha256(s: str) -> str:
-    return hashlib.sha256(s.encode('utf-8')).hexdigest()
-
 @lru_cache(maxsize=1)
 def _owner_code():
     try:
-        return base64.b64decode("VEFXT1IyMDI2").decode()  # "TAWOR2026"
+        return base64.b64decode("VEFXT1IyMDI2").decode()
     except Exception:
         return None
 
-def check_owner_code(user_input: str) -> bool:
+def check_owner_code(user_input):
     if not user_input:
         return False
     expected = _owner_code()
-    if not expected:
-        return False
-    return hmac.compare_digest(user_input.strip(), expected)
+    return bool(expected and hmac.compare_digest(user_input.strip(), expected))
 
 # ═══════════════════════════════════════════════════════════════════════════
 # الثوابت
@@ -112,7 +103,7 @@ DUA_QURAN = "﴿ رَبَّنَا اغْفِرْ لِي وَلِوَالِدَي
 
 APP_NAME = "تاور نولجي Tawor Nology"
 APP_TAGLINE = "للإنتاج الحيواني وتغذية الحيوان"
-APP_VERSION = "11.8.1"
+APP_VERSION = "11.8.2"
 SUPERVISOR = "د. عبدالقادر إسماعيل تاور"
 SUPERVISOR_TITLE = "اختصاصي تغذية الحيوان"
 OWNER_EMAIL = "abukram128@gmail.com"
@@ -121,7 +112,7 @@ st.set_page_config(page_title=f"{APP_NAME} v{APP_VERSION}", page_icon="🌾",
                     layout="wide", initial_sidebar_state="collapsed")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# الخطوط العربية
+# الخطوط
 # ═══════════════════════════════════════════════════════════════════════════
 
 FONT_DIR = "fonts"
@@ -136,20 +127,18 @@ class ArabicFontManager:
         return cls._instance
     def _init(self):
         self.font_name = 'Helvetica'
-        if not REPORTLAB_AVAILABLE:
-            return
+        if not REPORTLAB_AVAILABLE: return
         paths = [os.path.join(FONT_DIR, "Amiri-Regular.ttf"),
                   "Amiri-Regular.ttf",
                   "/usr/share/fonts/truetype/amiri/Amiri-Regular.ttf",
                   "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
         for p in paths:
-            if os.path.exists(p) and self._register(p):
-                return
+            if os.path.exists(p) and self._register(p): return
         try:
+            import urllib.request
             url = "https://github.com/google/fonts/raw/main/ofl/amiri/Amiri-Regular.ttf"
             target = os.path.join(FONT_DIR, "Amiri-Regular.ttf")
             if not os.path.exists(target):
-                import urllib.request
                 urllib.request.urlretrieve(url, target)
             self._register(target)
         except Exception:
@@ -166,10 +155,8 @@ font_mgr = ArabicFontManager()
 
 @lru_cache(maxsize=1500)
 def _ar_cached(text):
-    if not text:
-        return ""
-    if not ARABIC_AVAILABLE:
-        return str(text)
+    if not text: return ""
+    if not ARABIC_AVAILABLE: return str(text)
     try:
         return get_display(arabic_reshaper.reshape(str(text)), base_dir='R')
     except Exception:
@@ -179,13 +166,13 @@ def ar(text):
     return _ar_cached(text)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# مكتبة الأعلاف الكاملة (مضغوطة)
+# مكتبة الأعلاف
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _feed(cp, dc, se, ndf, adf, ee, ash, ca, p, lys, met, price, desc=""):
+def _feed(cp, dc, se, ndf, adf, ee, ash, ca, p, lys, met, price):
     return {"CP": cp, "DC": dc, "SE": se, "NDF": ndf, "ADF": adf,
-            "EE": ee, "ASH": ash, "Ca": ca, "P": p, "Lys": lys, "Met": met,
-            "price": price, "desc": desc}
+            "EE": ee, "ASH": ash, "Ca": ca, "P": p, "Lys": lys,
+            "Met": met, "price": price}
 
 BIG_FEEDS_LIBRARY = {
     "🌾 الحبوب ومصادر الطاقة": {
@@ -201,10 +188,7 @@ BIG_FEEDS_LIBRARY = {
         "دخن محلي": _feed(11, .75, 68, 15.5, 6.5, 4, 2.2, .05, .31, .28, .2, 220),
         "شوفان علفي": _feed(11, .76, 62, 27.5, 13.5, 5, 3, .08, .35, .4, .18, 260),
         "كسرة خبز": _feed(10.5, .82, 75, 8, 3.5, 5.5, 3.5, .1, .2, .28, .17, 160),
-        "بسكويت مكسر": _feed(8.5, .85, 85, 4, 2, 12, 2.5, .08, .18, .2, .12, 180),
-        "مكرونة مكسرة": _feed(11, .88, 80, 3.5, 1.5, 1.5, 1, .03, .2, .28, .15, 190),
-        "بطاطا مجففة": _feed(8, .9, 78, 6, 3, 1, 4.5, .08, .22, .28, .15, 200),
-        "تمر مجفف (دقل)": _feed(5.5, .85, 68, 15, 8.5, 1, 3.5, .1, .1, .1, .05, 180),
+        "تمر مجفف": _feed(5.5, .85, 68, 15, 8.5, 1, 3.5, .1, .1, .1, .05, 180),
         "مولاس قصب السكر": _feed(4, .95, 50, 1.5, .8, .5, 8.5, .7, .05, .03, .02, 120),
         "تفل بنجر السكر": _feed(8.5, .65, 55, 45, 28, 1, 8.5, .7, .1, .3, .15, 190),
     },
@@ -288,7 +272,7 @@ BIG_FEEDS_LIBRARY = {
     },
 }
 
-def _get_ingredient_lookup() -> Dict[str, Dict]:
+def _get_ingredient_lookup():
     if not hasattr(_get_ingredient_lookup, "_cache"):
         lookup = {}
         for cat in BIG_FEEDS_LIBRARY.values():
@@ -297,15 +281,14 @@ def _get_ingredient_lookup() -> Dict[str, Dict]:
         _get_ingredient_lookup._cache = lookup
     return _get_ingredient_lookup._cache
 
-def get_oil_ingredients() -> Dict[str, Dict]:
+def get_oil_ingredients():
     return BIG_FEEDS_LIBRARY.get("🌰 الزيوت النباتية والحيوانية", {})
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 🆕 تصنيف المكونات (لضبط الطاقة vs البروتين)
+# تصنيف المكونات
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _classify_ingredient(name: str) -> str:
-    """تصنيف المكون إلى: طاقة | بروتين | ألياف | زيت | معدن | بريمكس | أميني | أخرى"""
+def _classify_ingredient(name):
     mineral_kw = ["حجر", "فوسفات", "ملح", "بيكربونات", "أكسيد",
                   "كبريتات", "يوريا", "سيلينيت", "يوديد"]
     premix_kw = ["بريمكس", "إنزيم", "خمائر", "بروبيوتيك", "بريبيوتيك",
@@ -313,7 +296,7 @@ def _classify_ingredient(name: str) -> str:
                  "محسن", "ملون", "أحماض عضوية", "كالبتوس"]
     amino_kw = ["ليسين", "ميثيونين", "ثريونين", "تريبتوفان",
                 "فالين", "أرجينين", "هيستيدين", "إيزوليوسين"]
-    oil_kw = ["زيت", "شحم", "سمن", "دهن الدجاج", "Fish Oil"]
+    oil_kw = ["زيت", "شحم", "سمن", "دهن الدجاج"]
     fiber_kw = ["تبن", "قش أرز", "قش عدس", "سرسة", "سعف", "قوالح",
                 "قشور", "أوراق", "مخلفات", "تفل قصب", "قش فول",
                 "برسيم", "مخلفات النخيل"]
@@ -323,8 +306,7 @@ def _classify_ingredient(name: str) -> str:
                   "مسحوق الدم", "مسحوق ريش", "مركزات", "بيض مجفف"]
     energy_kw = ["ذرة", "شعير", "قمح", "جريش", "دخن", "شوفان",
                  "كسرة", "بسكويت", "مكرونة", "بطاطا", "كسافا",
-                 "تمر", "سكر مائدة", "عسل أسود", "تفل بنجر",
-                 "مولاس"]
+                 "تمر", "سكر مائدة", "عسل أسود", "تفل بنجر", "مولاس"]
 
     for k in mineral_kw:
         if k in name: return "معدن"
@@ -342,36 +324,41 @@ def _classify_ingredient(name: str) -> str:
         if k in name: return "طاقة"
     return "أخرى"
 
-# ═══════════════════════════════════════════════════════════════════════════
-# حدود الفئات لكل حيوان
-# ═══════════════════════════════════════════════════════════════════════════
-
 CATEGORY_LIMITS_BY_ANIMAL = {
     "دواجن": {"طاقة": (45, 72), "بروتين": (18, 35), "ألياف": (0, 8),
               "زيت": (0, 8), "معدن": (1, 5), "بريمكس": (0.2, 1), "أميني": (0, 1)},
     "سمان": {"طاقة": (45, 70), "بروتين": (20, 38), "ألياف": (0, 7),
              "زيت": (0, 6), "معدن": (1, 5), "بريمكس": (0.2, 1), "أميني": (0, 1)},
-    "أبقار": {"طاقة": (25, 55), "بروتين": (12, 28), "ألياف": (25, 55),
+    "أبقار": {"طاقة": (20, 55), "بروتين": (10, 28), "ألياف": (20, 60),
               "زيت": (0, 6), "معدن": (1, 5), "بريمكس": (0.1, 0.5)},
-    "أغنام": {"طاقة": (25, 55), "بروتين": (12, 28), "ألياف": (25, 55),
+    "أغنام": {"طاقة": (20, 55), "بروتين": (10, 28), "ألياف": (20, 60),
               "زيت": (0, 5), "معدن": (1, 5), "بريمكس": (0.1, 0.5)},
-    "ماعز": {"طاقة": (25, 55), "بروتين": (12, 28), "ألياف": (25, 55),
+    "ماعز": {"طاقة": (20, 55), "بروتين": (10, 28), "ألياف": (20, 60),
              "زيت": (0, 5), "معدن": (1, 5), "بريمكس": (0.1, 0.5)},
-    "إبل": {"طاقة": (20, 50), "بروتين": (10, 26), "ألياف": (30, 60),
+    "إبل": {"طاقة": (15, 50), "بروتين": (8, 26), "ألياف": (25, 60),
             "زيت": (0, 5), "معدن": (1, 5), "بريمكس": (0.1, 0.5)},
-    "خيول": {"طاقة": (30, 55), "بروتين": (10, 25), "ألياف": (25, 55),
+    "خيول": {"طاقة": (25, 55), "بروتين": (8, 25), "ألياف": (25, 60),
              "زيت": (0, 10), "معدن": (1, 5), "بريمكس": (0.1, 0.5)},
-    "أسماك": {"طاقة": (30, 50), "بروتين": (25, 45), "ألياف": (0, 10),
-              "زيت": (0, 15), "معدن": (1, 4), "بريمكس": (0.1, 0.5)},
-    "أرانب": {"طاقة": (35, 55), "بروتين": (14, 25), "ألياف": (20, 40),
+    "أسماك": {"طاقة": (0, 40), "بروتين": (25, 50), "ألياف": (0, 10),
+              "زيت": (0, 20), "معدن": (1, 4), "بريمكس": (0.1, 0.5)},
+    "أرانب": {"طاقة": (30, 55), "بروتين": (12, 25), "ألياف": (20, 40),
               "زيت": (0, 4), "معدن": (1, 5), "بريمكس": (0.1, 0.5)},
 }
 
-def _get_category_limits(animal_type: str) -> Dict[str, Tuple[float, float]]:
+def _get_category_limits(animal_type):
     return CATEGORY_LIMITS_BY_ANIMAL.get(animal_type, {})
 
+SUGGESTIONS_BY_CATEGORY = {
+    "طاقة": ["ذرة صفراء", "شعير مطحون", "قمح محلي", "جريش أرز"],
+    "بروتين": ["كسب فول صويا 44%", "كسب عباد الشمس 36%", "كسب جلوتين 40%"],
+    "ألياف": ["تبن قمح", "البرسيم الجاف", "قش أرز"],
+    "زيت": ["زيت ذرة", "زيت فول الصويا", "زيت النخيل"],
+    "معدن": ["الحجر الجيري", "فوسفات ثنائي الكالسيوم", "ملح الطعام"],
+    "بريمكس": ["بريمكس تسمين دواجن", "بريمكس أبقار", "بريمكس مجترات"],
+}
+
 # ═══════════════════════════════════════════════════════════════════════════
-# الاحتياجات الغذائية
+# الاحتياجات
 # ═══════════════════════════════════════════════════════════════════════════
 
 @dataclass
@@ -380,7 +367,7 @@ class AnimalRequirement:
     EE: float; ASH: float; Ca: float; P: float
     name_ar: str = ""; note: str = ""
 
-def get_cattle_requirements(t: str, milk_yield: float = 20.0, weight_kg: float = 500.0):
+def get_cattle_requirements(t, milk_yield=20.0, weight_kg=500.0):
     if t == "حليب_عالي":
         dp = 12.5 + milk_yield * .30
         return AnimalRequirement(round(dp,2), round(dp/.70,2),
@@ -410,7 +397,7 @@ def get_cattle_requirements(t: str, milk_yield: float = 20.0, weight_kg: float =
                                   "حمل آخر", "")
     return AnimalRequirement(7.5, 10, 53, 45, 28, 3, 8.5, .42, .26, "صيانة", "")
 
-def get_sheep_requirements(t: str, is_male: bool = True, weight_kg: float = 50.0, litter_size: int = 1):
+def get_sheep_requirements(t, is_male=True, weight_kg=50.0, litter_size=1):
     if is_male:
         if t == "تسمين_مكثف":
             return AnimalRequirement(11.5, 14.5, 64, 28, 17, 4, 8, .65, .36, "تسمين مكثف", "")
@@ -429,7 +416,7 @@ def get_sheep_requirements(t: str, is_male: bool = True, weight_kg: float = 50.0
         return AnimalRequirement(8.5, 11, 55, 38, 24, 3.4, 8, .5, .3, "حامل متوسط", "")
     return AnimalRequirement(7.2, 9.5, 48, 45, 28, 3, 8.5, .42, .26, "صيانة", "")
 
-def get_goat_requirements(t: str, is_male: bool = True, milk_yield: float = 2.0):
+def get_goat_requirements(t, is_male=True, milk_yield=2.0):
     if is_male:
         if t == "تسمين_جديان":
             return AnimalRequirement(11, 14, 62, 30, 19, 3.8, 8, .62, .34, "تسمين جديان", "")
@@ -450,7 +437,7 @@ def get_goat_requirements(t: str, is_male: bool = True, milk_yield: float = 2.0)
         return AnimalRequirement(10, 13, 60, 33, 21, 3.8, 8, .6, .35, "حامل آخر", "")
     return AnimalRequirement(6.8, 9, 46, 46, 28, 3, 8.5, .42, .26, "صيانة", "")
 
-def get_camel_requirements(t: str, weight_kg: float = 400.0, milk_yield: float = 5.0):
+def get_camel_requirements(t, weight_kg=400.0, milk_yield=5.0):
     if t == "نمو":
         return AnimalRequirement(10.5, 13.5, 60, 38, 24, 4, 8, .65, .38, "نمو", "")
     if t == "تسمين":
@@ -465,7 +452,7 @@ def get_camel_requirements(t: str, weight_kg: float = 400.0, milk_yield: float =
         return AnimalRequirement(14, 17, 72, 28, 17, 6, 9, .85, .5, "سباق", "")
     return AnimalRequirement(7, 9, 48, 48, 30, 3.5, 9, .42, .26, "صيانة", "")
 
-def get_horse_requirements(t: str, weight_kg: float = 450.0):
+def get_horse_requirements(t, weight_kg=450.0):
     if t == "رياضة_مكثف":
         return AnimalRequirement(10.5, 13.5, 70, 30, 18, 7, 7.5, .7, .4, "رياضة مكثف", "")
     if t == "رياضة_عادي":
@@ -476,7 +463,7 @@ def get_horse_requirements(t: str, weight_kg: float = 450.0):
         return AnimalRequirement(12.5, 16, 68, 32, 20, 5.5, 8, .8, .45, "مرضعات", "")
     return AnimalRequirement(7.2, 9.5, 53, 46, 29, 3.5, 8, .45, .28, "صيانة", "")
 
-def get_poultry_requirements(strain: str, age_weeks: int = 1):
+def get_poultry_requirements(strain, age_weeks=1):
     if strain == "لاحم":
         if age_weeks <= 1:
             return AnimalRequirement(20, 23, 76, 8, 4, 5, 6.5, 1, .5, "بادي لاحم", "")
@@ -491,7 +478,7 @@ def get_poultry_requirements(strain: str, age_weeks: int = 1):
         return AnimalRequirement(14.5, 17, 70, 12, 6.5, 4, 9, 1.5, .45, "نامي بياض", "")
     return AnimalRequirement(15.5, 18, 72, 11, 6, 4.2, 11.5, 3.8, .45, "بياض", "")
 
-def get_quail_requirements(strain: str, age_weeks: int = 1):
+def get_quail_requirements(strain, age_weeks=1):
     if strain == "بياض":
         return AnimalRequirement(15, 18, 68, 11, 5.5, 4.5, 9, 2.5, .45, "سمان بياض", "")
     if age_weeks <= 2:
@@ -500,21 +487,21 @@ def get_quail_requirements(strain: str, age_weeks: int = 1):
         return AnimalRequirement(18.5, 22, 72, 9, 4.5, 5, 6, .9, .5, "سمان نامي", "")
     return AnimalRequirement(17, 20, 70, 10, 5, 4.5, 6, .85, .45, "سمان ناهي", "")
 
-def get_fish_requirements(species: str, stage: str):
+def get_fish_requirements(species, stage):
     if "بادئ" in stage or "زريعة" in stage:
         return AnimalRequirement(32, 40, 72, 8, 4, 10, 11, 1.5, .9, f"{species} بادئ", "")
     if "نمو" in stage:
         return AnimalRequirement(25, 32, 70, 12, 6, 8, 9, 1, .7, f"{species} نمو", "")
     return AnimalRequirement(22, 28, 68, 13, 7, 8, 9.5, .9, .65, f"{species} تسمين", "")
 
-def get_rabbit_requirements(t: str, weight_kg: float = 4.0):
+def get_rabbit_requirements(t, weight_kg=4.0):
     if t == "تسمين":
         return AnimalRequirement(15, 17, 65, 25, 15, 3, 8, .7, .35, "تسمين", "")
     if t == "حليب":
         return AnimalRequirement(18, 20, 68, 25, 15, 4, 8.5, .85, .45, "حلابة", "")
     return AnimalRequirement(12, 14, 60, 30, 20, 2.5, 8.5, .6, .3, "صيانة", "")
 
-def requirement_to_standard(req: AnimalRequirement) -> Dict[str, float]:
+def requirement_to_standard(req):
     return {"CP": req.CP, "DP": req.DP, "SE": req.SE,
             "NDF": req.NDF, "ADF": req.ADF, "EE": req.EE,
             "ASH": req.ASH, "Ca": req.Ca, "P": req.P}
@@ -528,10 +515,8 @@ def compute_formula_nutrients(formula):
                                  "ASH", "Ca", "P", "Lys", "Met"]}
     lookup = _get_ingredient_lookup()
     for ing, pct in formula.items():
-        if ing not in lookup:
-            continue
-        d = lookup[ing]
-        f = pct / 100.0
+        if ing not in lookup: continue
+        d = lookup[ing]; f = pct / 100.0
         for k in totals:
             if k == "DP":
                 totals[k] += f * d.get("CP", 0) * d.get("DC", 0)
@@ -541,8 +526,7 @@ def compute_formula_nutrients(formula):
 
 def evaluate_difference(pct_diff, standard_value=None):
     if standard_value is not None and standard_value == 0:
-        if abs(pct_diff) < .001:
-            return {"label": "🎯 مطابق", "bg": "#c8e6c9", "score": 100}
+        if abs(pct_diff) < .001: return {"label": "🎯 مطابق", "bg": "#c8e6c9", "score": 100}
         return {"label": "⚠️ صفر", "bg": "#fff3e0", "score": 40}
     a = abs(pct_diff)
     if a <= .5: return {"label": "🎯 مطابق", "bg": "#c8e6c9", "score": 100}
@@ -567,8 +551,7 @@ def evaluate_quality_weighted(formula, targets, animal_type, basis="DP"):
     if targets.get("P"): weights["P"] = 0.10
     total_w, weighted = 0.0, 0.0
     for nut, w in weights.items():
-        if not targets.get(nut):
-            continue
+        if not targets.get(nut): continue
         diff_pct = abs(actual.get(nut, 0) - targets[nut]) / targets[nut] * 100
         ev = evaluate_difference(diff_pct, standard_value=targets[nut])
         weighted += ev["score"] * w
@@ -606,7 +589,7 @@ def compute_sensitivity(formula, targets, animal_type):
                             "driver_ingredient": best_ing}
     return deviations
 
-def get_default_selections(animal_type, production_type, requirement=None):
+def get_default_selections(animal_type, production_type):
     d = {"ملح الطعام", "مضاد سموم فطرية"}
     if animal_type != "دواجن":
         d |= {"الحجر الجيري", "فوسفات ثنائي الكالسيوم"}
@@ -621,7 +604,7 @@ def get_default_selections(animal_type, production_type, requirement=None):
     elif animal_type == "أسماك": d.add("بريمكس أسماك")
     return d
 
-def _normalize_ingredient_name(name: str) -> str:
+def _normalize_ingredient_name(name):
     name = re.sub(r'\s+', ' ', str(name).strip())
     lookup = _get_ingredient_lookup()
     if name in lookup: return name
@@ -631,7 +614,7 @@ def _normalize_ingredient_name(name: str) -> str:
     return name
 
 # ═══════════════════════════════════════════════════════════════════════════
-# معايير الزيوت
+# معايير الزيوت والحدود
 # ═══════════════════════════════════════════════════════════════════════════
 
 MAX_OIL_PERCENTAGE = {
@@ -642,11 +625,8 @@ MAX_OIL_PERCENTAGE = {
     "سمان_بادي": {"max": 6.0, "optimal": 4.0, "source": "NRC Quail"},
     "سمان_بياض": {"max": 5.0, "optimal": 2.5, "source": "NRC Quail"},
     "أبقار_حليب_عالي": {"max": 6.0, "optimal": 4.0, "source": "NRC 2001"},
-    "أبقار_حليب_متوسط": {"max": 5.0, "optimal": 3.5, "source": "NRC 2001"},
     "أبقار_تسمين_مكثف": {"max": 6.0, "optimal": 4.5, "source": "NRC 2001"},
     "أغنام_تسمين_مكثف": {"max": 5.0, "optimal": 3.5, "source": "NRC 2007"},
-    "أغنام_مرضعات": {"max": 5.0, "optimal": 3.5, "source": "NRC 2007"},
-    "ماعز_حلابة_عالي": {"max": 5.0, "optimal": 3.5, "source": "NRC 2007"},
     "إبل_حليب": {"max": 5.0, "optimal": 3.5, "source": "FAO 2010"},
     "خيول_رياضة_مكثف": {"max": 10.0, "optimal": 7.0, "source": "NRC Horses"},
     "أسماك_بادئ": {"max": 15.0, "optimal": 10.0, "source": "NRC Fish"},
@@ -654,11 +634,7 @@ MAX_OIL_PERCENTAGE = {
 }
 
 def get_oil_standard(k):
-    return MAX_OIL_PERCENTAGE.get(k, {"max": 5.0, "optimal": 3.0, "source": "عام"})
-
-# ═══════════════════════════════════════════════════════════════════════════
-# حدود المكونات (اختصار)
-# ═══════════════════════════════════════════════════════════════════════════
+    return MAX_OIL_PERCENTAGE.get(k, {"max": 8.0, "optimal": 5.0, "source": "عام"})
 
 INGREDIENT_LIMITS_BY_ANIMAL = {
     "دواجن": {"يوريا علفية": (0, 0), "نخالة قمح (ردة)": (0, 10),
@@ -690,8 +666,24 @@ def get_animal_limits(animal_type):
     return INGREDIENT_LIMITS_BY_ANIMAL.get(animal_type, {})
 
 # ═══════════════════════════════════════════════════════════════════════════
-# محرك LP مع قيود التصنيف
+# LP محرك — 8 استراتيجيات + تشخيص
 # ═══════════════════════════════════════════════════════════════════════════
+
+def _diagnostic_message(valid, animal_type, missing_cats, ca_p_ok, ratio_ok):
+    msg = "### ❌ تعذر إيجاد حل\n\n**الأسباب المحتملة:**\n\n"
+    if missing_cats:
+        msg += f"**1. فئات ناقصة ({len(missing_cats)}):**\n\n"
+        for cat in missing_cats:
+            sugg = SUGGESTIONS_BY_CATEGORY.get(cat, [])
+            if sugg:
+                msg += f"- **{cat}** — أضف: `{sugg[0]}`\n"
+        msg += "\n"
+    if not ca_p_ok:
+        msg += "**2. Ca:P غير قابل للتحقيق** — أضف `الحجر الجيري` + `فوسفات ثنائي الكالسيوم`\n\n"
+    if not ratio_ok:
+        msg += "**3. بروتين > طاقة** — أضف مصادر طاقة (ذرة/شعير)\n\n"
+    msg += "💡 **التوصية:** اختر 6 مكونات على الأقل (طاقة + بروتين + ألياف + معدن + بريمكس)"
+    return msg
 
 def auto_formulate_smart(available_ingredients, prices, custom_standard,
                            standard_key="", basis="DP", min_quality=70.0,
@@ -705,10 +697,11 @@ def auto_formulate_smart(available_ingredients, prices, custom_standard,
     ing_data = {i: lookup[i] for i in available_ingredients if i in lookup}
     valid = list(ing_data.keys())
     if len(valid) < 3:
-        return {"success": False, "message": "اختر 3 مكونات على الأقل"}
+        return {"success": False, "message": "⚠️ اختر 3 مكونات على الأقل"}
 
     is_rum = animal_type in ("أبقار", "أغنام", "ماعز", "إبل")
     is_poultry = animal_type in ("دواجن", "سمان")
+    is_fish = animal_type == "أسماك"
     n = len(valid)
     c = [prices.get(i, 300.0) for i in valid]
 
@@ -716,8 +709,17 @@ def auto_formulate_smart(available_ingredients, prices, custom_standard,
     cat_indices = {}
     for cat in ["طاقة", "بروتين", "ألياف", "زيت", "معدن", "بريمكس", "أميني"]:
         idxs = [j for j in range(n) if categories[valid[j]] == cat]
-        if idxs:
-            cat_indices[cat] = idxs
+        if idxs: cat_indices[cat] = idxs
+
+    cat_limits = dict(_get_category_limits(animal_type))
+
+    cat_availability = {cat: len(cat_indices.get(cat, [])) for cat in cat_limits}
+    missing_cats = [cat for cat, (cmin, _) in cat_limits.items()
+                     if cmin > 0 and cat_availability.get(cat, 0) == 0]
+
+    ca_p_possible = (any(ing_data[i].get("Ca", 0) > 1 for i in valid) and
+                     any(ing_data[i].get("P", 0) > 1 for i in valid))
+    ca_p_ok = ca_p_possible
 
     rows = {}
     for nut in ["CP", "SE", "NDF", "ADF", "EE", "ASH", "Ca", "P", "Lys", "Met"]:
@@ -735,116 +737,88 @@ def auto_formulate_smart(available_ingredients, prices, custom_standard,
     limits = get_animal_limits(animal_type)
     bounds = [limits.get(i, (0.0, 100.0)) for i in valid]
 
-    A_eq = [[1.0] * n, rows[target_key]]
-    b_eq = [100.0, target_protein * 100.0]
-    A_ub, b_ub = [], []
+    base_A_eq = [[1.0] * n, rows[target_key]]
+    base_b_eq = [100.0, target_protein * 100.0]
 
-    # 🆕 قيود التصنيف
-    cat_limits = _get_category_limits(animal_type)
-
-    if "طاقة" in cat_indices and "طاقة" in cat_limits:
-        e_min, e_max = cat_limits["طاقة"]
-        A_ub.append([-1.0 if j in cat_indices["طاقة"] else 0.0 for j in range(n)])
-        b_ub.append(-e_min * 100.0)
-        A_ub.append([1.0 if j in cat_indices["طاقة"] else 0.0 for j in range(n)])
-        b_ub.append(e_max * 100.0)
-
-    if "بروتين" in cat_indices and "بروتين" in cat_limits:
-        p_min, p_max = cat_limits["بروتين"]
-        A_ub.append([-1.0 if j in cat_indices["بروتين"] else 0.0 for j in range(n)])
-        b_ub.append(-p_min * 100.0)
-        A_ub.append([1.0 if j in cat_indices["بروتين"] else 0.0 for j in range(n)])
-        b_ub.append(p_max * 100.0)
-
-    # ⚡ الطاقة ≥ 1.2 × البروتين
-    if "طاقة" in cat_indices and "بروتين" in cat_indices:
-        ratio_row = []
-        for j in range(n):
-            if j in cat_indices["طاقة"]: ratio_row.append(-1.0)
-            elif j in cat_indices["بروتين"]: ratio_row.append(1.2)
-            else: ratio_row.append(0.0)
-        A_ub.append(ratio_row)
-        b_ub.append(0.0)
-
-    if "ألياف" in cat_indices and "ألياف" in cat_limits:
-        f_min, f_max = cat_limits["ألياف"]
-        A_ub.append([-1.0 if j in cat_indices["ألياف"] else 0.0 for j in range(n)])
-        b_ub.append(-f_min * 100.0)
-        A_ub.append([1.0 if j in cat_indices["ألياف"] else 0.0 for j in range(n)])
-        b_ub.append(f_max * 100.0)
-
-    if "زيت" in cat_indices:
-        _, o_max = cat_limits.get("زيت", (0, 8))
-        A_ub.append([1.0 if j in cat_indices["زيت"] else 0.0 for j in range(n)])
-        b_ub.append(o_max * 100.0)
-
-    if "معدن" in cat_indices:
-        m_min, m_max = cat_limits.get("معدن", (1, 5))
-        A_ub.append([-1.0 if j in cat_indices["معدن"] else 0.0 for j in range(n)])
-        b_ub.append(-m_min * 100.0)
-        A_ub.append([1.0 if j in cat_indices["معدن"] else 0.0 for j in range(n)])
-        b_ub.append(m_max * 100.0)
-
-    if "بريمكس" in cat_indices:
-        pr_min, pr_max = cat_limits.get("بريمكس", (0.1, 1))
-        A_ub.append([-1.0 if j in cat_indices["بريمكس"] else 0.0 for j in range(n)])
-        b_ub.append(-pr_min * 100.0)
-        A_ub.append([1.0 if j in cat_indices["بريمكس"] else 0.0 for j in range(n)])
-        b_ub.append(pr_max * 100.0)
-
-    # Ca:P
-    if target_ca > 0 and target_p > 0:
-        if is_poultry: ca_p_min, ca_p_max = 1.5, 2.2
-        elif is_rum: ca_p_min, ca_p_max = 1.4, 2.5
-        else: ca_p_min, ca_p_max = 1.5, 2.0
-        A_ub.append([-rows["Ca"][i] + ca_p_min * rows["P"][i] for i in range(n)])
-        b_ub.append(0)
-        A_ub.append([rows["Ca"][i] - ca_p_max * rows["P"][i] for i in range(n)])
-        b_ub.append(0)
-
+    base_A_ub, base_b_ub = [], []
     if target_se > 0:
-        A_ub.append([-x for x in rows["SE"]])
-        b_ub.append(-target_se * 0.92 * 100.0)
+        base_A_ub.append([-x for x in rows["SE"]])
+        base_b_ub.append(-target_se * 0.90 * 100.0)
     if target_ndf > 0:
         if is_rum:
-            A_ub.append([-x for x in rows["NDF"]])
-            b_ub.append(-target_ndf * 0.85 * 100.0)
-            A_ub.append(rows["NDF"])
-            b_ub.append(target_ndf * 1.20 * 100.0)
-        else:
-            A_ub.append(rows["NDF"])
-            b_ub.append(target_ndf * (1.10 if is_poultry else 1.15) * 100.0)
+            base_A_ub.append([-x for x in rows["NDF"]])
+            base_b_ub.append(-target_ndf * 0.75 * 100.0)
+        base_A_ub.append(rows["NDF"])
+        base_b_ub.append(target_ndf * 1.25 * 100.0)
     if target_adf > 0:
-        A_ub.append(rows["ADF"])
-        mult = 1.30 if is_rum else (1.10 if is_poultry else 1.20)
-        b_ub.append(target_adf * mult * 100.0)
+        base_A_ub.append(rows["ADF"])
+        mult = 1.35 if is_rum else (1.15 if is_poultry else 1.25)
+        base_b_ub.append(target_adf * mult * 100.0)
 
     oil_std = get_oil_standard(standard_key)
+    oil_ind = [1.0 if i in get_oil_ingredients() else 0.0 for i in valid]
+    if sum(oil_ind) > 0:
+        base_A_ub.append(oil_ind)
+        base_b_ub.append(oil_std["max"] * 100.0)
 
-    strategies = [("صارم", "full"), ("مرن ±5%", "r05"),
-                  ("مرن ±10%", "r10"), ("مرن ±15%", "r15"),
-                  ("طوارئ", "emergency")]
+    def build_ca_p(mode):
+        if mode == "none" or target_ca == 0 or target_p == 0:
+            return [], []
+        if is_poultry: cmin, cmax = 1.5, 2.2
+        elif is_rum: cmin, cmax = 1.4, 2.5
+        else: cmin, cmax = 1.4, 2.0
+        if mode == "loose": cmin, cmax = cmin * 0.7, cmax * 1.4
+        A = [[-rows["Ca"][i] + cmin * rows["P"][i] for i in range(n)],
+             [rows["Ca"][i] - cmax * rows["P"][i] for i in range(n)]]
+        return A, [0, 0]
+
+    def build_cat(mode):
+        if mode == "none": return [], []
+        A, b = [], []
+        for cat in ["طاقة", "بروتين", "ألياف", "زيت", "معدن", "بريمكس"]:
+            if cat not in cat_indices or cat not in cat_limits: continue
+            cmin, cmax = cat_limits[cat]
+            if mode == "max_only": cmin = 0
+            elif mode == "soft": cmin *= 0.4
+            if cat_availability.get(cat, 0) == 0: cmin = 0
+            if cmin > 0:
+                A.append([-1.0 if j in cat_indices[cat] else 0.0 for j in range(n)])
+                b.append(-cmin * 100.0)
+            if cmax < 100:
+                A.append([1.0 if j in cat_indices[cat] else 0.0 for j in range(n)])
+                b.append(cmax * 100.0)
+        return A, b
+
+    def build_ratio(ratio_val):
+        if ratio_val is None or is_fish: return None, None
+        if "طاقة" not in cat_indices or "بروتين" not in cat_indices: return None, None
+        row = [(-1.0 if j in cat_indices["طاقة"]
+                else ratio_val if j in cat_indices["بروتين"] else 0.0)
+               for j in range(n)]
+        return row, 0.0
+
+    strategies = [
+        ("صارم — كل القيود + نسبة 1.2", "full", 1.2, "strict"),
+        ("صارم — نسبة 1.0", "full", 1.0, "strict"),
+        ("مرن — بدون نسبة", "full", None, "strict"),
+        ("مرن — Ca:P واسع", "full", None, "loose"),
+        ("مرن — حدود فئات مخففة", "soft", None, "loose"),
+        ("مرن — أقصى فقط", "max_only", None, "loose"),
+        ("طوارئ — بلا Ca:P", "max_only", None, "none"),
+        ("طوارئ — بلا فئات", "none", None, "none"),
+    ]
 
     best, best_q = None, 0.0
 
-    for label, mode in strategies:
+    for label, cat_mode, ratio_val, cap_mode in strategies:
         try:
-            A_eq2, b_eq2 = list(A_eq), list(b_eq)
-            A_ub2, b_ub2 = list(A_ub), list(b_ub)
-
-            if mode == "full":
-                if target_ca > 0:
-                    A_eq2.append(rows["Ca"]); b_eq2.append(target_ca * 100.0)
-                if target_p > 0:
-                    A_eq2.append(rows["P"]); b_eq2.append(target_p * 100.0)
-            elif mode.startswith("r"):
-                tol = int(mode[1:]) / 100.0
-                if target_ca > 0:
-                    A_ub2.append(rows["Ca"]); b_ub2.append(target_ca * (1 + tol) * 100.0)
-                    A_ub2.append([-x for x in rows["Ca"]]); b_ub2.append(-target_ca * (1 - tol) * 100.0)
-                if target_p > 0:
-                    A_ub2.append(rows["P"]); b_ub2.append(target_p * (1 + tol) * 100.0)
-                    A_ub2.append([-x for x in rows["P"]]); b_ub2.append(-target_p * (1 - tol) * 100.0)
+            A_eq2, b_eq2 = list(base_A_eq), list(base_b_eq)
+            A_ub2, b_ub2 = list(base_A_ub), list(base_b_ub)
+            cap_A, cap_b = build_ca_p(cap_mode); A_ub2.extend(cap_A); b_ub2.extend(cap_b)
+            cat_A, cat_b = build_cat(cat_mode); A_ub2.extend(cat_A); b_ub2.extend(cat_b)
+            ratio_row, ratio_rhs = build_ratio(ratio_val)
+            if ratio_row:
+                A_ub2.append(ratio_row); b_ub2.append(ratio_rhs)
 
             res = linprog(c, A_ub=A_ub2, b_ub=b_ub2, A_eq=A_eq2, b_eq=b_eq2,
                           bounds=bounds, method='highs',
@@ -853,21 +827,20 @@ def auto_formulate_smart(available_ingredients, prices, custom_standard,
             if res.success:
                 formula = {valid[i]: res.x[i] for i in range(n) if res.x[i] > 0.001}
                 q, actual = evaluate_quality_weighted(formula, custom_standard, animal_type, basis)
-
-                # تحقق نهائي: طاقة ≥ بروتين
-                cat_totals = {c: 0.0 for c in cat_indices}
+                cat_totals = {}
                 for i, ing in enumerate(valid):
                     if ing in formula:
                         cat = categories[ing]
-                        if cat in cat_totals:
-                            cat_totals[cat] += formula[ing]
-                e_t = cat_totals.get("طاقة", 0)
-                p_t = cat_totals.get("بروتين", 0)
-                valid_ratio = (e_t >= p_t)
+                        cat_totals[cat] = cat_totals.get(cat, 0) + formula[ing]
 
-                if q > best_q and valid_ratio:
+                if q > best_q:
                     best_q = q
-                    cat_summary = {k: round(v, 2) for k, v in cat_totals.items() if v > 0.01}
+                    e_t = cat_totals.get("طاقة", 0)
+                    p_t = cat_totals.get("بروتين", 0)
+                    ratio_warning = None
+                    if e_t < p_t and not is_fish:
+                        ratio_warning = f"⚠️ البروتين ({p_t:.1f}%) > الطاقة ({e_t:.1f}%) — أضف مصادر طاقة"
+
                     best = {"success": True, "formula": formula,
                             "cost": res.fun / 100.0,
                             "actual_nutrients": actual,
@@ -875,10 +848,12 @@ def auto_formulate_smart(available_ingredients, prices, custom_standard,
                             "meets_standard": q >= min_quality,
                             "targets": custom_standard, "basis": basis,
                             "oil_std": oil_std,
-                            "category_summary": cat_summary,
-                            "categories": {ing: categories[ing] for ing in formula}}
-                if q >= 92 and valid_ratio:
-                    break
+                            "category_summary": {k: round(v, 2) for k, v in cat_totals.items()},
+                            "categories": {ing: categories[ing] for ing in formula},
+                            "ratio_warning": ratio_warning,
+                            "missing_categories": missing_cats}
+
+                if q >= 92: break
         except Exception:
             continue
 
@@ -886,10 +861,13 @@ def auto_formulate_smart(available_ingredients, prices, custom_standard,
         if not best["meets_standard"]:
             best["warning"] = f"⚠️ الجودة {best_q:.1f}% < {min_quality}%"
         return best
-    return {"success": False, "message": "تعذر إيجاد حل يرضي القيود"}
+
+    return {"success": False,
+            "message": _diagnostic_message(valid, animal_type, missing_cats,
+                                             ca_p_ok, len(cat_indices.get("طاقة", [])) > 0)}
 
 # ═══════════════════════════════════════════════════════════════════════════
-# NLP مع قيود التصنيف
+# NLP
 # ═══════════════════════════════════════════════════════════════════════════
 
 def nlp_optimize_feed_v2(ingredient_names, ingredient_data, prices,
@@ -897,7 +875,7 @@ def nlp_optimize_feed_v2(ingredient_names, ingredient_data, prices,
                           protein_basis="DP", price_product=2.5, max_per_ing=0.6):
     n = len(ingredient_names)
     if n < 2:
-        return {"success": False, "message": "يلزم مكونان"}
+        return {"success": False, "message": "⚠️ يلزم مكونان على الأقل"}
     if not SCIPY_AVAILABLE or minimize is None:
         return {"success": False, "message": "SCIPY غير متوفرة"}
 
@@ -905,26 +883,28 @@ def nlp_optimize_feed_v2(ingredient_names, ingredient_data, prices,
     cat_indices = {}
     for cat in ["طاقة", "بروتين", "ألياف", "زيت", "معدن", "بريمكس", "أميني"]:
         idxs = [j for j in range(n) if categories[ingredient_names[j]] == cat]
-        if idxs:
-            cat_indices[cat] = idxs
+        if idxs: cat_indices[cat] = idxs
+
+    is_rum = animal_type in ("أبقار", "أغنام", "ماعز", "إبل")
+    is_poultry = animal_type in ("دواجن", "سمان")
+    is_fish = animal_type == "أسماك"
+
+    missing_cats = [cat for cat, (cmin, _) in _get_category_limits(animal_type).items()
+                     if cmin > 0 and cat not in cat_indices]
 
     se_vals = np.array([ingredient_data[i].get("SE", 0) for i in ingredient_names])
     me_vals = se_vals * 41.0
     cp_vals = np.array([ingredient_data[i].get("CP", 0) for i in ingredient_names])
-    dp_vals = np.array([ingredient_data[i].get("CP", 0) * ingredient_data[i].get("DC", 0.8) for i in ingredient_names])
+    dp_vals = np.array([ingredient_data[i].get("CP", 0) * ingredient_data[i].get("DC", 0.8)
+                        for i in ingredient_names])
     ca_vals = np.array([ingredient_data[i].get("Ca", 0) for i in ingredient_names])
     p_vals = np.array([ingredient_data[i].get("P", 0) for i in ingredient_names])
-    ndf_vals = np.array([ingredient_data[i].get("NDF", 0) for i in ingredient_names])
-    adf_vals = np.array([ingredient_data[i].get("ADF", 0) for i in ingredient_names])
     cost_vals = np.array([prices.get(i, 300.0) / 1000.0 for i in ingredient_names])
 
     target_me = requirement.SE * 41.0
     target_cp = requirement.DP / 0.75 if protein_basis == "DP" else requirement.CP
     target_ca = requirement.Ca
     target_p = requirement.P
-
-    is_rum = animal_type in ("أبقار", "أغنام", "ماعز", "إبل")
-    is_poultry = animal_type in ("دواجن", "سمان")
 
     if is_poultry: ca_p_min, ca_p_max = 1.5, 2.2
     elif is_rum: ca_p_min, ca_p_max = 1.4, 2.5
@@ -936,59 +916,75 @@ def nlp_optimize_feed_v2(ingredient_names, ingredient_data, prices,
 
     bounds = [(0.0, max_per_ing) for _ in range(n)]
 
-    cons = [
-        {'type': 'eq', 'fun': lambda x: np.sum(x) - 1.0},
-        {'type': 'ineq', 'fun': lambda x: np.dot(me_vals, x) - target_me * 0.98},
-        {'type': 'ineq', 'fun': lambda x: np.dot(cp_vals, x) - target_cp * 0.98},
-        {'type': 'ineq', 'fun': lambda x: np.dot(ca_vals, x) - ca_p_min * np.dot(p_vals, x)},
-        {'type': 'ineq', 'fun': lambda x: ca_p_max * np.dot(p_vals, x) - np.dot(ca_vals, x)},
-        {'type': 'ineq', 'fun': lambda x: oil_max_pct/100.0 - np.dot(oil_ind, x)},
-    ]
-
-    cat_limits = _get_category_limits(animal_type)
-
-    if "طاقة" in cat_indices and "طاقة" in cat_limits:
-        e_min, e_max = cat_limits["طاقة"]
-        e_mask = np.zeros(n)
-        for j in cat_indices["طاقة"]: e_mask[j] = 1.0
-        cons.append({'type': 'ineq', 'fun': lambda x, m=e_mask: np.dot(m, x) - e_min/100.0})
-        cons.append({'type': 'ineq', 'fun': lambda x, m=e_mask: e_max/100.0 - np.dot(m, x)})
-
-    if "بروتين" in cat_indices and "بروتين" in cat_limits:
-        p_min, p_max = cat_limits["بروتين"]
-        p_mask = np.zeros(n)
-        for j in cat_indices["بروتين"]: p_mask[j] = 1.0
-        cons.append({'type': 'ineq', 'fun': lambda x, m=p_mask: np.dot(m, x) - p_min/100.0})
-        cons.append({'type': 'ineq', 'fun': lambda x, m=p_mask: p_max/100.0 - np.dot(m, x)})
-
-    if "طاقة" in cat_indices and "بروتين" in cat_indices:
-        e_mask = np.zeros(n); p_mask = np.zeros(n)
-        for j in cat_indices["طاقة"]: e_mask[j] = 1.0
-        for j in cat_indices["بروتين"]: p_mask[j] = 1.0
-        cons.append({'type': 'ineq',
-                     'fun': lambda x, em=e_mask, pm=p_mask: np.dot(em, x) - 1.2 * np.dot(pm, x)})
+    def build_constraints(mode):
+        cons = [
+            {'type': 'eq', 'fun': lambda x: np.sum(x) - 1.0},
+            {'type': 'ineq', 'fun': lambda x: np.dot(me_vals, x) - target_me * 0.95},
+            {'type': 'ineq', 'fun': lambda x: np.dot(cp_vals, x) - target_cp * 0.95},
+            {'type': 'ineq', 'fun': lambda x: oil_max_pct/100.0 - np.dot(oil_ind, x)},
+        ]
+        if mode == "strict":
+            cons.extend([
+                {'type': 'ineq',
+                 'fun': lambda x: np.dot(ca_vals, x) - ca_p_min * np.dot(p_vals, x)},
+                {'type': 'ineq',
+                 'fun': lambda x: ca_p_max * np.dot(p_vals, x) - np.dot(ca_vals, x)},
+            ])
+        cat_limits = _get_category_limits(animal_type)
+        if mode == "strict":
+            for cat in ["طاقة", "بروتين"]:
+                if cat not in cat_indices or cat not in cat_limits: continue
+                cmin, cmax = cat_limits[cat]
+                mask = np.zeros(n)
+                for j in cat_indices[cat]: mask[j] = 1.0
+                cons.append({'type': 'ineq',
+                             'fun': lambda x, m=mask, mn=cmin: np.dot(m, x) - mn/100.0})
+                cons.append({'type': 'ineq',
+                             'fun': lambda x, m=mask, mx=cmax: mx/100.0 - np.dot(m, x)})
+            if not is_fish and "طاقة" in cat_indices and "بروتين" in cat_indices:
+                e_mask = np.zeros(n); p_mask = np.zeros(n)
+                for j in cat_indices["طاقة"]: e_mask[j] = 1.0
+                for j in cat_indices["بروتين"]: p_mask[j] = 1.0
+                cons.append({'type': 'ineq',
+                             'fun': lambda x, em=e_mask, pm=p_mask:
+                                np.dot(em, x) - 1.2 * np.dot(pm, x)})
+        return cons
 
     def objective(x):
         total_cost = np.dot(cost_vals, x)
         me_ratio = np.dot(me_vals, x) / target_me if target_me > 0 else 1.0
         cp_ratio = np.dot(cp_vals, x) / target_cp if target_cp > 0 else 1.0
-        quality_value = me_ratio * cp_ratio
-        return -(price_product * quality_value - total_cost)
+        return -(price_product * me_ratio * cp_ratio - total_cost)
 
     x0 = np.ones(n) / n
-
     try:
         res = minimize(objective, x0, method='SLSQP', bounds=bounds,
-                       constraints=cons, options={'maxiter': 2000, 'ftol': 1e-9})
+                       constraints=build_constraints("strict"),
+                       options={'maxiter': 2000, 'ftol': 1e-9})
     except Exception as e:
         return {"success": False, "message": f"خطأ: {e}"}
 
     if not res.success:
-        return {"success": False, "message": f"فشل: {res.message}"}
+        try:
+            res = minimize(objective, x0, method='SLSQP', bounds=bounds,
+                           constraints=build_constraints("relaxed"),
+                           options={'maxiter': 2000, 'ftol': 1e-9})
+        except Exception:
+            pass
+
+    if not res.success:
+        msg = "### ❌ تعذر إيجاد حل\n\n**الأسباب:**\n\n"
+        if missing_cats:
+            msg += f"- فئات ناقصة: {', '.join(missing_cats)}\n"
+            for cat in missing_cats:
+                sugg = SUGGESTIONS_BY_CATEGORY.get(cat, [])
+                if sugg: msg += f"  - **{cat}**: جرّب `{sugg[0]}`\n"
+        msg += "\n💡 أضف مزيداً من المكونات أو عدّل الأسعار"
+        return {"success": False, "message": msg}
 
     x_opt = res.x
-    formula = {name: round(float(x_opt[i]) * 100, 2) for i, name in enumerate(ingredient_names) if x_opt[i] > 0.001}
-
+    formula = {name: round(float(x_opt[i]) * 100, 2)
+               for i, name in enumerate(ingredient_names) if x_opt[i] > 0.001}
     p_total = float(np.dot(p_vals, x_opt))
     ca_p = (float(np.dot(ca_vals, x_opt) / p_total) if p_total > 0 else 0.0)
 
@@ -1004,8 +1000,7 @@ def nlp_optimize_feed_v2(ingredient_names, ingredient_data, prices,
             "final_cp": float(np.dot(cp_vals, x_opt)),
             "final_dp": float(np.dot(dp_vals, x_opt)),
             "final_ca": float(np.dot(ca_vals, x_opt)),
-            "final_p": p_total,
-            "ca_p_ratio": ca_p,
+            "final_p": p_total, "ca_p_ratio": ca_p,
             "max_profit": float(-res.fun),
             "iterations": int(res.nit),
             "requirement": requirement,
@@ -1136,8 +1131,7 @@ def create_colorful_bar_chart(standard, actual, keys=None):
         nuts = [n for n in keys if n in standard and standard[n] > 0]
         if not nuts: return None
         fig, ax = plt.subplots(figsize=(9, 4.5))
-        x = np.arange(len(nuts))
-        width = 0.35
+        x = np.arange(len(nuts)); width = 0.35
         ax.bar(x - width/2, [standard[n] for n in nuts], width,
                label='المعيار', color='#1976d2', edgecolor='#0d47a1', linewidth=1.5)
         ax.bar(x + width/2, [actual.get(n, 0) for n in nuts], width,
@@ -1145,8 +1139,7 @@ def create_colorful_bar_chart(standard, actual, keys=None):
         ax.set_title('مقارنة العناصر', fontsize=13, fontweight='bold', color='#1b5e20')
         ax.set_xticks(x); ax.set_xticklabels(nuts, fontsize=10)
         ax.legend(loc='upper right', fontsize=10)
-        ax.grid(axis='y', alpha=0.3, linestyle='--')
-        ax.set_facecolor('#fafafa')
+        ax.grid(axis='y', alpha=0.3, linestyle='--'); ax.set_facecolor('#fafafa')
         buf = io.BytesIO()
         plt.savefig(buf, format='png', dpi=120, bbox_inches='tight', facecolor='white')
         plt.close(); buf.seek(0); return buf
@@ -1296,8 +1289,7 @@ class PDFGenerator:
             canvas_obj.setFont(self.font_name, 8)
             canvas_obj.drawCentredString(w/2, 27, self._ar("تاور نولجي Tawor Nology © 2026"))
             canvas_obj.setFont(self.font_name, 7)
-            canvas_obj.drawCentredString(w/2, 12,
-                                          self._ar(f"صفحة {canvas_obj.getPageNumber()}"))
+            canvas_obj.drawCentredString(w/2, 12, self._ar(f"صفحة {canvas_obj.getPageNumber()}"))
             canvas_obj.restoreState()
         except Exception:
             pass
@@ -1318,14 +1310,12 @@ class PDFGenerator:
                 alignment=align, textColor=HexColor(color),
                 spaceAfter=6, leading=size * 1.6))
 
-        # العنوان
         story.append(P("تقرير فني رسمي — تركيب علفة متوازن", size=20,
                        align=TA_CENTER, color='#1b5e20'))
         story.append(Spacer(1, 6))
         story.append(HRFlowable(width="100%", thickness=2.5, color=HexColor('#d4af37')))
         story.append(Spacer(1, 10))
 
-        # بطاقة
         client = [[self._ar("👤 طالب الخدمة:"), self._ar(requester_name or "—")],
                   [self._ar("📍 الموقع:"), self._ar(city)],
                   [self._ar("🐾 الفصيل:"), self._ar(f"{animal_type} — {breed}")],
@@ -1365,7 +1355,6 @@ class PDFGenerator:
         story.append(qt)
         story.append(Spacer(1, 15))
 
-        # مقارنة
         story.append(P("📊 جدول المقارنة التفصيلي", size=14, color='#1b5e20'))
         story.append(Spacer(1, 8))
         labels = {"CP": "بروتين", "DP": "مهضوم", "SE": "طاقة",
@@ -1402,9 +1391,8 @@ class PDFGenerator:
         story.append(t)
         story.append(Spacer(1, 10))
 
-        # التصنيف
         if category_summary:
-            story.append(P("🎯 ملخص التصنيف (طاقة/بروتين)", size=13, color='#1565c0'))
+            story.append(P("🎯 ملخص التصنيف", size=13, color='#1565c0'))
             story.append(Spacer(1, 6))
             cat_data = [[self._ar("الفئة"), self._ar("النسبة %")]]
             for cat_name, cat_pct in sorted(category_summary.items(), key=lambda x: x[1], reverse=True):
@@ -1420,7 +1408,6 @@ class PDFGenerator:
             story.append(ct2)
             story.append(Spacer(1, 10))
 
-        # المكونات
         story.append(PageBreak())
         story.append(P("🌾 المكونات للطن", size=14, color='#1b5e20'))
         story.append(Spacer(1, 8))
@@ -1439,7 +1426,6 @@ class PDFGenerator:
         story.append(ti)
         story.append(Spacer(1, 12))
 
-        # التكاليف
         story.append(P("💰 التكاليف", size=14, color='#1b5e20'))
         story.append(Spacer(1, 6))
         cost_data = [[self._ar("البند"), self._ar("القيمة")],
@@ -1456,12 +1442,10 @@ class PDFGenerator:
             ('PADDING', (0, 0), (-1, -1), 6)]))
         story.append(tc)
 
-        # الرسوم
         if include_charts:
             story.append(PageBreak())
             story.append(P("📈 التحليل البياني", size=14, color='#1b5e20'))
             story.append(Spacer(1, 10))
-
             for chart_fn, args, caption in [
                 (create_colorful_bar_chart, (std_vals, calc_vals), "1️⃣ المقارنة"),
                 (create_colorful_pie_chart, (formula,), "2️⃣ التوزيع"),
@@ -1472,46 +1456,26 @@ class PDFGenerator:
                         story.append(RLImage(c, width=460, height=230))
                         story.append(P(caption, size=9, align=TA_CENTER, color='#555'))
                         story.append(Spacer(1, 8))
-                except Exception:
-                    pass
-
+                except Exception: pass
             story.append(PageBreak())
-
             try:
                 rf = create_radar_chart(std_vals, calc_vals)
-                if rf:
-                    story.append(RLImage(rf, width=300, height=300))
-                    story.append(P("3️⃣ الرادار", size=9, align=TA_CENTER, color='#555'))
-            except Exception:
-                pass
-
+                if rf: story.append(RLImage(rf, width=300, height=300))
+            except Exception: pass
             try:
                 gf = create_gauge_chart(quality_score)
-                if gf:
-                    story.append(RLImage(gf, width=180, height=180))
-                    story.append(P("4️⃣ الجودة", size=9, align=TA_CENTER, color='#555'))
-            except Exception:
-                pass
-
+                if gf: story.append(RLImage(gf, width=180, height=180))
+            except Exception: pass
             story.append(PageBreak())
-
             try:
                 cf = create_ca_p_ratio_chart(calc_vals.get("Ca", 0), calc_vals.get("P", 0))
-                if cf:
-                    story.append(RLImage(cf, width=460, height=170))
-                    story.append(P("5️⃣ Ca:P", size=9, align=TA_CENTER, color='#555'))
-            except Exception:
-                pass
-
+                if cf: story.append(RLImage(cf, width=460, height=170))
+            except Exception: pass
             try:
                 qf = create_quality_breakdown_chart(quality_rows)
-                if qf:
-                    story.append(RLImage(qf, width=460, height=200))
-                    story.append(P("6️⃣ تقييم العناصر", size=9, align=TA_CENTER, color='#555'))
-            except Exception:
-                pass
+                if qf: story.append(RLImage(qf, width=460, height=200))
+            except Exception: pass
 
-        # حساسية
         try:
             sens = compute_sensitivity(formula, std_vals, animal_type)
             if sens:
@@ -1531,10 +1495,8 @@ class PDFGenerator:
                     ('FONTSIZE', (0, 0), (-1, -1), 9),
                     ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#bdbdbd'))]))
                 story.append(st_sens)
-        except Exception:
-            pass
+        except Exception: pass
 
-        # المراجع
         story.append(PageBreak())
         story.append(P("📚 المراجع العلمية", size=14, color='#1b5e20'))
         story.append(Spacer(1, 8))
@@ -1547,8 +1509,6 @@ class PDFGenerator:
         for i, ref in enumerate(refs, 1):
             story.append(P(f"{i}. {ref}", size=10, color='#333'))
         story.append(Spacer(1, 15))
-
-        # التوقيع
         story.append(P("✍️ الاعتماد", size=14, align=TA_CENTER, color='#1b5e20'))
         story.append(Spacer(1, 15))
         story.append(P(SUPERVISOR, size=16, align=TA_CENTER, color='#c62828'))
@@ -1567,8 +1527,7 @@ pdf_gen = PDFGenerator()
 # Excel
 # ═══════════════════════════════════════════════════════════════════════════
 
-def export_comparison_to_excel(standard, calculated, requester_name="",
-                                 animal="", stage="", formula=None, standard_key=""):
+def export_comparison_to_excel(standard, calculated):
     if not OPENPYXL_AVAILABLE: return b""
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -1582,16 +1541,13 @@ def export_comparison_to_excel(standard, calculated, requester_name="",
     bd = Border(left=thin, right=thin, top=thin, bottom=thin)
     ws.merge_cells('A1:F1'); ws['A1'] = APP_NAME
     ws['A1'].font = tf; ws['A1'].alignment = ct
-    ws.merge_cells('A2:F2'); ws['A2'] = f"🤲 {DUA_SHORT} 🤲"
-    ws['A2'].font = Font(name='Arial', size=10, bold=True, color='C62828')
-    ws['A2'].alignment = ct
     headers = ["العنصر", "المعيار", "المحسوب", "الفرق", "%", "التقييم"]
     for c, hh in enumerate(headers, 1):
-        cell = ws.cell(row=4, column=c, value=hh)
+        cell = ws.cell(row=3, column=c, value=hh)
         cell.font = hf; cell.fill = hfill; cell.alignment = ct; cell.border = bd
     labels = {"CP": "بروتين", "DP": "مهضوم", "SE": "SE", "NDF": "NDF",
               "ADF": "ADF", "EE": "دهن", "ASH": "رماد", "Ca": "Ca", "P": "P"}
-    row = 5
+    row = 4
     for k in ["CP", "DP", "SE", "NDF", "ADF", "EE", "ASH", "Ca", "P"]:
         if k not in standard or standard[k] == 0: continue
         sv, cv = standard[k], calculated.get(k, 0)
@@ -1611,7 +1567,7 @@ def export_comparison_to_excel(standard, calculated, requester_name="",
     return buf.getvalue()
 
 # ═══════════════════════════════════════════════════════════════════════════
-# نموذج اختيار الحيوان
+# واجهة الحيوان
 # ═══════════════════════════════════════════════════════════════════════════
 
 def get_animal_requirement_ui(key_prefix="req"):
@@ -1640,15 +1596,15 @@ def get_animal_requirement_ui(key_prefix="req"):
 
     extra = {}
     if a == "أبقار" and "حليب" in p:
-        extra["milk_yield"] = st.number_input("🥛 الحليب (كجم/يوم):",
+        extra["milk_yield"] = st.number_input("🥛 الحليب (كجم):",
                                                 5.0, 60.0, 20.0, 1.0,
                                                 key=f"{key_prefix}_milk")
     elif a == "ماعز" and "حلابة" in p:
-        extra["milk_yield"] = st.number_input("🥛 الحليب (لتر/يوم):",
+        extra["milk_yield"] = st.number_input("🥛 الحليب (لتر):",
                                                 0.5, 8.0, 2.0, 0.25,
                                                 key=f"{key_prefix}_milk")
     elif a == "إبل" and p == "حليب":
-        extra["milk_yield"] = st.number_input("🥛 الحليب (لتر/يوم):",
+        extra["milk_yield"] = st.number_input("🥛 الحليب (لتر):",
                                                 2.0, 20.0, 5.0, 0.5,
                                                 key=f"{key_prefix}_milk")
     elif a == "أغنام" and p == "مرضعات":
@@ -1666,22 +1622,14 @@ def get_animal_requirement_ui(key_prefix="req"):
     elif a == "سمان":
         age = st.number_input("العمر (أسبوع):", 1, 8, 1, 1, key=f"{key_prefix}_age")
         req = get_quail_requirements(p, age)
-    elif a == "أسماك":
-        req = get_fish_requirements("البلطي", p)
-    elif a == "أبقار":
-        req = get_cattle_requirements(p, **extra)
-    elif a == "أغنام":
-        req = get_sheep_requirements(p, **extra)
-    elif a == "ماعز":
-        req = get_goat_requirements(p, **extra)
-    elif a == "إبل":
-        req = get_camel_requirements(p, **extra)
-    elif a == "خيول":
-        req = get_horse_requirements(p)
-    elif a == "أرانب":
-        req = get_rabbit_requirements(p)
-    else:
-        return None, None, None, None
+    elif a == "أسماك": req = get_fish_requirements("البلطي", p)
+    elif a == "أبقار": req = get_cattle_requirements(p, **extra)
+    elif a == "أغنام": req = get_sheep_requirements(p, **extra)
+    elif a == "ماعز": req = get_goat_requirements(p, **extra)
+    elif a == "إبل": req = get_camel_requirements(p, **extra)
+    elif a == "خيول": req = get_horse_requirements(p)
+    elif a == "أرانب": req = get_rabbit_requirements(p)
+    else: return None, None, None, None
 
     std_key_map = {("دواجن", "لاحم"): "دواجن_بادي",
                     ("دواجن", "بياض"): "دواجن_بياض",
@@ -1698,7 +1646,7 @@ DEFAULTS = {"approved": False, "user_role": None,
              "active_formula": {}, "inventory": {},
              "last_formulation_result": None, "last_formulation_context": None,
              "owner_attempts": 0, "owner_lock_until": 0.0,
-             "formulation_history": [], "last_activity": _time.time()}
+             "formulation_history": []}
 for k, v in DEFAULTS.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -1708,7 +1656,7 @@ if not st.session_state["inventory"]:
         for ing in cat:
             st.session_state["inventory"][ing] = {"quantity": 25.0, "min_threshold": 5.0}
 
-def is_owner() -> bool:
+def is_owner():
     return st.session_state.get("user_role") == "owner"
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1730,15 +1678,17 @@ html, body, [data-testid="stAppViewContainer"] {
     padding: 34px 28px; border-radius: 22px; border: 4px solid #d4af37;
     direction: rtl; text-align: center; margin: 25px 0; }
 .dua-main-box * { color: white !important; }
-.dua-main-box h3 { color: #d4af37 !important; font-size: 1.9rem; margin-bottom: 18px; font-weight: 900; }
+.dua-main-box h3 { color: #d4af37 !important; font-size: 1.9rem;
+    margin-bottom: 18px; font-weight: 900; }
 .dua-main-box .names { display: inline-block; background: rgba(212,175,55,0.35);
     font-size: 1.65rem; font-weight: 900; color: #ffeb3b !important;
     margin: 20px 0; padding: 16px 30px; border: 2px solid #d4af37;
     border-radius: 16px; font-family: 'Amiri', serif !important; }
 .dua-fixed-banner { position: fixed; bottom: 0; left: 0; right: 0;
     background: linear-gradient(90deg, #0d3011, #1b5e20, #2e7d32);
-    color: white !important; padding: 12px 20px; z-index: 9998; text-align: center;
-    border-top: 3px solid #d4af37; font-family: 'Amiri', serif !important; }
+    color: white !important; padding: 12px 20px; z-index: 9998;
+    text-align: center; border-top: 3px solid #d4af37;
+    font-family: 'Amiri', serif !important; }
 .dua-fixed-banner * { color: #ffeb3b !important; }
 .section-title { color: #1b5e20 !important; border-right: 6px solid #2e7d32;
     padding: 12px 18px; text-align: right; font-size: 1.5rem; font-weight: 900;
@@ -1757,8 +1707,6 @@ html, body, [data-testid="stAppViewContainer"] {
 .quality-bad-v113 { background: linear-gradient(135deg, #ffcdd2, #ef9a9a);
     padding: 24px; border-radius: 22px; border-right: 8px solid #c62828;
     margin: 18px 0; direction: rtl; text-align: right; }
-.profile-img-style { width: 150px; height: 150px; border-radius: 50%;
-    object-fit: cover; border: 4px solid #d4af37; display: block; margin: 0 auto; }
 .stButton > button { color: #1a1a1a !important;
     background: linear-gradient(135deg, #e8f5e9, #c8e6c9) !important;
     border: 1.5px solid #2e7d32 !important; font-weight: 700 !important;
@@ -1791,9 +1739,9 @@ if not st.session_state.get("approved", False):
                 unsafe_allow_html=True)
     st.markdown(f"<h4 style='color:#c62828; text-align:right;'>{SUPERVISOR} — {SUPERVISOR_TITLE}</h4>",
                 unsafe_allow_html=True)
-
     st.markdown("<h3 style='text-align:center; color:#1b5e20;'>🔐 بوابة الدخول</h3>",
                 unsafe_allow_html=True)
+
     col_owner, col_guest = st.columns(2)
     with col_owner:
         st.markdown("""
@@ -1817,7 +1765,7 @@ if not st.session_state.get("approved", False):
                 st.session_state["owner_attempts"] = n
                 if n >= 3:
                     st.session_state["owner_lock_until"] = now + 300
-                    st.error("🔒 3 محاولات فاشلة — قفل 5 دقائق")
+                    st.error("🔒 3 محاولات — قفل 5 دقائق")
                 else:
                     st.error(f"❌ كود غير صحيح — متبقٍ {3 - n}")
 
@@ -1856,7 +1804,7 @@ with c2:
 
 c3, c4 = st.columns([0.3, 0.7])
 with c3:
-    st.markdown(f'<img src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=600" class="profile-img-style">',
+    st.markdown(f'<img src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=600" style="width:150px;height:150px;border-radius:50%;object-fit:cover;border:4px solid #d4af37;display:block;margin:0 auto;">',
                 unsafe_allow_html=True)
 with c4:
     st.markdown(f"<h1 style='color: #0d3011; text-align:right; font-weight: 900;'>🌾 {APP_NAME}</h1>",
@@ -1881,29 +1829,25 @@ st.markdown("<hr style='border-top: 3px solid #2e7d32;'>", unsafe_allow_html=Tru
 # ═══════════════════════════════════════════════════════════════════════════
 
 if is_owner():
-    tabs_titles = ["🔬 النمذجة", "🏗️ الحظائر", "📊 الجدوى",
-                    "🏭 المستودعات", "📈 التحليلات",
-                    "📚 المراجع", "📖 الدليل"]
+    tabs_titles = ["🔬 النمذجة", "🏭 المستودعات", "📈 التحليلات", "📚 المراجع", "📖 الدليل"]
 else:
-    tabs_titles = ["🔬 النمذجة", "🏗️ الحظائر", "📊 الجدوى",
-                    "📚 المراجع", "📖 الدليل"]
+    tabs_titles = ["🔬 النمذجة", "📚 المراجع", "📖 الدليل"]
 
 tabs = st.tabs(tabs_titles)
 tab_map = {t: tab for t, tab in zip(tabs_titles, tabs)}
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 🔬 النمذجة (5 تبويبات فرعية)
+# 🔬 النمذجة
 # ═══════════════════════════════════════════════════════════════════════════
 
 with tab_map["🔬 النمذجة"]:
     sub_lp, sub_nlp, sub_milk, sub_oils, sub_lab = st.tabs([
         "🎯 LP", "🎯 NLP", "🍼 بدائل الحليب", "🌰 الزيوت", "🔬 المختبر"])
 
-    # ═══════════ LP ═══════════
+    # ── LP ──
     with sub_lp:
         st.markdown('<div class="section-title">🎯 تركيب علفة (LP)</div>',
                     unsafe_allow_html=True)
-
         pb = st.radio("أساس البروتين:",
                        ["المهضوم (DP) — الأدق", "الخام (CP)"],
                        horizontal=True, key="pb_lp")
@@ -1936,7 +1880,7 @@ with tab_map["🔬 النمذجة"]:
             sq = st.text_input("🔍 بحث:", key="srch_lp")
 
             selected = []
-            default_set = get_default_selections(lp_animal, lp_prod, lp_req)
+            default_set = get_default_selections(lp_animal, lp_prod)
 
             for cat_name, items in BIG_FEEDS_LIBRARY.items():
                 filt = ({k: v for k, v in items.items()
@@ -2000,7 +1944,7 @@ with tab_map["🔬 النمذجة"]:
                         st.success("✅ تم")
                         st.rerun()
                     else:
-                        st.error(f"❌ {result['message']}")
+                        st.error(result["message"])
 
         # عرض النتيجة
         if st.session_state.get("last_formulation_result"):
@@ -2030,7 +1974,9 @@ with tab_map["🔬 النمذجة"]:
                 </div>
                 """, unsafe_allow_html=True)
 
-            # جدول
+            if result.get("ratio_warning"):
+                st.warning(result["ratio_warning"])
+
             st.markdown("### 📊 جدول المقارنة")
             labels = {"CP": "CP", "DP": "DP", "SE": "SE", "NDF": "NDF",
                       "ADF": "ADF", "EE": "EE", "ASH": "ASH", "Ca": "Ca", "P": "P"}
@@ -2055,7 +2001,6 @@ with tab_map["🔬 النمذجة"]:
                             f'{pct:.2f}% ({pct*10:.1f} كجم/طن)</div>',
                             unsafe_allow_html=True)
 
-            # رسوم
             ch1, ch2 = st.columns(2)
             with ch1:
                 bf = create_colorful_bar_chart(ctx["custom_standard"], actual)
@@ -2072,25 +2017,21 @@ with tab_map["🔬 النمذجة"]:
                 gf = create_gauge_chart(quality)
                 if gf: st.image(gf.getvalue(), caption="🎯 الجودة", use_container_width=True)
 
-            # تنزيل
             st.markdown("### 📥 تحميل التقارير")
             col_pdf, col_xl = st.columns(2)
             with col_pdf:
                 try:
                     pdf_bytes = pdf_gen.generate_report(
-                        formula=formula,
-                        requirement=ctx["requirement"],
-                        animal_type=ctx["animal_type"],
-                        breed=ctx["requirement_name"],
-                        cost=result["cost"], city="—",
-                        local_cost=result["cost"], local_sym="USD",
-                        requester_name=ctx["requester_name"],
+                        formula=formula, requirement=ctx["requirement"],
+                        animal_type=ctx["animal_type"], breed=ctx["requirement_name"],
+                        cost=result["cost"], city="—", local_cost=result["cost"],
+                        local_sym="USD", requester_name=ctx["requester_name"],
                         protein_basis=ctx["basis_label"],
                         standard_key=ctx["std_key_global"],
                         include_charts=True, quality_score=quality,
                         category_summary=cat_summary)
                     st.download_button(
-                        "📄 تحميل PDF شامل (6 رسوم + مراجع)",
+                        "📄 تحميل PDF شامل",
                         pdf_bytes,
                         file_name=f"Tawor_{lp_animal}_{datetime.now():%Y%m%d_%H%M}.pdf",
                         mime="application/pdf",
@@ -2100,10 +2041,7 @@ with tab_map["🔬 النمذجة"]:
 
             with col_xl:
                 try:
-                    xl = export_comparison_to_excel(
-                        ctx["custom_standard"], actual,
-                        ctx["requester_name"], ctx["animal_type"],
-                        ctx["requirement_name"], formula, ctx["std_key_global"])
+                    xl = export_comparison_to_excel(ctx["custom_standard"], actual)
                     if xl:
                         st.download_button(
                             "📊 تحميل Excel", xl,
@@ -2113,24 +2051,20 @@ with tab_map["🔬 النمذجة"]:
                 except Exception as e:
                     st.error(f"⚠️ Excel: {e}")
 
-    # ═══════════ NLP ═══════════
+    # ── NLP ──
     with sub_nlp:
         st.markdown('<div class="section-title">🎯 NLP — تحسين غير خطي</div>',
                     unsafe_allow_html=True)
-
         if not SCIPY_AVAILABLE or minimize is None:
             st.error("⚠️ SCIPY غير مثبتة")
         else:
             nlp_animal, nlp_prod, nlp_req, nlp_std_key = get_animal_requirement_ui("nlp")
-
             if nlp_req:
                 st.success(f"📌 {nlp_req.name_ar} | DP={nlp_req.DP}% | "
                             f"CP={nlp_req.CP}% | SE={nlp_req.SE}")
 
-            nlp_basis_radio = st.radio("أساس البروتين:",
-                                         ["DP", "CP"],
+            nlp_basis_radio = st.radio("أساس البروتين:", ["DP", "CP"],
                                          horizontal=True, key="nlp_basis")
-            nlp_basis = nlp_basis_radio
 
             all_ings_nlp = list(_get_ingredient_lookup().keys())
             nlp_sel = st.multiselect("المكونات (2–10):",
@@ -2153,13 +2087,13 @@ with tab_map["🔬 النمذجة"]:
                 price_product = st.number_input("سعر المنتج ($/وحدة):",
                                                   0.5, 20.0, 2.5, 0.1, key="nlp_pp")
 
-                if st.button("🚀 تشغيل NLP", type="primary", use_container_width=True,
-                              disabled=(nlp_req is None)):
+                if st.button("🚀 تشغيل NLP", type="primary",
+                              use_container_width=True, disabled=(nlp_req is None)):
                     with st.spinner("⏳ جاري التحسين..."):
                         result = nlp_optimize_feed_v2(
                             nlp_sel, ing_data, nlp_prices,
                             requirement=nlp_req, animal_type=nlp_animal,
-                            standard_key=nlp_std_key, protein_basis=nlp_basis,
+                            standard_key=nlp_std_key, protein_basis=nlp_basis_radio,
                             price_product=price_product)
 
                     if result["success"]:
@@ -2184,11 +2118,11 @@ with tab_map["🔬 النمذجة"]:
                                 for k, v in result["category_summary"].items()]),
                                 use_container_width=True, hide_index=True)
                     else:
-                        st.error(f"❌ {result['message']}")
+                        st.error(result["message"])
             else:
                 st.info("💡 اختر مكونين على الأقل")
 
-    # ═══════════ بدائل الحليب ═══════════
+    # ── بدائل الحليب ──
     with sub_milk:
         st.markdown('<div class="section-title">🍼 بدائل الحليب</div>',
                     unsafe_allow_html=True)
@@ -2262,9 +2196,9 @@ with tab_map["🔬 النمذجة"]:
 
                     st.metric("💰 تكلفة 100 كجم", f"${r['cost_per_100kg']:.2f}")
                 else:
-                    st.error(f"❌ {r['message']}")
+                    st.error(r["message"])
 
-    # ═══════════ الزيوت ═══════════
+    # ── الزيوت ──
     with sub_oils:
         st.markdown('<div class="section-title">🌰 مكتبة الزيوت</div>',
                     unsafe_allow_html=True)
@@ -2283,7 +2217,7 @@ with tab_map["🔬 النمذجة"]:
                 c2.metric("kcal/kg", f"{ing_data.get('SE', 0) * 41:.0f}")
                 c3.metric("السعر", f"${ing_data.get('price', 0):.0f}")
 
-    # ═══════════ المختبر ═══════════
+    # ── المختبر ──
     with sub_lab:
         st.markdown('<div class="section-title">🔬 مختبر التحليل الذكي</div>',
                     unsafe_allow_html=True)
@@ -2375,126 +2309,7 @@ with tab_map["🔬 النمذجة"]:
             st.info("💡 أدخل أوزان المواد")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 🏗️ الحظائر
-# ═══════════════════════════════════════════════════════════════════════════
-
-with tab_map["🏗️ الحظائر"]:
-    st.markdown('<div class="section-title">🏗️ مصمم الحظائر</div>',
-                unsafe_allow_html=True)
-    st.info("💡 قسم الحظائر 3D — قيد التطوير. يعمل في النسخة الكاملة.")
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 📊 الجدوى
-# ═══════════════════════════════════════════════════════════════════════════
-
-with tab_map["📊 الجدوى"]:
-    st.markdown('<div class="section-title">📊 دراسة الجدوى المالية</div>',
-                unsafe_allow_html=True)
-
-    with st.expander("⚙️ التكاليف الاستثمارية", expanded=True):
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            barns_cost = st.number_input("إنشاءات الحظائر", 0.0, 1_000_000.0,
-                                           18000.0, 500.0, key="fin_barns")
-            water_system = st.number_input("أنظمة السقيا", 0.0, 500_000.0,
-                                             3500.0, 100.0, key="fin_water")
-        with c2:
-            mixers_cost = st.number_input("معدات الخلط", 0.0, 500_000.0,
-                                            6000.0, 200.0, key="fin_mix")
-            herd_cost = st.number_input("القطيع", 0.0, 2_000_000.0,
-                                          15000.0, 500.0, key="fin_herd")
-        with c3:
-            vet_equip = st.number_input("معدات بيطرية", 0.0, 200_000.0,
-                                          1500.0, 100.0, key="fin_vet")
-
-    with st.expander("💸 التكاليف التشغيلية", expanded=True):
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            annual_feed_cost = st.number_input("الأعلاف", 0.0, 5_000_000.0,
-                                                 28500.0, 500.0, key="fin_feed")
-            vet_med_cost = st.number_input("بيطري", 0.0, 1_000_000.0,
-                                             3200.0, 100.0, key="fin_med")
-        with c2:
-            labor_cost = st.number_input("أجور", 0.0, 1_000_000.0,
-                                           7500.0, 200.0, key="fin_labor")
-            utilities_cost = st.number_input("طاقة", 0.0, 500_000.0,
-                                               1800.0, 100.0, key="fin_util")
-        with c3:
-            contingency_cost = st.number_input("طوارئ", 0.0, 500_000.0,
-                                                 2000.0, 100.0, key="fin_cont")
-
-    c1, c2 = st.columns(2)
-    with c1:
-        annual_revenue = st.number_input("الإيرادات السنوية ($)",
-                                           0.0, 10_000_000.0, 68000.0, 1000.0,
-                                           key="fin_rev")
-    with c2:
-        discount_rate = st.slider("معدل الخصم (%)", 5.0, 20.0, 10.0, 0.5,
-                                    key="fin_disc") / 100.0
-
-    total_investment = barns_cost + water_system + mixers_cost + herd_cost + vet_equip
-    annual_depreciation = (barns_cost/15 + water_system/8 + mixers_cost/10
-                            + herd_cost/5 + vet_equip/5)
-    total_operating_costs = (annual_feed_cost + vet_med_cost + labor_cost
-                              + utilities_cost + contingency_cost)
-    total_annual_costs = total_operating_costs + annual_depreciation
-    net_annual_profit = annual_revenue - total_annual_costs
-    roi = ((net_annual_profit / total_investment) * 100 if total_investment > 0 else 0)
-    payback = (total_investment / (net_annual_profit + annual_depreciation)
-               if (net_annual_profit + annual_depreciation) > 0 else 99.9)
-
-    st.markdown("### 📊 المؤشرات المالية")
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric("💰 الاستثمار", f"${total_investment:,.2f}")
-    k2.metric("💸 التشغيل", f"${total_operating_costs:,.2f}")
-    k3.metric("📈 الربح", f"${net_annual_profit:,.2f}", delta=f"ROI: {roi:.2f}%")
-    k4.metric("⏱️ الاسترداد", f"{payback:.2f} سنة")
-
-    # التدفقات
-    st.markdown("### 📊 التدفقات النقدية (5 سنوات)")
-    years = [f"سنة {i}" for i in range(1, 6)]
-    npv_values = []
-    cf_rows = []
-    cur_rev = annual_revenue
-    cur_op = total_operating_costs
-    for i, yr in enumerate(years):
-        if i > 0:
-            cur_rev *= 1.03
-            cur_op *= 1.025
-        net_cf = cur_rev - cur_op
-        disc_cf = net_cf / ((1 + discount_rate) ** (i + 1))
-        npv_values.append(disc_cf)
-        cf_rows.append({"السنة": yr, "الإيرادات ($)": round(cur_rev, 2),
-                         "التشغيل ($)": round(cur_op, 2),
-                         "CF الصافي ($)": round(net_cf, 2),
-                         "القيمة المخصومة ($)": round(disc_cf, 2)})
-
-    cf_df = pd.DataFrame(cf_rows)
-    st.dataframe(cf_df, use_container_width=True, hide_index=True)
-
-    total_npv = sum(npv_values) - total_investment
-    if total_npv > 0:
-        st.success(f"✅ NPV = ${total_npv:,.2f} — مجدٍ")
-    else:
-        st.warning(f"⚠️ NPV = ${total_npv:,.2f}")
-
-    # السيناريوهات
-    st.markdown("### 🌐 السيناريوهات")
-    scenarios = {"متفائل": {"rev": 1.15, "cost": 0.90},
-                  "واقعي": {"rev": 1.00, "cost": 1.00},
-                  "متشائم": {"rev": 0.85, "cost": 1.15}}
-    rows_sc = []
-    for name, f in scenarios.items():
-        sr = annual_revenue * f["rev"]
-        sc = total_operating_costs * f["cost"] + annual_depreciation
-        sp = sr - sc
-        sroi = (sp / total_investment * 100) if total_investment > 0 else 0
-        rows_sc.append({"السيناريو": name, "الربح ($)": round(sp, 2),
-                         "ROI %": round(sroi, 2)})
-    st.dataframe(pd.DataFrame(rows_sc), use_container_width=True, hide_index=True)
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 🏭 المستودعات (مالك فقط)
+# المستودعات والتحليلات (مالك)
 # ═══════════════════════════════════════════════════════════════════════════
 
 if is_owner():
@@ -2565,16 +2380,21 @@ with tab_map["📖 الدليل"]:
     st.markdown(f"""
 ### ✨ الميزات v{APP_VERSION}:
 - 🔬 النمذجة: **5 تبويبات** (LP + NLP + حليب + زيوت + مختبر)
-- ⚡ **إصلاح جذري**: البروتين لا يتجاوز الطاقة
+- ⚡ **إصلاح جذري**: 8 استراتيجيات لتجنب "تعذر إيجاد حل"
 - 🔐 **كود المالك**: `TAWOR2026`
 - 📄 **PDF شامل**: 6 رسوم + مراجع + تصنيف + حساسية
-- 🎯 **تصنيف المكونات**: 8 فئات (طاقة/بروتين/ألياف/زيت/معدن/بريمكس/أميني/أخرى)
+- 🎯 **تصنيف 8 فئات**
+
+### 💡 حل "تعذر إيجاد حل":
+1. اختر **6 مكونات على الأقل**
+2. تأكد من وجود **مصادر طاقة** (ذرة/شعير)
+3. أضف **الحجر الجيري** + **فوسفات** لضبط Ca:P
+4. أضف **بريمكس** لتحسين الجودة
 
 ### 🔑 الدخول:
-- 👑 **المالك**: كود `TAWOR2026` (مشفّر في الكود)
+- 👑 **المالك**: كود `TAWOR2026`
 - 👥 **الزائر**: مجاني
 
-### 📞 الدعم
 📧 {OWNER_EMAIL}
 
 ---
