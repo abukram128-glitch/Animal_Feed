@@ -1,0 +1,468 @@
+# ═══════════════════════════════════════════════════════════════════════
+# تاور نولجي TAWOR NOLOGY 11.11
+# د. عبدالقادر إسماعيل تاور
+# 🕌 رحم الله والدي إسماعيل تاور وأختي ابتسام 🕌
+# ═══════════════════════════════════════════════════════════════════════
+# جديد v11.11:
+#   ✅ تقييد تحميل PDF (يتطلب موافقة المالك)
+#   ✅ إضافة أزرار التواصل والاستشارة مع كل PDF
+#   ✅ فيديو ترحيبي عند فتح التطبيق (intro.mp4)
+#   ✅ تحسينات على 3D وشريط القياس
+# ═══════════════════════════════════════════════════════════════════════
+
+import streamlit as st
+import numpy as np, pandas as pd, io, os, re, base64, tempfile
+import traceback, warnings, json, threading, random, hashlib, hmac
+import time as _time
+from datetime import datetime
+from functools import lru_cache, wraps
+from dataclasses import dataclass
+from typing import Optional, Dict, List, Tuple, Any
+
+try:
+    from scipy.optimize import linprog, minimize
+    SCIPY_AVAILABLE = True
+except ImportError:
+    SCIPY_AVAILABLE = False
+
+try:
+    import plotly.graph_objects as go
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
+
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Circle, Wedge
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
+
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+
+try:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.colors import HexColor, white
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+
+try:
+    import arabic_reshaper
+    from bidi.algorithm import get_display
+    ARABIC_AVAILABLE = True
+except ImportError:
+    ARABIC_AVAILABLE = False
+
+warnings.filterwarnings('ignore')
+
+# ═══════════════════════════════════════════════════════════════════════
+# 📌 الإعدادات الأساسية والثوابت
+# ═══════════════════════════════════════════════════════════════════════
+
+APP_NAME = "تاور نولجي Tawor Nology"
+APP_VERSION = "11.11"
+SUPERVISOR = "د. عبدالقادر إسماعيل تاور"
+SUPERVISOR_TITLE = "اختصاصي تغذية الحيوان"
+WHATSAPP_NUMBER = "+249123533489"
+OWNER_EMAIL = "abukram128@gmail.com"
+
+st.set_page_config(page_title=APP_NAME, page_icon="🌾", layout="wide", initial_sidebar_state="collapsed")
+
+# تهيئة الخطوط العربية للـ PDF
+@lru_cache(maxsize=1)
+def init_fonts():
+    try:
+        if os.path.exists("Amiri-Regular.ttf"):
+            pdfmetrics.registerFont(TTFont('Arabic', 'Amiri-Regular.ttf'))
+            return 'Arabic'
+    except Exception:
+        pass
+    return 'Helvetica'
+
+FONT_NAME = init_fonts()
+
+def ar(text):
+    if not text: return ""
+    if not ARABIC_AVAILABLE: return str(text)
+    try:
+        return get_display(arabic_reshaper.reshape(str(text)), base_dir='R')
+    except Exception:
+        return str(text)
+
+# ═══════════════════════════════════════════════════════════════════════
+# 📌 ميزة الجلسة والأمان
+# ═══════════════════════════════════════════════════════════════════════
+
+def check_owner_code(user_input):
+    try:
+        blob = "Nzg2MjAy"
+        expected = hashlib.sha256(base64.b64decode(blob).decode()[::-1].encode()).hexdigest()
+        return hashlib.sha256(user_input.strip().encode()).hexdigest() == expected
+    except Exception:
+        return False
+
+if "approved" not in st.session_state:
+    st.session_state["approved"] = False
+if "user_role" not in st.session_state:
+    st.session_state["user_role"] = None
+
+# ═══════════════════════════════════════════════════════════════════════
+# 🎥 الفيديو الترحيبي (يظهر في الزاوية)
+# ═══════════════════════════════════════════════════════════════════════
+
+def show_intro_video():
+    if os.path.exists("intro.mp4"):
+        with st.sidebar:
+            st.markdown("### 🎥 فيديو تعريفي")
+            st.video("intro.mp4", autoplay=True)
+    else:
+        pass # لا يوجد فيديو
+
+# ═══════════════════════════════════════════════════════════════════════
+# 📌 بوابة الدخول
+# ═══════════════════════════════════════════════════════════════════════
+
+if not st.session_state["approved"]:
+    st.markdown("""
+    <style>
+    .login-box { background: white; padding: 40px; border-radius: 20px; border: 3px solid #d4af37; text-align: center; max-width: 600px; margin: 50px auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+    .login-box h1 { color: #1b5e20; font-size: 2.5rem; margin-bottom: 10px; }
+    .login-box h3 { color: #c62828; margin-top: 0; }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        st.markdown('<div class="login-box">', unsafe_allow_html=True)
+        st.markdown(f"<h1>🌾 {APP_NAME}</h1>", unsafe_allow_html=True)
+        st.markdown(f"<h3>إشراف: {SUPERVISOR}</h3>", unsafe_allow_html=True)
+        st.markdown(f"<p style='color:#1b5e20; font-weight:bold;'>🤲 {DUA_SHORT if 'DUA_SHORT' in globals() else 'رحم الله الوالد والأخت'} 🤲</p>", unsafe_allow_html=True)
+        
+        # عرض صورة المالك
+        if os.path.exists("owner.jpg"):
+            st.image("owner.jpg", width=150)
+        
+        st.markdown("<hr>", unsafe_allow_html=True)
+        
+        role = st.radio("اختر البوابة:", ["🔬 مختص", "👥 زائر", "👑 مالك"], horizontal=True)
+        
+        if role == "👑 مالك":
+            code = st.text_input("كود المالك:", type="password")
+            if st.button("دخول المالك", type="primary", use_container_width=True):
+                if check_owner_code(code):
+                    st.session_state.update({"approved": True, "user_role": "owner"})
+                    st.rerun()
+                else:
+                    st.error("❌ كود غير صحيح")
+        elif role == "🔬 مختص":
+            if st.button("دخول كمختص", type="primary", use_container_width=True):
+                st.session_state.update({"approved": True, "user_role": "specialist"})
+                st.rerun()
+        else:
+            if st.button("دخول كزائر", type="primary", use_container_width=True):
+                st.session_state.update({"approved": True, "user_role": "guest"})
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+    st.stop()
+
+show_intro_video()
+
+role = st.session_state["user_role"]
+is_owner = role == "owner"
+
+# ═══════════════════════════════════════════════════════════════════════
+# 📌 الموافقة على تحميل PDF (تقييد)
+# ═══════════════════════════════════════════════════════════════════════
+
+if "pdf_approved" not in st.session_state:
+    st.session_state["pdf_approved"] = False
+
+def render_pdf_download_button(pdf_bytes, filename, key):
+    """دالة موحدة لعرض زر التحميل مع القيود"""
+    if is_owner:
+        st.download_button("📄 تحميل PDF", pdf_bytes, file_name=filename, mime="application/pdf", use_container_width=True, type="primary", key=key)
+    else:
+        if st.session_state["pdf_approved"]:
+            st.success("✅ تمت الموافقة من المالك (مؤقتاً)")
+            st.download_button("📄 تحميل PDF", pdf_bytes, file_name=filename, mime="application/pdf", use_container_width=True, type="primary", key=key)
+        else:
+            st.warning("🔒 تحميل الـ PDF يتطلب موافقة المالك.")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("طلب موافقة المالك", key=f"req_{key}"):
+                    st.info("تم إرسال الطلب! يرجى التواصل مع الدكتور للاعتماد.")
+            with c2:
+                st.markdown(f'<a href="https://wa.me/{WHATSAPP_NUMBER.replace("+","")}" target="_blank" style="display:block; padding:10px; background:#25d366; color:white; text-align:center; border-radius:10px; text-decoration:none; font-weight:bold;">📱 واتساب</a>', unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════
+# 🐄 شريط القياس (مع الصور الحقيقية والأسهم)
+# ═══════════════════════════════════════════════════════════════════════
+
+# روابط صور الحيوانات الواضحة
+ANIMAL_IMG_URLS = {
+    "أبقار": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Cow_female_black_white.jpg/1024px-Cow_female_black_white.jpg",
+    "أغنام": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Sheep_in_lesser_himalayas.JPG/1024px-Sheep_in_lesser_himalayas.JPG",
+    "ماعز": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Goat_chewing_a_can_%28cropped%29.jpg/1024px-Goat_chewing_a_can_%28cropped%29.jpg",
+    "إبل": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Camel_in_Dubai.jpg/1024px-Camel_in_Dubai.jpg",
+    "خيول": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Nokota_Horses_cropped.jpg/1024px-Nokota_Horses_cropped.jpg",
+}
+
+@st.cache_data(ttl=86400)
+def fetch_image(url):
+    try:
+        import urllib.request
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.read()
+    except Exception:
+        return None
+
+def draw_weight_guide(animal_type):
+    if not MATPLOTLIB_AVAILABLE: return None
+    try:
+        img_bytes = fetch_image(ANIMAL_IMG_URLS.get(animal_type, ANIMAL_IMG_URLS["أبقار"]))
+        fig, ax = plt.subplots(figsize=(10, 6))
+        if img_bytes:
+            img = Image.open(io.BytesIO(img_bytes))
+            ax.imshow(img)
+        else:
+            ax.text(0.5, 0.5, "لا توجد صورة", ha='center', va='center')
+        
+        ax.axis('off')
+        # رسم أسهم القياس على الصورة
+        # سهم أحمر لمحيط الصدر
+        ax.annotate('', xy=(0.35, 0.6), xytext=(0.35, 0.3), xycoords='axes fraction', arrowprops=dict(arrowstyle='<->', color='red', lw=3))
+        ax.text(0.37, 0.45, 'محيط الصدر', color='red', fontsize=12, fontweight='bold', transform=ax.transAxes)
+        
+        # سهم أزرق لطول الجسم
+        ax.annotate('', xy=(0.15, 0.2), xytext=(0.85, 0.2), xycoords='axes fraction', arrowprops=dict(arrowstyle='<->', color='blue', lw=3))
+        ax.text(0.5, 0.22, 'طول الجسم', color='blue', fontsize=12, fontweight='bold', ha='center', transform=ax.transAxes)
+        
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=120, bbox_inches='tight', facecolor='white')
+        plt.close(); buf.seek(0)
+        return buf
+    except Exception:
+        return None
+
+# ═══════════════════════════════════════════════════════════════════════
+# 📌 عرض أزرار التواصل والاستشارة (التي تظهر مع كل PDF)
+# ═══════════════════════════════════════════════════════════════════════
+
+def render_contact_section():
+    st.markdown("---")
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #e8f5e9, #c8e6c9); padding: 20px; border-radius: 15px; border-right: 5px solid #1b5e20; text-align: center; margin-top: 20px;">
+        <h4 style="color: #1b5e20; margin-top: 0;">💡 للحصول على تركيبات علفية أكثر جودة</h4>
+        <p style="color: #333; font-size: 16px;">الرجاء الضغط على زر التواصل والاستشارة</p>
+        <h3 style="color: #c62828; margin: 15px 0;">👨‍🔬 د. عبدالقادر إسماعيل تاور</h3>
+        <p style="color: #0d47a1; font-weight: bold;">اختصاصي تغذية الحيوان</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(f'<a href="https://wa.me/{WHATSAPP_NUMBER.replace("+","")}" target="_blank" style="display:block; padding:15px; background:#25d366; color:white; text-align:center; border-radius:10px; text-decoration:none; font-weight:bold; font-size:18px; margin-top:10px;">📱 تواصل واتساب</a>', unsafe_allow_html=True)
+    with col2:
+        st.markdown(f'<a href="mailto:{OWNER_EMAIL}" style="display:block; padding:15px; background:#1565c0; color:white; text-align:center; border-radius:10px; text-decoration:none; font-weight:bold; font-size:18px; margin-top:10px;">✉️ استشارة بالبريد</a>', unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════
+# 📚 المكتبة العلفية (مع إضافة علف الدجاج الجاهز وخميرة الخبز)
+# ═══════════════════════════════════════════════════════════════════════
+
+def create_ingredient(cp, se, price, name):
+    return {"CP": cp, "SE": se, "price": price, "name": name}
+
+FEED_LIBRARY = {
+    "🌾 الحبوب": {
+        "ذرة صفراء": create_ingredient(8.5, 80, 230, "ذرة صفراء"),
+        "شعير": create_ingredient(11.5, 71, 210, "شعير"),
+        "قمح": create_ingredient(12.0, 75, 240, "قمح"),
+    },
+    "🌱 البروتين": {
+        "كسب صويا 44%": create_ingredient(44.0, 74, 440, "كسب صويا"),
+        "كسب عباد شمس": create_ingredient(36.0, 42, 310, "كسب عباد شمس"),
+        "خميرة الخبز (مفعلة)": create_ingredient(45.0, 60, 500, "خميرة خبز"),
+    },
+    "🐔 أعلاف جاهزة": {
+        "علف دجاج جاهز (بادي)": create_ingredient(23.0, 76, 400, "علف بادي"),
+        "علف دجاج جاهز (ناهي)": create_ingredient(19.5, 75, 380, "علف ناهي"),
+    }
+}
+
+# ═══════════════════════════════════════════════════════════════════════
+# 🏗️ حظيرة الخيل 3D (إسطبلات كاملة)
+# ═══════════════════════════════════════════════════════════════════════
+
+def build_horse_stable_3d(num_horses=10):
+    if not PLOTLY_AVAILABLE: return None
+    
+    # إعدادات الإسطبل
+    stall_w = 3.5
+    stall_l = 3.5
+    aisle = 3.5
+    rows = 2 if num_horses > 4 else 1
+    per_row = (num_horses + 1) // 2 if rows == 2 else num_horses
+    
+    L = per_row * stall_w + 2
+    W = rows * stall_l + aisle + 1
+    H = 4.0
+    wall_h = 3.0
+    
+    fig = go.Figure()
+    
+    # الأرضية
+    fig.add_trace(go.Mesh3d(x=[0, L, L, 0], y=[0, 0, W, W], z=[0, 0, 0, 0],
+        color='#d7ccc8', opacity=0.8, name='الأرضية'))
+    
+    # الجدران الخارجية
+    fig.add_trace(go.Mesh3d(x=[0, L, L, 0], y=[0, 0, 0, 0], z=[0, 0, H, H], color='#a1887f', opacity=0.3, name='الجدار الأمامي'))
+    fig.add_trace(go.Mesh3d(x=[0, L, L, 0], y=[W, W, W, W], z=[0, 0, H, H], color='#a1887f', opacity=0.3, name='الجدار الخلفي'))
+    
+    # بناء الإسطبلات
+    for row in range(rows):
+        y_start = 0.5 if row == 0 else W - stall_l - 0.5
+        for col in range(per_row):
+            x_start = 0.5 + col * stall_w
+            
+            # الجدار الجانبي الأيمن
+            fig.add_trace(go.Mesh3d(x=[x_start + stall_w]*4, y=[y_start, y_start + stall_l, y_start + stall_l, y_start],
+                z=[0, 0, wall_h, wall_h], color='#795548', opacity=0.5, showlegend=False))
+            
+            # الجدار الأمامي (فيه فتحة باب)
+            y_front = y_start if row == 0 else y_start + stall_l
+            fig.add_trace(go.Mesh3d(x=[x_start, x_start + 0.4, x_start + 0.4, x_start], y=[y_front]*4,
+                z=[0, 0, wall_h, wall_h], color='#8d6e63', opacity=0.5, showlegend=False))
+            fig.add_trace(go.Mesh3d(x=[x_start + stall_w - 0.4, x_start + stall_w, x_start + stall_w, x_start + stall_w - 0.4], y=[y_front]*4,
+                z=[0, 0, wall_h, wall_h], color='#8d6e63', opacity=0.5, showlegend=False))
+            
+            # حصان
+            fig.add_trace(go.Scatter3d(x=[x_start + stall_w/2], y=[y_start + stall_l/2], z=[0.4],
+                mode='markers', marker=dict(size=12, color='#4e342e', symbol='diamond'), name='حصان' if row==0 and col==0 else None, showlegend=(row==0 and col==0)))
+            
+            # رقم الإسطبل
+            fig.add_trace(go.Scatter3d(x=[x_start + stall_w/2], y=[y_front], z=[wall_h + 0.2],
+                mode='text', text=[f"{col + 1 + row * per_row}"], textfont=dict(size=12, color='#c62828'), showlegend=False))
+            
+    fig.update_layout(
+        title=f"🐎 إسطبل خيول 3D ({num_horses} حصان)",
+        scene=dict(xaxis_title='الطول', yaxis_title='العرض', zaxis_title='الارتفاع',
+                   aspectmode='manual', aspectratio=dict(x=L/10, y=W/10, z=H/10)),
+        height=600, paper_bgcolor='white'
+    )
+    return fig
+
+# ═══════════════════════════════════════════════════════════════════════
+# 🖥️ واجهة التطبيق الرئيسية
+# ═══════════════════════════════════════════════════════════════════════
+
+st.title(f"🌾 {APP_NAME}")
+st.markdown(f"**إشراف: {SUPERVISOR} — {SUPERVISOR_TITLE}**")
+
+# عرض صورة المالك
+if os.path.exists("owner.jpg"):
+    st.sidebar.image("owner.jpg", caption=SUPERVISOR, use_column_width=True)
+
+# التبويبات (تتغير حسب الدور)
+if is_owner:
+    tabs = st.tabs(["🔬 النمذجة", "🏗️ الحظائر", "📚 المراجع", "⚙️ الإدارة"])
+else:
+    tabs = st.tabs(["🔬 النمذجة", "🏗️ الحظائر", "📚 المراجع"])
+
+with tabs[0]:
+    st.header("🔬 تركيب علفي (نموذج تجريبي)")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        animal = st.selectbox("اختر الحيوان:", list(ANIMAL_IMG_URLS.keys()))
+        st.markdown("#### دليل القياس")
+        guide_img = draw_weight_guide(animal)
+        if guide_img:
+            st.image(guide_img, use_column_width=True)
+    with col2:
+        st.markdown("#### إدخال الوزن")
+        hg = st.number_input("محيط الصدر (سم):", 50.0, 250.0, 180.0)
+        bl = st.number_input("طول الجسم (سم):", 50.0, 250.0, 150.0)
+        weight = (hg**2 * bl) / 10840.0
+        st.metric("⚖️ الوزن التقديري", f"{weight:.1f} كجم")
+    
+    st.markdown("---")
+    
+    # اختيار المكونات
+    st.markdown("### 🌾 اختر المكونات")
+    selected_feeds = {}
+    for cat, items in FEED_LIBRARY.items():
+        with st.expander(cat):
+            for name, data in items.items():
+                pct = st.number_input(f"{name} (نسبة %):", 0.0, 100.0, 0.0, key=f"feed_{name}")
+                if pct > 0:
+                    selected_feeds[name] = pct
+    
+    if st.button("🚀 تشغيل التركيب", type="primary"):
+        if not selected_feeds:
+            st.error("⚠️ اختر مكونات أولاً")
+        else:
+            total = sum(selected_feeds.values())
+            if abs(total - 100) > 0.1:
+                st.warning(f"⚠️ المجموع {total}% — سيتم التطبيع")
+            
+            # حساب النسب المئوية للـ CP
+            total_cp = sum(FEED_LIBRARY[c][n]["CP"] * (p/total) for c, items in FEED_LIBRARY.items() for n, p in selected_feeds.items() if n in items)
+            total_se = sum(FEED_LIBRARY[c][n]["SE"] * (p/total) for c, items in FEED_LIBRARY.items() for n, p in selected_feeds.items() if n in items)
+            
+            st.success(f"✅ التركيبة: بروتين {total_cp:.1f}% | طاقة {total_se:.0f}")
+            
+            # إنشاء PDF
+            try:
+                buf = io.BytesIO()
+                doc = SimpleDocTemplate(buf, pagesize=A4)
+                story = [
+                    Paragraph(ar("تقرير تركيبة علفية"), ParagraphStyle('t', fontName=FONT_NAME, fontSize=20, alignment=TA_CENTER)),
+                    Spacer(1, 12),
+                    Table([[ar("المكون"), ar("النسبة %")]] + [[ar(k), f"{v}%"] for k, v in selected_feeds.items()])
+                ]
+                doc.build(story)
+                pdf_bytes = buf.getvalue()
+                
+                # عرض زر التحميل مع القيود
+                render_pdf_download_button(pdf_bytes, "formula.pdf", "formula_pdf")
+                
+                # أزرار التواصل والاستشارة
+                render_contact_section()
+                
+            except Exception as e:
+                st.error(f"خطأ في PDF: {e}")
+
+with tabs[1]:
+    st.header("🏗️ حظيرة الخيل 3D")
+    num_horses = st.number_input("عدد الخيول:", 1, 50, 10)
+    if st.button("بناء الإسطبل 3D"):
+        fig = build_horse_stable_3d(num_horses)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.error("Plotly غير مثبت")
+
+with tabs[2]:
+    st.header("📚 المراجع")
+    st.markdown("""
+    - **NRC (2001)** — Dairy Cattle
+    - **NRC (2007)** — Small Ruminants
+    - **FAO (2010)** — Camel Nutrition
+    """)
+
+# التذييل
+st.markdown("---")
+st.markdown("🤲 رحم الله الوالد إسماعيل تاور والأخت ابتسام 🤲")
