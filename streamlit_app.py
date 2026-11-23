@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════════════
-# الجزء 1 من 5 — الإعدادات، المعادلات العلمية، المحركات، الرسوم، الختم، والفيديو
+# الجزء 1 من 5 — الإعدادات، الصورة المدمجة، المكتبة العلفية، المحركات، الرسوم، والختم
 # المنصة: تاور نولجي (Tawor Nology) — بإشراف: عبدالقادر إسماعيل
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -39,21 +39,20 @@ except Exception:
     PLOTLY_AVAILABLE = False
 
 try:
-    from PIL import Image as PILImage, ImageDraw, ImageFont
+    from PIL import Image as PILImage, ImageDraw
     PIL_AVAILABLE = True
 except Exception:
     PILImage = None
     ImageDraw = None
-    ImageFont = None
     PIL_AVAILABLE = False
 
 
 # -----------------------------------------------------------------------
-# 1. الثوابت والهوية العلمية
+# 1. الثوابت والهوية العلمية والروحانية
 # -----------------------------------------------------------------------
 APP_NAME = os.getenv("TAWOR_APP_NAME", "تاور نولجي — Tawor Nology")
-APP_VERSION = "12.0.0-Pro"
-APP_TAGLINE = "منصة ذكية متكاملة للنمذجة الغذائية، التحسين غير الخطي (NLP)، وتصميم المنشآت الحيوانية"
+APP_VERSION = "12.0.0-Full"
+APP_TAGLINE = "منصة متكاملة للنمذجة الغذائية، التحسين غير الخطي (NLP)، وإدارة المزارع والمنشآت الحيوانية"
 SUPERVISOR = os.getenv("TAWOR_SUPERVISOR", "أ. عبدالقادر إسماعيل")
 SUPERVISOR_TITLE = "اختصاصي إنتاج حيواني وتغذية — باحث ماجستير"
 WHATSAPP_NUMBER = os.getenv("TAWOR_WHATSAPP", "+218910000000")
@@ -61,68 +60,104 @@ OWNER_EMAIL = os.getenv("TAWOR_EMAIL", "abdelkader.tawor@example.com")
 
 DUA_SHORT = "اللهم بارك لنا في علمنا وعملنا واجعله خالصاً لوجهك الكريم"
 DUA_QURAN = "﴿ رَبِّ زِدْنِي عِلْمًا ﴾ • ﴿ وَقُلِ اعْمَلُوا فَسَيَرَى اللَّهُ عَمَلَكُمْ وَرَسُولُهُ وَالْمُؤْمِنُونَ ﴾"
-DUA_VISITOR = "مرحباً بك في منصة <b>تاور نولجي</b> — دقة علمية بمعايير NRC / ARC / FAO وتقنيات برمجة متقدمة."
-DUA_FULL = "اللهم اغفر لوالدَيّ وارحمهما كما ربّياني صغيراً، وبارك في ذريتي وعلمي وعملي، وانفع به عبادك."
+DUA_VISITOR = "مرحباً بك في <b>تاور نولجي</b> — نماذج تغذية علمية وفق معايير NRC / ARC / FAO وتحسين غير خطي NLP."
+DUA_FULL = "اللهم اغفر لوالدَيّ وارحمهما كما ربّياني صغيراً، وبارك في ذريتي وعلمي وعملي، واجعل هذا العمل نافعاً للناس."
 
 
-def _load_owner_photo_b64() -> Optional[str]:
-    """تحميل صورة المالك من Secrets أو متغير البيئة أو الملفات المحلية."""
+def _generate_fallback_avatar_b64() -> str:
+    """توليد صورة شخصية رمزية واضحة في حال عدم وجود ملف صورة خارجي."""
+    if not PIL_AVAILABLE or PILImage is None or ImageDraw is None:
+        return ""
+    img = PILImage.new("RGB", (240, 240), (27, 94, 32))
+    draw = ImageDraw.Draw(img)
+    draw.ellipse([12, 12, 228, 228], outline=(212, 175, 55), width=6)
+    draw.ellipse([75, 55, 165, 145], fill=(235, 210, 180))
+    draw.pieslice([45, 145, 195, 250], start=180, end=360, fill=(21, 101, 192))
+    draw.rectangle([82, 88, 114, 106], outline=(30, 30, 30), width=3)
+    draw.rectangle([126, 88, 158, 106], outline=(30, 30, 30), width=3)
+    draw.line([114, 96, 126, 96], fill=(30, 30, 30), width=3)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=88)
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+
+def _load_owner_photo_b64() -> str:
+    """
+    أولوية التحميل:
+    1) الصورة المرفوعة في الجلسة الحالية (`runtime_owner_photo_b64`)
+    2) `st.secrets["OWNER_PHOTO_B64"]` أو متغير البيئة `OWNER_PHOTO_B64`
+    3) الملفات المحلية (`owner_photo.jpg`, `owner_photo.png`, `24027.jpg`, `assets/owner_photo.jpg`)
+    4) الصورة المولدة تلقائياً حتى لا يظهر مكان الصورة فارغاً أبداً.
+    """
     try:
-        if hasattr(st, "secrets") and "OWNER_PHOTO_B64" in st.secrets:
-            val = str(st.secrets["OWNER_PHOTO_B64"]).strip()
-            if val:
-                return val
+        rt = str(st.session_state.get("runtime_owner_photo_b64") or "").strip()
+        if rt:
+            return rt
     except Exception:
         pass
 
-    env_b64 = os.getenv("OWNER_PHOTO_B64", "").strip()
-    if env_b64:
-        return env_b64
+    try:
+        if hasattr(st, "secrets") and "OWNER_PHOTO_B64" in st.secrets:
+            s_val = str(st.secrets["OWNER_PHOTO_B64"]).strip()
+            if s_val:
+                return s_val
+    except Exception:
+        pass
 
-    candidate_paths = [
+    env_val = os.getenv("OWNER_PHOTO_B64", "").strip()
+    if env_val:
+        return env_val
+
+    for p in [
         "owner_photo.jpg",
         "owner_photo.jpeg",
         "owner_photo.png",
+        "24027.jpg",
+        "24027.jpeg",
+        "24027.png",
         "assets/owner_photo.jpg",
         "assets/owner_photo.png",
-        "profile.jpg",
-        "profile.png",
-    ]
-    for path in candidate_paths:
-        if os.path.exists(path) and os.path.isfile(path):
+    ]:
+        if os.path.exists(p) and os.path.isfile(p):
             try:
-                with open(path, "rb") as f:
+                with open(p, "rb") as f:
                     return base64.b64encode(f.read()).decode("utf-8")
             except Exception:
                 continue
-    return None
+
+    return _generate_fallback_avatar_b64()
 
 
-owner_b64: Optional[str] = _load_owner_photo_b64()
-img_base64: Optional[str] = owner_b64
+owner_b64: str = _load_owner_photo_b64()
+img_base64: str = owner_b64
 
 
 # -----------------------------------------------------------------------
-# 2. المكتبة العلفية والمعادلات المرجعية عالية الدقة
+# 2. المكتبة العلفية الكاملة (الحبوب، الأكساب، البدائل، الزيوت، الأملاح)
 # -----------------------------------------------------------------------
 BIG_FEEDS_LIBRARY: Dict[str, Dict[str, Dict[str, Any]]] = {
     "🌾 الحبوب ومصادر الطاقة": {
         "ذرة صفراء": {"CP": 8.8, "DP": 6.6, "SE": 78.0, "NDF": 11.5, "ADF": 3.0, "EE": 3.8, "ASH": 1.4, "Ca": 0.03, "P": 0.28, "price": 290.0},
         "شعير مطحون": {"CP": 11.2, "DP": 8.4, "SE": 71.0, "NDF": 19.0, "ADF": 6.5, "EE": 2.0, "ASH": 2.5, "Ca": 0.06, "P": 0.34, "price": 265.0},
-        "قمح محلي": {"CP": 12.4, "DP": 9.6, "SE": 77.0, "NDF": 13.5, "ADF": 3.5, "EE": 1.9, "ASH": 1.8, "Ca": 0.05, "P": 0.36, "price": 280.0},
+        "قمح علفى": {"CP": 12.4, "DP": 9.6, "SE": 77.0, "NDF": 13.5, "ADF": 3.5, "EE": 1.9, "ASH": 1.8, "Ca": 0.05, "P": 0.36, "price": 280.0},
+        "ذرة رفيعة (فتريتا / طعام)": {"CP": 10.4, "DP": 7.6, "SE": 74.0, "NDF": 15.0, "ADF": 5.5, "EE": 3.2, "ASH": 1.8, "Ca": 0.04, "P": 0.30, "price": 255.0},
         "نخالة قمح (ردة)": {"CP": 15.5, "DP": 11.3, "SE": 56.0, "NDF": 42.0, "ADF": 12.5, "EE": 3.9, "ASH": 5.4, "Ca": 0.12, "P": 0.98, "price": 210.0},
+        "دريس برسيم / أعلاف خشنة": {"CP": 16.5, "DP": 11.8, "SE": 50.0, "NDF": 44.0, "ADF": 31.0, "EE": 2.2, "ASH": 9.5, "Ca": 1.35, "P": 0.26, "price": 220.0},
     },
-    "🌱 الأكساب ومصادر البروتين": {
+    "🌱 الأكساب ومصادر البروتين والبدائل": {
         "كسب فول صويا 44%": {"CP": 44.0, "DP": 37.4, "SE": 74.0, "NDF": 14.5, "ADF": 9.5, "EE": 1.6, "ASH": 6.2, "Ca": 0.32, "P": 0.65, "price": 490.0},
         "كسب فول صويا 48%": {"CP": 48.0, "DP": 41.2, "SE": 76.0, "NDF": 11.0, "ADF": 6.8, "EE": 1.5, "ASH": 6.0, "Ca": 0.30, "P": 0.68, "price": 530.0},
         "كسب عباد الشمس": {"CP": 32.0, "DP": 25.6, "SE": 63.0, "NDF": 31.0, "ADF": 21.0, "EE": 2.2, "ASH": 6.8, "Ca": 0.38, "P": 0.92, "price": 360.0},
+        "كسب القطن": {"CP": 36.0, "DP": 28.0, "SE": 64.0, "NDF": 28.0, "ADF": 18.0, "EE": 2.5, "ASH": 6.5, "Ca": 0.22, "P": 0.95, "price": 375.0},
         "مسحوق أسماك 60%": {"CP": 60.0, "DP": 51.0, "SE": 72.0, "NDF": 0.0, "ADF": 0.0, "EE": 8.0, "ASH": 18.0, "Ca": 4.20, "P": 2.60, "price": 980.0},
+        "الصمغ العربي (ألياف بريبيوتيك طبيعية)": {"CP": 2.2, "DP": 1.5, "SE": 62.0, "NDF": 12.0, "ADF": 6.0, "EE": 0.4, "ASH": 3.5, "Ca": 0.85, "P": 0.04, "price": 420.0},
     },
     "🌰 الزيوت والدهون": {
-        "زيت فول الصويا": {"CP": 0.0, "DP": 0.0, "SE": 195.0, "NDF": 0.0, "ADF": 0.0, "EE": 99.5, "ASH": 0.0, "Ca": 0.0, "P": 0.0, "price": 1150.0, "desc": "مصدر عالي الطاقة واللينوليك للدواجن والأسماك."},
-        "زيت السمك (Fish Oil)": {"CP": 0.0, "DP": 0.0, "SE": 198.0, "NDF": 0.0, "ADF": 0.0, "EE": 99.5, "ASH": 0.0, "Ca": 0.0, "P": 0.0, "price": 1350.0, "desc": "غني بأحماض EPA و DHA لتغذية الأسماك والأمهات."},
+        "زيت فول الصويا": {"CP": 0.0, "DP": 0.0, "SE": 195.0, "NDF": 0.0, "ADF": 0.0, "EE": 99.5, "ASH": 0.0, "Ca": 0.0, "P": 0.0, "price": 1150.0, "desc": "مصدر عالي للطاقة واللينوليك للدواجن والأسماك."},
+        "زيت عباد الشمس": {"CP": 0.0, "DP": 0.0, "SE": 194.0, "NDF": 0.0, "ADF": 0.0, "EE": 99.5, "ASH": 0.0, "Ca": 0.0, "P": 0.0, "price": 1120.0, "desc": "غني بالطاقة والأحماض الدهنية غير المشبعة."},
+        "زيت السمك (Fish Oil)": {"CP": 0.0, "DP": 0.0, "SE": 198.0, "NDF": 0.0, "ADF": 0.0, "EE": 99.5, "ASH": 0.0, "Ca": 0.0, "P": 0.0, "price": 1350.0, "desc": "غني بأحماض أوميغا-3 (EPA و DHA) لتغذية الأسماك."},
     },
-    "🪨 الأملاح والإضافات": {
+    "🪨 الأملاح والإضافات والمركزات": {
         "الحجر الجيري": {"CP": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 96.0, "Ca": 38.0, "P": 0.02, "price": 85.0},
         "فوسفات ثنائي الكالسيوم": {"CP": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 88.0, "Ca": 23.0, "P": 18.0, "price": 620.0},
         "ملح الطعام": {"CP": 0.0, "DP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 99.0, "Ca": 0.0, "P": 0.0, "price": 90.0},
@@ -141,16 +176,16 @@ MAX_OIL_PERCENTAGE: Dict[str, Dict[str, Any]] = {
     "ماعز": {"max": 4.5, "optimal": 2.0, "source": "NRC (2007) Goats"},
     "إبل": {"max": 4.0, "optimal": 1.8, "source": "FAO (2010) Camel Nutrition"},
     "خيول": {"max": 8.0, "optimal": 4.0, "source": "NRC (2007) Horses"},
-    "دواجن": {"max": 6.5, "optimal": 3.5, "source": "NRC / Aviagen Ross & Cobb"},
+    "دواجن": {"max": 6.5, "optimal": 3.5, "source": "NRC / Ross & Cobb Standards"},
     "سمان": {"max": 5.0, "optimal": 2.5, "source": "NRC (1994) Poultry"},
-    "أسماك": {"max": 12.0, "optimal": 6.0, "source": "NRC (2011) Fish & Crustaceans"},
-    "أرانب": {"max": 4.0, "optimal": 2.0, "source": "NRC (1977) / Lebas Rabbits"},
+    "أسماك": {"max": 12.0, "optimal": 6.0, "source": "NRC (2011) Fish Nutrition"},
+    "أرانب": {"max": 4.0, "optimal": 2.0, "source": "NRC (1977) Rabbits"},
 }
 
 GENERAL_REFERENCES: List[str] = [
     "NRC (2001) Nutrient Requirements of Dairy Cattle — National Academies Press.",
-    "NRC (2007) Nutrient Requirements of Small Ruminants: Sheep, Goats, Cervids, and New World Camelids.",
-    "NRC (2007) Nutrient Requirements of Horses (6th Revised Edition).",
+    "NRC (2007) Nutrient Requirements of Small Ruminants: Sheep, Goats, Cervids, and Camelids.",
+    "NRC (2007) Nutrient Requirements of Horses.",
     "NRC (2011) Nutrient Requirements of Fish and Shrimp.",
     "FAO (2010) Camel Nutrition & Feeding Standards.",
     "ARC (1980 / 1984) The Nutrient Requirements of Ruminant Livestock.",
@@ -197,11 +232,6 @@ def get_oil_ingredients() -> Dict[str, Dict[str, Any]]:
     return dict(BIG_FEEDS_LIBRARY.get("🌰 الزيوت والدهون", {}))
 
 
-def get_oil_standard(std_key: str) -> Dict[str, Any]:
-    prefix = (std_key or "").split("_")[0]
-    return MAX_OIL_PERCENTAGE.get(prefix, {"max": 5.0, "optimal": 2.5, "source": "NRC Standard"})
-
-
 def requirement_to_standard(req: AnimalRequirement) -> Dict[str, float]:
     return {
         "DP": req.DP,
@@ -217,14 +247,14 @@ def requirement_to_standard(req: AnimalRequirement) -> Dict[str, float]:
 
 
 def compute_formula_nutrients(formula: Dict[str, float]) -> Dict[str, float]:
+    keys = ["DP", "CP", "SE", "NDF", "ADF", "EE", "ASH", "Ca", "P"]
     if not formula:
-        return {"DP": 0.0, "CP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 0.0, "Ca": 0.0, "P": 0.0}
+        return {k: 0.0 for k in keys}
     total_pct = sum(max(0.0, float(v or 0.0)) for v in formula.values())
     if total_pct <= 0:
-        return {"DP": 0.0, "CP": 0.0, "SE": 0.0, "NDF": 0.0, "ADF": 0.0, "EE": 0.0, "ASH": 0.0, "Ca": 0.0, "P": 0.0}
+        return {k: 0.0 for k in keys}
     norm = {k: max(0.0, float(v or 0.0)) / total_pct * 100.0 for k, v in formula.items()}
     lookup = _get_ingredient_lookup()
-    keys = ["DP", "CP", "SE", "NDF", "ADF", "EE", "ASH", "Ca", "P"]
     out = {k: 0.0 for k in keys}
     for ing, pct in norm.items():
         spec = lookup.get(ing, {})
@@ -271,7 +301,7 @@ def get_reference_equations(animal: str, prod: str = "") -> Dict[str, str]:
             "NEm (Mcal/d)": "0.080 × BW^0.75",
             "FCM 4% (kg/d)": "0.4 × Milk_kg + 15 × Fat_kg",
             "MP / DP Balance": "DMI × (0.038 + 0.0006 × Milk_kg)",
-            "example": "بقرة 500 كجم تنتج 20 كجم حليب تحتاج طاقة وتوازن بروتين دقيق لتفادي الخلل الأيضي.",
+            "example": "بقرة 500 كجم تنتج 20 كجم حليب تحتاج موازنة الطاقة والبروتين المهضوم لتفادي الخلل الأيضي.",
         },
         "أغنام": {
             "source": "NRC (2007) — Small Ruminants Metabolic Equations",
@@ -315,9 +345,9 @@ def get_default_selections(animal: str, prod: str, req: AnimalRequirement) -> Li
     if animal == "دواجن":
         base = ["ذرة صفراء", "كسب فول صويا 48%", "زيت فول الصويا", "الحجر الجيري", "فوسفات ثنائي الكالسيوم", "ملح الطعام", "بريمكس تسمين دواجن", "ليسين نقي", "ميثيونين نقي"]
     elif animal == "أسماك":
-        base = ["كسب فول صويا 44%", "مسحوق أسماك 60%", "قمح محلي", "زيت السمك (Fish Oil)", "فوسفات ثنائي الكالسيوم", "بريمكس أسماك"]
+        base = ["كسب فول صويا 44%", "مسحوق أسماك 60%", "قمح علفى", "زيت السمك (Fish Oil)", "فوسفات ثنائي الكالسيوم", "بريمكس أسماك"]
     else:
-        base = ["ذرة صفراء", "شعير مطحون", "كسب فول صويا 44%", "نخالة قمح (ردة)", "الحجر الجيري", "فوسفات ثنائي الكالسيوم", "ملح الطعام", "بريمكس مجترات"]
+        base = ["ذرة صفراء", "شعير مطحون", "كسب فول صويا 44%", "كسب عباد الشمس", "نخالة قمح (ردة)", "الحجر الجيري", "فوسفات ثنائي الكالسيوم", "ملح الطعام", "بريمكس مجترات"]
     lookup = _get_ingredient_lookup()
     return [x for x in base if x in lookup]
 
@@ -447,10 +477,8 @@ def auto_formulate_smart(
 
     x0 = np.ones(n, dtype=float) / n
     bounds = [(0.0, 1.0) for _ in range(n)]
-
-    # ضبط حدود الإضافات المعدنية العالية حتى لا تطغى على العليقة
     for idx, name in enumerate(valid):
-        if any(tag in name for tag in ["حجر", "فوسفات", "ملح", "بريمكس", "ليسين", "ميثيونين"]):
+        if any(tag in name for tag in ["حجر", "فوسفات", "ملح", "بريمكس", "ليسين", "ميثيونين", "صمغ"]):
             bounds[idx] = (0.0, 0.08)
 
     def objective(x: np.ndarray) -> float:
@@ -469,9 +497,7 @@ def auto_formulate_smart(
         w_opt = x0
 
     w_opt = np.clip(w_opt, 0.0, 1.0)
-    if np.sum(w_opt) <= 0:
-        w_opt = x0
-    w_opt = w_opt / np.sum(w_opt)
+    w_opt = w_opt / max(np.sum(w_opt), 1e-9)
 
     formula = {name: round(float(pct * 100.0), 3) for name, pct in zip(valid, w_opt) if pct > 0.0005}
     if not formula:
@@ -488,7 +514,7 @@ def auto_formulate_smart(
         "cost": round(float(cost_per_ton), 2),
         "quality_score": quality_score,
         "meets_standard": quality_score >= float(min_quality),
-        "warning": None if quality_score >= float(min_quality) else "تم الوصول لأفضل موازنة ممكنة ضمن المكونات المختارة — يُنصح بإضافة مصدر بروتين أو طاقة داعم لرفع الجودة فوق 70%.",
+        "warning": None if quality_score >= float(min_quality) else "تم الوصول لأفضل موازنة ممكنة ضمن المكونات المختارة؛ يُنصح بإضافة مصدر بروتين أو طاقة لرفع الجودة فوق 70%.",
     }
 
 
@@ -541,9 +567,6 @@ def analyze_existing_formula(formula: Dict[str, float], animal: str, prod: str) 
         ev = evaluate_difference(diff_pct, sv)
         comparison.append({"العنصر": ar_label, "المعيار": sv, "المحسوب": av, "الفرق": diff, "الفرق %": diff_pct, "التقييم": ev["label"]})
 
-    e_share = min(100.0, max(0.0, float(actual.get("SE", 0.0) or 0.0) / 85.0 * 100.0))
-    p_share = min(100.0, max(0.0, float(actual.get("CP", 0.0) or 0.0) / 26.0 * 100.0))
-
     return {
         "success": True,
         "formula": norm,
@@ -553,8 +576,6 @@ def analyze_existing_formula(formula: Dict[str, float], animal: str, prod: str) 
         "quality_score": quality_score,
         "cost_per_ton": round(cost_per_ton, 2),
         "ca_p_ratio": round(ca_p_ratio, 2),
-        "energy_share_pct": round(e_share, 1),
-        "protein_share_pct": round(p_share, 1),
         "animal_type": animal,
         "production_type": prod,
         "references": get_references(animal, prod),
@@ -605,7 +626,6 @@ def nlp_optimize_feed(
         me_val = float(np.dot(w, me_arr))
         cp_val = float(np.dot(w, cp_arr))
         cost_kg = float(np.dot(w, cost_arr))
-        # تعظيم صافي هامش الأداء/الكلفة بتقليل التكلفة والانحراف عن المتطلبات
         me_pen = ((me_val - target_me) / max(target_me, 1.0)) ** 2
         cp_pen = ((cp_val - target_cp) / max(target_cp, 1.0)) ** 2
         return float(cost_kg + 0.65 * me_pen + 0.65 * cp_pen)
@@ -638,7 +658,7 @@ def nlp_optimize_feed(
 
 
 # -----------------------------------------------------------------------
-# 4. الرسوم البيانية: الرادار، المقارنة، التوزيع، المقياس، ومنحنى NLP
+# 4. الرسوم البيانية: المقارنة، الرادار، التوزيع، المقياس، ومنحنى NLP
 # -----------------------------------------------------------------------
 def create_colorful_bar_chart(std_dict: Dict[str, float], act_dict: Dict[str, float]) -> Optional[io.BytesIO]:
     if not MATPLOTLIB_AVAILABLE or not std_dict or not act_dict:
@@ -652,8 +672,8 @@ def create_colorful_bar_chart(std_dict: Dict[str, float], act_dict: Dict[str, fl
     x = np.arange(len(keys))
     width = 0.36
     fig, ax = plt.subplots(figsize=(7.2, 4.2), dpi=160)
-    ax.bar(x - width / 2, std_vals, width, label="Standard (المعيار)", color="#1b5e20", edgecolor="none")
-    ax.bar(x + width / 2, act_vals, width, label="Calculated (المحسوب)", color="#d4af37", edgecolor="none")
+    ax.bar(x - width / 2, std_vals, width, label="Standard (المعيار)", color="#1b5e20")
+    ax.bar(x + width / 2, act_vals, width, label="Calculated (المحسوب)", color="#d4af37")
     ax.set_xticks(x)
     ax.set_xticklabels(keys, fontweight="bold")
     ax.set_title("Standard vs. Calculated Nutrients (المعيار مقابل المحسوب)", fontweight="bold")
@@ -686,7 +706,6 @@ def create_colorful_pie_chart(formula: Dict[str, float]) -> Optional[io.BytesIO]
 
 
 def create_radar_chart(std_dict: Dict[str, float], act_dict: Dict[str, float]) -> Optional[io.BytesIO]:
-    """رسم راداري يوضح نسبة تحقق كل عنصر غذائي مقارنة بالمعيار (100%)."""
     if not MATPLOTLIB_AVAILABLE or not std_dict or not act_dict:
         return None
     keys = [k for k in ["DP", "CP", "SE", "Ca", "P"] if float(std_dict.get(k, 0.0) or 0.0) > 0]
@@ -764,7 +783,6 @@ def create_nlp_profit_curve(
     ing_data: Dict[str, Dict[str, Any]],
     prices_dict: Dict[str, float],
 ):
-    """رسم بياني تفاعلي (Plotly) أو ثابت (Matplotlib) لتحليل تكلفة والربح في البرمجة غير الخطية NLP."""
     base_cost = float((result or {}).get("final_cost", 0.35) or 0.35)
     alphas = np.linspace(0.75, 1.30, 25)
     costs = base_cost * alphas
@@ -800,55 +818,54 @@ def create_nlp_profit_curve(
 
 
 # -----------------------------------------------------------------------
-# 5. الختم الرسمي على تقارير PDF + مولد التقرير مع الختم
+# 5. الختم الرسمي على PDF + مولد التقرير مع الختم والرسوم
 # -----------------------------------------------------------------------
+def _build_official_seal_png_bytes(stamp_text: Optional[str] = None) -> Optional[bytes]:
+    if not PIL_AVAILABLE or PILImage is None or ImageDraw is None:
+        return None
+    seal = PILImage.new("RGBA", (320, 140), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(seal)
+    draw.ellipse([12, 10, 308, 130], outline=(183, 28, 28, 235), width=4)
+    draw.ellipse([20, 18, 300, 122], outline=(27, 94, 32, 235), width=2)
+    draw.text((74, 38), "TAWOR NOLOGY OFFICIAL SEAL", fill=(27, 94, 32, 240))
+    draw.text((66, 66), (stamp_text or "Abdelkader Ismail")[:32], fill=(183, 28, 28, 240))
+    draw.text((92, 92), "CERTIFIED NUTRITION REPORT", fill=(13, 71, 161, 240))
+    buf = io.BytesIO()
+    seal.save(buf, format="PNG")
+    buf.seek(0)
+    return buf.getvalue()
+
+
 def apply_official_stamp_to_pdf(pdf_bytes: bytes, stamp_text: Optional[str] = None) -> bytes:
-    """إضافة ختم اعتماد رسمي بصري إن توفرت مكتبة PyPDF2/pypdf أو إرجاع PDF جاهز بختم الترويسة."""
     if not pdf_bytes:
         return b""
-    try:
-        from pypdf import PdfReader, PdfWriter  # type: ignore
-        if PIL_AVAILABLE and ImageDraw is not None and PILImage is not None:
-            stamp_img = PILImage.new("RGBA", (260, 120), (255, 255, 255, 0))
-            draw = ImageDraw.Draw(stamp_img)
-            draw.ellipse([10, 8, 250, 112], outline=(27, 94, 32, 220), width=4)
-            draw.ellipse([18, 16, 242, 104], outline=(212, 175, 55, 220), width=2)
-            draw.text((48, 36), "TAWOR NOLOGY SEAL", fill=(27, 94, 32, 235))
-            draw.text((44, 62), (stamp_text or SUPERVISOR)[:28], fill=(183, 28, 28, 235))
-            img_buf = io.BytesIO()
-            stamp_img.save(img_buf, format="PNG")
-            img_buf.seek(0)
-
-            reader = PdfReader(io.BytesIO(pdf_bytes))
-            writer = PdfWriter()
-            for page in reader.pages:
-                writer.add_page(page)
-            out_buf = io.BytesIO()
-            writer.write(out_buf)
-            return out_buf.getvalue()
-    except Exception:
-        pass
     return pdf_bytes
 
 
 class SimplePDFReportGenerator:
-    """مولد تقارير PDF علمية متكامل مع ختم الاعتماد والرسوم البيانية."""
-
     def _build_pdf_from_lines(self, title: str, lines: List[str], chart_buffers: List[Optional[io.BytesIO]] = None) -> bytes:
         chart_buffers = [c for c in (chart_buffers or []) if c is not None]
-        # محاولة استخدام fpdf2 إذا توفرت، وإلا إنشاء ملف PDF قياسي متوافق
         try:
             from fpdf import FPDF  # type: ignore
             pdf = FPDF()
             pdf.set_auto_page_break(auto=True, margin=15)
             pdf.add_page()
             pdf.set_font("Helvetica", "B", 15)
-            pdf.cell(0, 10, "TAWOR NOLOGY - SCIENTIFIC NUTRITION REPORT", ln=True, align="C")
+            pdf.cell(0, 10, "TAWOR NOLOGY - CERTIFIED NUTRITION REPORT", ln=True, align="C")
             pdf.set_font("Helvetica", "", 10)
             pdf.cell(0, 7, f"Supervisor: Abdelkader Ismail | Date: {datetime.now():%Y-%m-%d %H:%M}", ln=True, align="C")
-            pdf.cell(0, 7, f"OFFICIAL STAMP: CERTIFIED BY {SUPERVISOR} [SEAL-TW-2026]", ln=True, align="C")
-            pdf.ln(4)
+            pdf.cell(0, 7, "OFFICIAL STAMP: CERTIFIED BY TAWOR NOLOGY [SEAL-2026-APPROVED]", ln=True, align="C")
 
+            seal_png = _build_official_seal_png_bytes("Abdelkader Ismail - Tawor Nology")
+            if seal_png:
+                seal_path = f"/tmp/tawor_seal_{int(_time.time()*1000)}.png"
+                with open(seal_path, "wb") as sf:
+                    sf.write(seal_png)
+                pdf.image(seal_path, x=145, y=34, w=48)
+                if os.path.exists(seal_path):
+                    os.remove(seal_path)
+
+            pdf.ln(24)
             for line in lines:
                 safe_line = line.encode("latin-1", errors="replace").decode("latin-1")
                 pdf.multi_cell(0, 6, safe_line)
@@ -866,10 +883,8 @@ class SimplePDFReportGenerator:
                     continue
 
             raw = pdf.output(dest="S")
-            pdf_b = raw.encode("latin-1") if isinstance(raw, str) else bytes(raw)
-            return apply_official_stamp_to_pdf(pdf_b, SUPERVISOR)
+            return raw.encode("latin-1") if isinstance(raw, str) else bytes(raw)
         except Exception:
-            # مولد PDF خفيف ومباشر بدون تبعيات خارجية إلزامية
             escaped_title = title.replace("(", "[").replace(")", "]")
             summary_txt = " | ".join(l.replace("(", "[").replace(")", "]") for l in lines[:12])[:180]
             content_stream = (
@@ -964,19 +979,12 @@ def generate_nlp_math_pdf(
 # 6. منشئ فيديو شرح كيفية عمل البرنامج (MP4 Explainer Video)
 # -----------------------------------------------------------------------
 def build_explainer_video_mp4(output_path: str = "tawor_nology_explainer.mp4") -> Tuple[bool, str]:
-    """
-    ينشئ فيديو تعليمي يشرح كيفية عمل منصة تاور نولجي خطوة بخطوة:
-    1) اختيار الحيوان والحالة الفسيولوجية ومعايير NRC/ARC/FAO.
-    2) تركيب العلف الذكي وتحليل الجودة ومقارنة المحسوب بالمعيار والرادار.
-    3) التحسين غير الخطي NLP وتوليد التقارير المختومة ومشاركة النتائج.
-    """
     if not MATPLOTLIB_AVAILABLE:
         return False, "مكتبة matplotlib غير متوفرة لتوليد الفيديو."
-
     try:
         import imageio.v2 as imageio  # type: ignore
     except Exception:
-        return False, "لتوليد ملف MP4 تلقائياً ثبّت imageio و imageio-ffmpeg (pip install imageio imageio-ffmpeg)."
+        return False, "لتوليد ملف MP4 ثبّت imageio و imageio-ffmpeg (pip install imageio imageio-ffmpeg)."
 
     scenes = [
         ("1. Tawor Nology Platform", "Smart Animal Nutrition & Non-Linear Optimization (NLP)", "Supervised by Abdelkader Ismail | NRC - ARC - FAO Standards", "#1b5e20"),
@@ -999,7 +1007,6 @@ def build_explainer_video_mp4(output_path: str = "tawor_nology_explainer.mp4") -
             ax.text(0.5, 0.52, subtitle, transform=ax.transAxes, ha="center", va="center", fontsize=14, fontweight="bold", color="#ffffff")
             ax.text(0.5, 0.34, detail, transform=ax.transAxes, ha="center", va="center", fontsize=11, color="#e8f5e9")
 
-            # شريط تقدم متحرك أسفل الإطار
             ax.plot([0.15, 0.85], [0.16, 0.16], transform=ax.transAxes, color="#ffffff", alpha=0.25, linewidth=6)
             ax.plot([0.15, 0.15 + 0.70 * progress], [0.16, 0.16], transform=ax.transAxes, color="#d4af37", linewidth=6)
 
@@ -1015,8 +1022,10 @@ def build_explainer_video_mp4(output_path: str = "tawor_nology_explainer.mp4") -
 
     imageio.mimsave(output_path, frames, fps=6)
     return True, output_path
+
 # ═══════════════════════════════════════════════════════════════════════
 # الجزء 2 من 5 — الجلسة، المشاركة، CSS المحدّث، بوابة الدخول، وتبويب النمذجة
+# المنصة: تاور نولجي (Tawor Nology) — بإشراف: عبدالقادر إسماعيل
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -1030,6 +1039,17 @@ def _call_if_exists(name: str, *args, default=None, **kwargs):
     if callable(fn):
         return fn(*args, **kwargs)
     return default
+
+
+def _active_owner_b64() -> str:
+    """إرجاع أحدث صورة متاحة للمالك في الجلسة أو الملفات أو الثوابت."""
+    rt = str(st.session_state.get("runtime_owner_photo_b64") or "").strip()
+    if rt:
+        return rt
+    loaded = _call_if_exists("_load_owner_photo_b64", default="")
+    if loaded:
+        return str(loaded)
+    return str(_g("owner_b64", "") or _g("img_base64", "") or "")
 
 
 def _render_chart_image(chart_obj, caption: str = ""):
@@ -1389,14 +1409,13 @@ html, body, [data-testid="stAppViewContainer"] {
 # -----------------------------------------------------------------------
 # 4. بطاقة صورة المالك الثابتة وبوابة الدخول
 # -----------------------------------------------------------------------
-_owner_b64 = _g("owner_b64", None)
-_img_base64 = _g("img_base64", None)
+_current_photo_b64 = _active_owner_b64()
 
-if _owner_b64:
+if _current_photo_b64:
     st.markdown(
         f"""
     <div style="position: fixed; bottom: 70px; right: 20px; z-index: 9999; text-align: center;">
-        <img src="data:image/jpeg;base64,{_owner_b64}"
+        <img src="data:image/jpeg;base64,{_current_photo_b64}"
              style="width: 82px; height: 82px; border-radius: 50%;
                     border: 3px solid #d4af37; object-fit: cover;
                     box-shadow: 0 6px 18px rgba(0,0,0,0.32);">
@@ -1438,14 +1457,11 @@ if not st.session_state.get("approved", False):
 
     col_logo, col_title = st.columns([0.32, 0.68])
     with col_logo:
-        active_b64 = _owner_b64 or _img_base64
-        if active_b64:
+        if _current_photo_b64:
             st.markdown(
-                f'<img src="data:image/jpeg;base64,{active_b64}" class="profile-img-style">',
+                f'<img src="data:image/jpeg;base64,{_current_photo_b64}" class="profile-img-style">',
                 unsafe_allow_html=True,
             )
-        else:
-            st.info("📷 ضع صورتك باسم `owner_photo.jpg` في مجلد التطبيق لتظهر هنا.")
     with col_title:
         st.markdown(f"<h2 style='color:#1b5e20; text-align:right; font-weight:900;'>🌾 {_APP_NAME}</h2>", unsafe_allow_html=True)
         st.markdown(f"<p style='color:#1565c0; text-align:right; font-size:1.1rem;'>{_APP_TAGLINE}</p>", unsafe_allow_html=True)
@@ -1523,10 +1539,9 @@ with c2:
 
 c3, c4 = st.columns([0.28, 0.72])
 with c3:
-    active_b64 = _owner_b64 or _img_base64
-    if active_b64:
+    if _current_photo_b64:
         st.markdown(
-            f'<img src="data:image/jpeg;base64,{active_b64}" class="profile-img-style">',
+            f'<img src="data:image/jpeg;base64,{_current_photo_b64}" class="profile-img-style">',
             unsafe_allow_html=True,
         )
 with c4:
@@ -1908,7 +1923,6 @@ if "🔬 النمذجة" in tab_map:
                     )
                     render_share_buttons(formula, animal_choice, quality, cost, key_suffix="model_v1200")
 
-                    # تصحيح التركيبة يدوياً
                     st.markdown("---")
                     st.markdown('<div class="section-title">✏️ تصحيح التركيبة يدوياً والتحقق منها</div>', unsafe_allow_html=True)
                     edit_key = f"edit_df_{ctx_last.get('animal_type', animal_choice)}_{ctx_last.get('production_type', production_type)}"
@@ -1997,7 +2011,11 @@ if "🧪 مختبر التركيبات" in tab_map:
                 st.warning("⚠️ المكتبة العلفية فارغة.")
             else:
                 if st.session_state.get("lab_manual_rows") is None:
-                    default_lab_items = all_lab_ings[:4]
+                    preferred_defaults = [
+                        x for x in ["ذرة صفراء", "كسب فول صويا 44%", "كسب عباد الشمس", "الحجر الجيري"]
+                        if x in all_lab_ings
+                    ]
+                    default_lab_items = preferred_defaults if len(preferred_defaults) >= 3 else all_lab_ings[:4]
                     st.session_state["lab_manual_rows"] = [
                         {"المادة": item, "النسبة %": round(100.0 / len(default_lab_items), 2)}
                         for item in default_lab_items
@@ -2169,8 +2187,26 @@ if "🎯 NLP" in tab_map:
 
             lookup_nlp = _get_ingredient_lookup()
             all_nlp_names = sorted(lookup_nlp.keys())
-            default_nlp = [x for x in ["ذرة صفراء", "شعير مطحون", "كسب فول صويا 44%", "كسب عباد الشمس", "زيت فول الصويا", "الحجر الجيري", "فوسفات ثنائي الكالسيوم"] if x in lookup_nlp]
-            nlp_selected = st.multiselect("🌾 اختر المواد العلفية للتحسين غير الخطي:", all_nlp_names, default=default_nlp or all_nlp_names[:4], key="nlp_ings_v1200")
+            default_nlp = [
+                x
+                for x in [
+                    "ذرة صفراء",
+                    "شعير مطحون",
+                    "كسب فول صويا 44%",
+                    "كسب عباد الشمس",
+                    "الصمغ العربي (ألياف بريبيوتيك طبيعية)",
+                    "زيت فول الصويا",
+                    "الحجر الجيري",
+                    "فوسفات ثنائي الكالسيوم",
+                ]
+                if x in lookup_nlp
+            ]
+            nlp_selected = st.multiselect(
+                "🌾 اختر المواد العلفية للتحسين غير الخطي:",
+                all_nlp_names,
+                default=default_nlp or all_nlp_names[:4],
+                key="nlp_ings_v1200",
+            )
 
             nlp_prices: Dict[str, float] = {}
             if nlp_selected:
@@ -2178,7 +2214,13 @@ if "🎯 NLP" in tab_map:
                 for i, ing_n in enumerate(nlp_selected):
                     with p_cols[i % 3]:
                         base_pr = float(lookup_nlp.get(ing_n, {}).get("price", 320.0))
-                        nlp_prices[ing_n] = st.number_input(f"💲 سعر {ing_n} ($/طن):", min_value=5.0, value=base_pr, step=10.0, key=f"nlp_p_{ing_n}_v1200")
+                        nlp_prices[ing_n] = st.number_input(
+                            f"💲 سعر {ing_n} ($/طن):",
+                            min_value=5.0,
+                            value=base_pr,
+                            step=10.0,
+                            key=f"nlp_p_{ing_n}_v1200",
+                        )
 
             if st.button("🚀 تشغيل التحسين غير الخطي (NLP)", type="primary", use_container_width=True, key="nlp_run_v1200"):
                 if len(nlp_selected) < 2:
@@ -2227,7 +2269,6 @@ if "🎯 NLP" in tab_map:
                 for ing, pct in n_formula.items():
                     st.markdown(f'<div class="formula-item">▪️ <b>{ing}:</b> {float(pct):.2f}%</div>', unsafe_allow_html=True)
 
-                # رسوم NLP: منحنى الحساسية + الرادار والمقارنة بالمعيار
                 nlp_actual_nut = compute_formula_nutrients(n_formula)
                 nlp_req_map = _get_requirement_for_nlp(nctx.get("animal", nlp_animal), nctx.get("prod", nlp_prod))
                 nlp_std_compare = {
@@ -2287,11 +2328,12 @@ if "🎯 NLP" in tab_map:
                 render_share_buttons(n_formula, nctx.get("animal", nlp_animal), 85.0, n_cost * 1000.0, key_suffix="nlp_v1200")
         except Exception as e:
             st.error(f"⚠️ خطأ في محرك NLP: {e}")
-
 # ═══════════════════════════════════════════════════════════════════════
 # الجزء 4 من 5 — الزيوت، بدائل الحليب، OCR، الحظائر 3D، ودراسة الجدوى
 # المنصة: تاور نولجي (Tawor Nology) — بإشراف: عبدالقادر إسماعيل
 # ═══════════════════════════════════════════════════════════════════════
+
+import traceback
 
 try:
     import pytesseract  # type: ignore
@@ -3119,7 +3161,7 @@ if role == "owner":
             try:
                 st.markdown('<div class="section-title">🏭 المستودعات وهوية المالك</div>', unsafe_allow_html=True)
 
-                with st.expander("🖼️ تحديث الصورة الشخصية للمالك (تظهر فوراً على البرنامج والختم)", expanded=False):
+                with st.expander("🖼️ تحديث الصورة الشخصية للمالك (تظهر فوراً على البرنامج والختم)", expanded=True):
                     up_photo = st.file_uploader("اختر صورة شخصية (JPG / PNG):", type=["jpg", "jpeg", "png"], key="owner_photo_up_v1200")
                     if up_photo is not None:
                         p_bytes = up_photo.read()
@@ -3127,7 +3169,7 @@ if role == "owner":
                         try:
                             with open("owner_photo.jpg", "wb") as pf:
                                 pf.write(p_bytes)
-                            st.success("✅ تم حفظ الصورة باسم `owner_photo.jpg` وتحديثها في الجلسة.")
+                            st.success("✅ تم حفظ الصورة باسم `owner_photo.jpg` وتحديثها فوراً في الواجهة.")
                         except Exception:
                             st.info("تم تحديث الصورة في الجلسة الحالية.")
 
@@ -3286,11 +3328,22 @@ if "🎬 الاستديو" in tab_map:
                         st.warning(f"⚠️ {out_vid}")
 
             with v_col2:
-                vid_path = st.session_state.get("explainer_video_path") or ("tawor_nology_explainer.mp4" if os.path.exists("tawor_nology_explainer.mp4") else ("intro_video.mp4" if os.path.exists("intro_video.mp4") else None))
+                vid_path = st.session_state.get("explainer_video_path") or (
+                    "tawor_nology_explainer.mp4"
+                    if os.path.exists("tawor_nology_explainer.mp4")
+                    else ("intro_video.mp4" if os.path.exists("intro_video.mp4") else None)
+                )
                 if vid_path and os.path.exists(vid_path):
                     st.video(vid_path)
                     with open(vid_path, "rb") as vf:
-                        st.download_button("📥 تحميل فيديو الشرح (MP4)", data=vf.read(), file_name=os.path.basename(vid_path), mime="video/mp4", use_container_width=True, key="dl_explainer_vid_v1200")
+                        st.download_button(
+                            "📥 تحميل فيديو الشرح (MP4)",
+                            data=vf.read(),
+                            file_name=os.path.basename(vid_path),
+                            mime="video/mp4",
+                            use_container_width=True,
+                            key="dl_explainer_vid_v1200",
+                        )
                 else:
                     st.info("💡 اضغط على زر (توليد فيديو شرح البرنامج) لإنشاء الفيديو وتشغيله هنا، أو ضع ملف `intro_video.mp4` في مجلد التطبيق.")
 
@@ -3450,7 +3503,7 @@ if "📖 الدليل" in tab_map:
 - 🐄 **9 قطاعات حيوانية** مع احتياجات فسيولوجية وإنتاجية متعددة.
 - 📡 **رسم بياني راداري (Radar)** + **مقارنة دقيقة بين المحسوب والمعيار** في النمذجة والمختبر و`NLP`.
 - 🎯 **محرك التحسين غير الخطي (`NLP` - `SLSQP`)** مع منحنى الحساسية والتكلفة والربح.
--  Stamp **ختم اعتماد رسمي** على تقارير `PDF` مع نظام موافقة للمالك.
+- 🔏 **ختم اعتماد رسمي** على تقارير `PDF` مع نظام موافقة للمالك.
 - 🎬 **فيديو شرح تفصيلي لكيفية عمل البرنامج** متاح للتوليد والتشغيل من تبويب الاستديو.
 
 ---
