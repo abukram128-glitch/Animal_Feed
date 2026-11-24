@@ -50,7 +50,7 @@ try:
     matplotlib.use("Agg")
     from matplotlib import animation
     import matplotlib.pyplot as plt
-    from matplotlib.patches import Circle, Ellipse, Rectangle, Wedge
+    from matplotlib.patches import Circle, Ellipse, FancyBboxPatch, Rectangle, Wedge
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
     MATPLOTLIB_AVAILABLE = True
@@ -58,13 +58,14 @@ except ImportError:
     MATPLOTLIB_AVAILABLE = False
 
 try:
-    from PIL import Image as PILImage, ImageDraw, ImageFont
+    from PIL import Image as PILImage, ImageDraw, ImageFont, ImageOps
 
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
     ImageDraw = None
     ImageFont = None
+    ImageOps = None
 
 try:
     import cv2
@@ -1200,10 +1201,10 @@ def draw_tape_guide(animal_type: str) -> Optional[io.BytesIO]:
             ax.text(
                 0.5,
                 0.5,
-                f"📸 {animal_type}",
+                ar(f"صورة توضيحية — {animal_type}"),
                 ha="center",
                 va="center",
-                fontsize=40,
+                fontsize=28,
                 transform=ax.transAxes,
                 color="#1b5e20",
                 fontweight="bold",
@@ -1282,7 +1283,7 @@ def draw_tape_guide(animal_type: str) -> Optional[io.BytesIO]:
         ax.text(
             pos["girth_x"] + 0.05,
             pos["girth_y_top"] - 0.03,
-            "① محيط الصدر",
+            ar("1. محيط الصدر"),
             color="#c62828",
             fontweight="bold",
             fontsize=13,
@@ -1325,7 +1326,7 @@ def draw_tape_guide(animal_type: str) -> Optional[io.BytesIO]:
         ax.text(
             mid_length,
             pos["length_y"] - 0.05,
-            "② طول الجسم",
+            ar("2. طول الجسم"),
             color="#1565c0",
             fontweight="bold",
             fontsize=13,
@@ -1344,7 +1345,7 @@ def draw_tape_guide(animal_type: str) -> Optional[io.BytesIO]:
         ax.text(
             0.5,
             0.02,
-            f"🔴 ① {cfg.get('hg_tip', '')}     🔵 ② {cfg.get('bl_tip', '')}",
+            ar(f"1. محيط الصدر: {cfg.get('hg_tip', '')}   |   2. طول الجسم: {cfg.get('bl_tip', '')}"),
             transform=ax.transAxes,
             ha="center",
             fontsize=11,
@@ -1360,8 +1361,10 @@ def draw_tape_guide(animal_type: str) -> Optional[io.BytesIO]:
         )
 
         ax.set_title(
-            f"📍 طريقة القياس الصحيحة — {animal_type} | "
-            f"{cfg.get('source', '')} | دقة {cfg.get('accuracy', '')}",
+            ar(
+                f"طريقة القياس الصحيحة — {animal_type} | "
+                f"{cfg.get('source', '')} | دقة {cfg.get('accuracy', '')}"
+            ),
             fontsize=14,
             fontweight="bold",
             color="#1b5e20",
@@ -1566,8 +1569,8 @@ DUA_VISITOR = """🕌 <b>إلى زوارنا الكرام:</b><br>
 APP_NAME = "تاور نولجي Tawor Nology"
 APP_TAGLINE = "للإنتاج الحيواني وتغذية الحيوان"
 APP_VERSION = "11.11.0"
-SUPERVISOR = "د. عبدالقادر إسماعيل تاور"
-SUPERVISOR_TITLE = "اختصاصي تغذية الحيوان"
+SUPERVISOR = "عبدالقادر إسماعيل تاور"
+SUPERVISOR_TITLE = "اختصاصي إنتاج حيواني وتغذية الحيوان"
 PLATFORM_URL = "https://tawor-nology.streamlit.app"
 WHATSAPP_NUMBER = "+249123533489"
 OWNER_EMAIL = "abukram128@gmail.com"
@@ -1584,87 +1587,130 @@ st.set_page_config(
 
 
 def ensure_owner_photo_saved(target_path: str = OWNER_PHOTO_FILE) -> Optional[str]:
-    """حفظ الصورة الشخصية المرفقة في مسار العمل إن لم تكن موجودة."""
+    """حفظ الصورة الشخصية المرفقة أو تجهيز نسخة مصقولة بإطار أنيق."""
     if os.path.exists(target_path) and os.path.getsize(target_path) > 0:
         return target_path
-    if not PIL_AVAILABLE:
-        return None
-    try:
-        # في حال توفرها في session_state أو إنشاء بطاقة بديلة نظيفة عند غياب الملف
-        st_bytes = st.session_state.get("_owner_photo_bytes")
-        if st_bytes:
+    st_bytes = st.session_state.get("_owner_photo_bytes")
+    if st_bytes:
+        try:
             with open(target_path, "wb") as f:
                 f.write(st_bytes)
             return target_path
-    except Exception:
-        pass
+        except Exception:
+            pass
     return None
 
 
+def get_styled_owner_photo_bytes(target_path: str = OWNER_PHOTO_FILE) -> Optional[bytes]:
+    """إرجاع الصورة الشخصية بإطار دائري/مقصوص متناسق مع هوية المنصة."""
+    p = ensure_owner_photo_saved(target_path)
+    if not p or not os.path.exists(p):
+        return None
+    if not PIL_AVAILABLE or ImageOps is None or ImageDraw is None:
+        try:
+            with open(p, "rb") as f:
+                return f.read()
+        except Exception:
+            return None
+    try:
+        img = PILImage.open(p).convert("RGBA")
+        size = 360
+        img_sq = ImageOps.fit(img, (size, size), method=PILImage.Resampling.LANCZOS)
+
+        mask = PILImage.new("L", (size, size), 0)
+        draw_m = ImageDraw.Draw(mask)
+        draw_m.ellipse((6, 6, size - 6, size - 6), fill=255)
+
+        out = PILImage.new("RGBA", (size, size), (0, 0, 0, 0))
+        out.paste(img_sq, (0, 0), mask)
+
+        draw_o = ImageDraw.Draw(out)
+        draw_o.ellipse((5, 5, size - 5, size - 5), outline=(27, 94, 32, 255), width=8)
+        draw_o.ellipse((12, 12, size - 12, size - 12), outline=(212, 175, 55, 255), width=3)
+
+        buf = io.BytesIO()
+        out.save(buf, format="PNG")
+        buf.seek(0)
+        return buf.getvalue()
+    except Exception:
+        try:
+            with open(p, "rb") as f:
+                return f.read()
+        except Exception:
+            return None
+
+
 def generate_official_pdf_stamp_png(
-    title: str = "ختم معتمد — تاور نولجي",
-    subtitle: str = "د. عبدالقادر إسماعيل تاور",
+    title: str = "ختم معتمد — دراسة جدوى",
+    subtitle: str = "عبدالقادر إسماعيل تاور",
     date_str: Optional[str] = None,
 ) -> Optional[io.BytesIO]:
-    """توليد ختم رسمي شفاف/واضح بصيغة PNG لإضافته في تقارير PDF."""
+    """توليد ختم رسمي عربي أنيق بصيغة PNG بتشكيل واتجاه سليم لتقارير PDF."""
     if not MATPLOTLIB_AVAILABLE:
         return None
     try:
         dt_label = date_str or datetime.now().strftime("%Y-%m-%d")
-        fig, ax = plt.subplots(figsize=(3.4, 3.4), dpi=180)
-        ax.set_xlim(-1.2, 1.2)
-        ax.set_ylim(-1.2, 1.2)
+        fig, ax = plt.subplots(figsize=(3.8, 3.8), dpi=200)
+        ax.set_xlim(-1.25, 1.25)
+        ax.set_ylim(-1.25, 1.25)
         ax.set_aspect("equal")
         ax.axis("off")
 
-        outer = Circle(
+        # حلقات الختم الخارجية والداخلية بتناسق لوني ذهبي وأخضر داكن
+        outer_ring = Circle((0, 0), 1.08, fill=False, edgecolor="#1b5e20", linewidth=4.2)
+        mid_ring = Circle(
             (0, 0),
-            1.02,
+            0.98,
             fill=False,
-            edgecolor="#1b5e20",
-            linewidth=4.0,
-            linestyle="-",
-        )
-        inner = Circle(
-            (0, 0),
-            0.88,
-            fill=False,
-            edgecolor="#b8860b",
-            linewidth=2.2,
+            edgecolor="#c59b27",
+            linewidth=1.8,
             linestyle="--",
         )
-        ax.add_patch(outer)
-        ax.add_patch(inner)
+        inner_ring = Circle((0, 0), 0.86, fill=False, edgecolor="#1b5e20", linewidth=2.0)
+        ax.add_patch(outer_ring)
+        ax.add_patch(mid_ring)
+        ax.add_patch(inner_ring)
+
+        # نجوم فواصل صغيرة حول الإطار
+        for angle_deg in (0, 90, 180, 270):
+            rad = np.deg2rad(angle_deg)
+            ax.plot(
+                np.cos(rad) * 0.93,
+                np.sin(rad) * 0.93,
+                marker="*",
+                markersize=7,
+                color="#c59b27",
+            )
 
         ax.text(
             0,
-            0.42,
-            ar(APP_NAME),
+            0.52,
+            ar("منصة تاور نولجي العلمية"),
             ha="center",
             va="center",
-            fontsize=11,
+            fontsize=10.5,
             fontweight="bold",
             color="#1b5e20",
         )
         ax.text(
             0,
-            0.05,
+            0.12,
             ar(title),
             ha="center",
             va="center",
-            fontsize=10.5,
+            fontsize=10.0,
             fontweight="bold",
-            color="#8b0000",
+            color="#8e1b1b",
             bbox=dict(
-                boxstyle="round,pad=0.25",
-                facecolor="#fffdf5",
-                edgecolor="#b8860b",
-                linewidth=1.2,
+                boxstyle="round,pad=0.32",
+                facecolor="#fffdf6",
+                edgecolor="#c59b27",
+                linewidth=1.4,
             ),
         )
         ax.text(
             0,
-            -0.32,
+            -0.28,
             ar(subtitle),
             ha="center",
             va="center",
@@ -1674,12 +1720,12 @@ def generate_official_pdf_stamp_png(
         )
         ax.text(
             0,
-            -0.62,
-            dt_label,
+            -0.58,
+            ar(f"التاريخ: {dt_label}"),
             ha="center",
             va="center",
-            fontsize=8.5,
-            color="#444444",
+            fontsize=8.2,
+            color="#37474f",
         )
 
         buf = io.BytesIO()
@@ -1688,7 +1734,7 @@ def generate_official_pdf_stamp_png(
             format="png",
             transparent=True,
             bbox_inches="tight",
-            pad_inches=0.05,
+            pad_inches=0.06,
         )
         plt.close(fig)
         buf.seek(0)
@@ -1698,23 +1744,20 @@ def generate_official_pdf_stamp_png(
 
 
 def chart_fig_to_png_bytes(fig: Any, width_px: int = 1100, height_px: int = 520) -> Optional[bytes]:
-    """تحويل رسم بياني (Plotly أو Matplotlib) إلى بايتات PNG لتضمينه في PDF أو الفيديو."""
+    """تحويل رسم بياني (Plotly أو Matplotlib) إلى بايتات PNG لتضمينه في PDF أو الجدوى."""
     if fig is None:
         return None
     try:
-        # إذا كان شكل Matplotlib
         if MATPLOTLIB_AVAILABLE and hasattr(fig, "savefig"):
             buf = io.BytesIO()
             fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor="white")
             buf.seek(0)
             return buf.getvalue()
-        # إذا كان شكل Plotly
         if PLOTLY_AVAILABLE and hasattr(fig, "to_image"):
             try:
                 return fig.to_image(format="png", width=width_px, height=height_px, scale=1.5)
             except Exception:
                 pass
-        # بديل رسم سريع عبر Matplotlib إن لم يتوفر Kaleido في Plotly
         if MATPLOTLIB_AVAILABLE and hasattr(fig, "data"):
             mfig, ax = plt.subplots(figsize=(9, 4.2), dpi=140)
             for tr in getattr(fig, "data", []):
@@ -1741,11 +1784,44 @@ def chart_fig_to_png_bytes(fig: Any, width_px: int = 1100, height_px: int = 520)
     return None
 
 
+def get_platform_voiceover_script() -> List[Dict[str, str]]:
+    """نص تعليق صوتي متزامن مع شرائح الفيديو التوضيحي لشرح عمل المنصة."""
+    return [
+        {
+            "step": "المقدمة والهوية",
+            "narration": (
+                "أهلاً بكم في منصة تاور نولجي للإنتاج الحيواني وتغذية الحيوان، "
+                "من إعداد وتطوير عبدالقادر إسماعيل تاور، وهي صدقة جارية عن والدي إسماعيل تاور وأختي ابتسام."
+            ),
+        },
+        {
+            "step": "تركيب الأعلاف وبدائل الحليب",
+            "narration": (
+                "توفر المنصة أدوات متقدمة لتركيب الأعلاف باستخدام البرمجة الخطية وغير الخطية "
+                "وفق المعايير العالمية مثل NRC وINRA وFAO وRoss 308 مع موازنة البروتين والطاقة والمعادن والزيوت وتقليل التكلفة."
+            ),
+        },
+        {
+            "step": "قياس الأوزان ودراسات الجدوى",
+            "narration": (
+                "تتيح المنصة تقدير الأوزان بشريط القياس التفاعلي على الصورة، وحساب التهوية والأبعاد، "
+                "إلى جانب إجراء دراسات جدوى فنية واقتصادية شاملة تشمل التكاليف والإيرادات ونقطة التعادل."
+            ),
+        },
+        {
+            "step": "التقارير المعتمدة والختم",
+            "narration": (
+                "يمكنك تصدير تقارير PDF متكاملة باللغة العربية تتضمن البيانات الفنية والاقتصادية والرسوم البيانية والختم الرسمي المعتمد."
+            ),
+        },
+    ]
+
+
 def build_walkthrough_video_mp4(
     output_path: str = "tawor_walkthrough.mp4",
     photo_path: Optional[str] = None,
 ) -> Optional[str]:
-    """إنشاء فيديو توضيحي قصير يشرح أقسام المنصة وأسلوب عملها."""
+    """إنشاء فيديو توضيحي يشرح أقسام المنصة وأسلوب عملها."""
     if not MATPLOTLIB_AVAILABLE:
         return None
     try:
@@ -1753,7 +1829,7 @@ def build_walkthrough_video_mp4(
             (
                 "تاور نولجي Tawor Nology",
                 "منصة متكاملة للإنتاج الحيواني وتغذية الحيوان — الإصدار 11.11.0",
-                "إشراف: د. عبدالقادر إسماعيل تاور | رحم الله والدي إسماعيل تاور وأختي ابتسام",
+                "عبدالقادر إسماعيل تاور | رحم الله والدي إسماعيل تاور وأختي ابتسام",
             ),
             (
                 "1. تركيب الأعلاف وبدائل الحليب",
@@ -1763,7 +1839,7 @@ def build_walkthrough_video_mp4(
             (
                 "2. قياس الأوزان والدراسات العلمية",
                 "شريط القياس بأسهم دقيقة على الصورة، والتهوية والأبعاد، ودراسات الجدوى الاقتصادية",
-                "مقارنة السيناريوهات وحساب نقاط التعادل وصافي العائد بدقة",
+                "مؤشرات فنية واقتصادية شاملة ونقاط التعادل وصافي العائد",
             ),
             (
                 "3. تقارير PDF المعتمدة بالرسوم والختم",
@@ -1783,7 +1859,6 @@ def build_walkthrough_video_mp4(
             slide_idx = min(frame_idx // 25, len(slides_data) - 1)
             title_s, body_s, foot_s = slides_data[slide_idx]
 
-            # خلفية متدرجة ناعمة عبر مستطيل
             bg = Rectangle(
                 (0.02, 0.03),
                 0.96,
@@ -1835,7 +1910,6 @@ def build_walkthrough_video_mp4(
                 color="#333333",
             )
 
-            # شريط تقدم أسفل الشريحة
             progress = ((frame_idx % 25) + 1) / 25.0
             ax.add_patch(
                 Rectangle((0.15, 0.16), 0.70, 0.035, facecolor="#e0e0e0", edgecolor="none")
@@ -1868,7 +1942,6 @@ def build_walkthrough_video_mp4(
             if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
                 saved_path = output_path
         except Exception:
-            # محاولة حفظ GIF كبديل تلقائي إذا لم يتوفر ffmpeg في البيئة
             try:
                 gif_path = os.path.splitext(output_path)[0] + ".gif"
                 anim.save(gif_path, writer="pillow", fps=6)
@@ -3177,8 +3250,8 @@ def create_colorful_bar_chart(standard, actual, keys=None):
         fig, ax = plt.subplots(figsize=(9, 4.5))
         x = np.arange(len(nuts))
         width = 0.35
-        b1 = ax.bar(x - width / 2, [standard[n] for n in nuts], width, label="المعيار", color="#1976d2", edgecolor="#0d47a1", linewidth=1.5)
-        b2 = ax.bar(x + width / 2, [actual.get(n, 0) for n in nuts], width, label="المحسوب", color="#43a047", edgecolor="#1b5e20", linewidth=1.5)
+        b1 = ax.bar(x - width / 2, [standard[n] for n in nuts], width, label=ar("المعيار"), color="#1976d2", edgecolor="#0d47a1", linewidth=1.5)
+        b2 = ax.bar(x + width / 2, [actual.get(n, 0) for n in nuts], width, label=ar("المحسوب"), color="#43a047", edgecolor="#1b5e20", linewidth=1.5)
         for bar in b1:
             hh = bar.get_height()
             if hh > 0:
@@ -3187,7 +3260,7 @@ def create_colorful_bar_chart(standard, actual, keys=None):
             hh = bar.get_height()
             if hh > 0:
                 ax.text(bar.get_x() + bar.get_width() / 2, hh, f"{hh:.1f}", ha="center", va="bottom", fontsize=9, fontweight="bold")
-        ax.set_title("مقارنة العناصر", fontsize=13, fontweight="bold", color="#1b5e20")
+        ax.set_title(ar("مقارنة العناصر"), fontsize=13, fontweight="bold", color="#1b5e20")
         ax.set_xticks(x)
         ax.set_xticklabels(nuts)
         ax.legend(loc="upper right")
@@ -3207,7 +3280,7 @@ def create_colorful_pie_chart(formula):
         return None
     try:
         colors = ["#e53935", "#8e24aa", "#3949ab", "#1e88e5", "#00897b", "#43a047", "#7cb342", "#fdd835", "#fb8c00", "#6d4c41"]
-        names = list(formula.keys())
+        names = [ar(n) for n in formula.keys()]
         vals = list(formula.values())
         fig, ax = plt.subplots(figsize=(8, 5))
         _, _, autotexts = ax.pie(
@@ -3219,7 +3292,7 @@ def create_colorful_pie_chart(formula):
             t.set_fontweight("bold")
             t.set_fontsize(9)
         ax.legend(names, loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=9)
-        ax.set_title("توزيع المكونات", fontsize=13, fontweight="bold", color="#1b5e20")
+        ax.set_title(ar("توزيع المكونات"), fontsize=13, fontweight="bold", color="#1b5e20")
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=120, bbox_inches="tight", facecolor="white")
         plt.close(fig)
@@ -3245,13 +3318,13 @@ def create_radar_chart(standard, actual, keys=None):
         act_norm += act_norm[:1]
         angles += angles[:1]
         fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
-        ax.plot(angles, std_norm, "o-", linewidth=2.5, color="#1976d2", label="المعيار")
+        ax.plot(angles, std_norm, "o-", linewidth=2.5, color="#1976d2", label=ar("المعيار"))
         ax.fill(angles, std_norm, alpha=0.15, color="#1976d2")
-        ax.plot(angles, act_norm, "o-", linewidth=2.5, color="#43a047", label="المحسوب")
+        ax.plot(angles, act_norm, "o-", linewidth=2.5, color="#43a047", label=ar("المحسوب"))
         ax.fill(angles, act_norm, alpha=0.25, color="#43a047")
         ax.set_xticks(angles[:-1])
         ax.set_xticklabels(nuts)
-        ax.set_title("المقارنة %", fontweight="bold", color="#1b5e20", pad=20)
+        ax.set_title(ar("المقارنة %"), fontweight="bold", color="#1b5e20", pad=20)
         ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=120, bbox_inches="tight", facecolor="white")
@@ -3310,7 +3383,7 @@ def create_ca_p_ratio_chart(ca, p, target_ca=0, target_p=0):
         ax.set_xlim(0, 8)
         ax.set_ylim(0, 1.2)
         ax.set_yticks([])
-        ax.set_title(f"⚖️ Ca:P — Ca={ca:.2f}% | P={p:.2f}%", fontweight="bold", color="#1b5e20")
+        ax.set_title(ar(f"نسبة الكالسيوم للفوسفور Ca:P — Ca={ca:.2f}% | P={p:.2f}%"), fontweight="bold", color="#1b5e20")
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=130, bbox_inches="tight", facecolor="white")
         plt.close(fig)
@@ -3324,7 +3397,7 @@ def create_quality_breakdown_chart(rows):
     if not MATPLOTLIB_AVAILABLE or not rows:
         return None
     try:
-        labels = [r["العنصر"] for r in rows[:9]]
+        labels = [ar(r["العنصر"]) for r in rows[:9]]
         scores = [r.get("score", 50) for r in rows[:9]]
         colors = []
         for s in scores:
@@ -3343,9 +3416,9 @@ def create_quality_breakdown_chart(rows):
         for bar in bars:
             hh = bar.get_height()
             ax.text(bar.get_x() + bar.get_width() / 2, hh, f"{hh:.0f}", ha="center", va="bottom", fontweight="bold")
-        ax.axhline(y=70, color="#c62828", linestyle="--", linewidth=2, label="حد 70%")
+        ax.axhline(y=70, color="#c62828", linestyle="--", linewidth=2, label=ar("حد القبول 70%"))
         ax.set_ylim(0, 105)
-        ax.set_title("تقييم العناصر", fontweight="bold", color="#1b5e20")
+        ax.set_title(ar("تقييم العناصر"), fontweight="bold", color="#1b5e20")
         ax.legend(loc="lower right")
         ax.grid(axis="y", alpha=0.3)
         plt.xticks(rotation=30, ha="right")
@@ -3465,7 +3538,7 @@ def _append_pdf_stamp_and_photo_block(story, font_name: str, supervisor: str, su
         else:
             row_cells.append(Paragraph("", ParagraphStyle("empty_s", fontName=font_name, fontSize=8)))
 
-        info_lines = [_safe_ar(supervisor or "د. عبدالقادر إسماعيل تاور")]
+        info_lines = [_safe_ar(supervisor or "عبدالقادر إسماعيل تاور")]
         if supervisor_title:
             info_lines.append(_safe_ar(supervisor_title))
         info_lines.append(_safe_ar(datetime.now().strftime("%Y-%m-%d")))
@@ -3484,7 +3557,7 @@ def _append_pdf_stamp_and_photo_block(story, font_name: str, supervisor: str, su
         )
 
         if stamp_buf:
-            row_cells.append(RLImage(stamp_buf, width=85, height=85))
+            row_cells.append(RLImage(stamp_buf, width=88, height=88))
         else:
             row_cells.append(
                 Paragraph(
@@ -3557,7 +3630,7 @@ class PDFGenerator:
         try:
             canvas_obj.saveState()
             w, h = doc.pagesize
-            supervisor = _get_global("SUPERVISOR", "د. عبدالقادر إسماعيل تاور")
+            supervisor = _get_global("SUPERVISOR", "عبدالقادر إسماعيل تاور")
             dua_short = _get_global("DUA_SHORT", "رحم الله والدي إسماعيل تاور وأختي ابتسام")
 
             # رأس الصفحة
@@ -3576,7 +3649,7 @@ class PDFGenerator:
 
             canvas_obj.setFont(self.font_name, 10)
             canvas_obj.setFillColor(HexColor("#d4af37"))
-            canvas_obj.drawCentredString(w / 2, h - 76, self._ar(f"إشراف: {supervisor}"))
+            canvas_obj.drawCentredString(w / 2, h - 76, self._ar(f"إعداد: {supervisor}"))
 
             # شريط الدعاء أعلى التذييل
             canvas_obj.setFillColor(HexColor("#1b5e20"))
@@ -3962,8 +4035,8 @@ class PDFGenerator:
             _append_pdf_stamp_and_photo_block(
                 story,
                 self.font_name,
-                _get_global("SUPERVISOR", "د. عبدالقادر إسماعيل تاور"),
-                _get_global("SUPERVISOR_TITLE", "اختصاصي تغذية الحيوان"),
+                _get_global("SUPERVISOR", "عبدالقادر إسماعيل تاور"),
+                _get_global("SUPERVISOR_TITLE", "اختصاصي إنتاج حيواني وتغذية الحيوان"),
             )
 
             self._add_references_page(story, animal_type, standard_key or breed)
@@ -4059,8 +4132,8 @@ class PDFGenerator:
             _append_pdf_stamp_and_photo_block(
                 story,
                 self.font_name,
-                _get_global("SUPERVISOR", "د. عبدالقادر إسماعيل تاور"),
-                _get_global("SUPERVISOR_TITLE", "اختصاصي تغذية الحيوان"),
+                _get_global("SUPERVISOR", "عبدالقادر إسماعيل تاور"),
+                _get_global("SUPERVISOR_TITLE", "اختصاصي إنتاج حيواني وتغذية الحيوان"),
             )
 
             doc.build(story, onFirstPage=self._draw_page, onLaterPages=self._draw_page)
@@ -4079,8 +4152,8 @@ def generate_nlp_math_pdf(result: Dict, animal_type: str, production_type: str,
         return None
     try:
         font_name = _get_font_name()
-        supervisor = _get_global("SUPERVISOR", "د. عبدالقادر إسماعيل تاور")
-        supervisor_title = _get_global("SUPERVISOR_TITLE", "اختصاصي تغذية الحيوان")
+        supervisor = _get_global("SUPERVISOR", "عبدالقادر إسماعيل تاور")
+        supervisor_title = _get_global("SUPERVISOR_TITLE", "اختصاصي إنتاج حيواني وتغذية الحيوان")
         ref_eqs_all = _get_global("REFERENCE_EQUATIONS", {})
         comp_nutrients = _get_global("compute_formula_nutrients", lambda f: {})
         get_nlp_req = _get_global("_get_requirement_for_nlp", lambda a, p: {})
@@ -4250,8 +4323,8 @@ def generate_milk_replacer_pdf(result: Dict) -> Optional[bytes]:
         return None
     try:
         font_name = _get_font_name()
-        supervisor = _get_global("SUPERVISOR", "د. عبدالقادر إسماعيل تاور")
-        supervisor_title = _get_global("SUPERVISOR_TITLE", "اختصاصي تغذية الحيوان")
+        supervisor = _get_global("SUPERVISOR", "عبدالقادر إسماعيل تاور")
+        supervisor_title = _get_global("SUPERVISOR_TITLE", "اختصاصي إنتاج حيواني وتغذية الحيوان")
 
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
@@ -4363,8 +4436,8 @@ def generate_lab_pdf(result: Dict, ctx: Dict = None) -> Optional[bytes]:
     try:
         ctx = ctx or {}
         font_name = _get_font_name()
-        supervisor = _get_global("SUPERVISOR", "د. عبدالقادر إسماعيل تاور")
-        supervisor_title = _get_global("SUPERVISOR_TITLE", "اختصاصي تغذية الحيوان")
+        supervisor = _get_global("SUPERVISOR", "عبدالقادر إسماعيل تاور")
+        supervisor_title = _get_global("SUPERVISOR_TITLE", "اختصاصي إنتاج حيواني وتغذية الحيوان")
         get_eqs_fn = _get_global("get_reference_equations", lambda a, p: {})
 
         buffer = io.BytesIO()
@@ -4456,7 +4529,6 @@ def generate_lab_pdf(result: Dict, ctx: Dict = None) -> Optional[bytes]:
             ct.setStyle(TableStyle(cmds))
             story.append(ct)
 
-        # تضمين الرسوم البيانية المرافقة للتحليل المخبري
         story.append(Spacer(1, 12))
         for fn_name, args in [
             ("create_colorful_bar_chart", (standard, actual)),
@@ -4511,7 +4583,6 @@ def generate_lab_pdf(result: Dict, ctx: Dict = None) -> Optional[bytes]:
     except Exception:
         return None
 
-
 # ═══════════════════════════════════════════════════════════════════════
 # ✅ v11.11.0 — نظام الموافقة على PDF
 # ═══════════════════════════════════════════════════════════════════════
@@ -4544,6 +4615,22 @@ def _save_pdf_requests(data: Dict) -> bool:
         return False
 
 
+def _resolve_safe_pdf_path(request_id: str) -> Optional[str]:
+    try:
+        base_dir = os.path.realpath(PDF_STORAGE_DIR)
+        safe_id = os.path.basename(str(request_id or "").strip())
+        if not safe_id:
+            return None
+        if not safe_id.endswith(".pdf"):
+            safe_id = f"{safe_id}.pdf"
+        candidate = os.path.realpath(os.path.join(base_dir, safe_id))
+        if os.path.commonpath([base_dir, candidate]) != base_dir:
+            return None
+        return candidate
+    except Exception:
+        return None
+
+
 def create_pdf_request(
     user_name: str,
     user_role: str,
@@ -4555,7 +4642,9 @@ def create_pdf_request(
         return "ERR_EMPTY_PDF"
     try:
         request_id = f"REQ_{datetime.now():%Y%m%d%H%M%S}_{random.randint(100, 999)}"
-        pdf_path = os.path.join(PDF_STORAGE_DIR, f"{request_id}.pdf")
+        pdf_path = _resolve_safe_pdf_path(request_id)
+        if not pdf_path:
+            return "ERR_INVALID_PATH"
         with open(pdf_path, "wb") as f:
             f.write(bytes(pdf_bytes))
 
@@ -4615,11 +4704,8 @@ def reject_pdf_request(request_id: str, reason: str = "") -> bool:
 
 def _read_pdf_bytes(request_id: str) -> Optional[bytes]:
     try:
-        safe_id = os.path.basename(str(request_id))
-        if not safe_id.endswith(".pdf"):
-            safe_id = f"{safe_id}.pdf"
-        path = os.path.join(PDF_STORAGE_DIR, safe_id)
-        if os.path.exists(path):
+        path = _resolve_safe_pdf_path(request_id)
+        if path and os.path.exists(path):
             with open(path, "rb") as f:
                 content = f.read()
                 return content if content else None
@@ -4631,8 +4717,10 @@ def _read_pdf_bytes(request_id: str) -> Optional[bytes]:
 # ═══ أزرار التواصل والاستشارة ═══
 
 def render_consultation_buttons(key_suffix: str = ""):
-    supervisor = _safe_sanitize(_get_global("SUPERVISOR", "د. عبدالقادر إسماعيل تاور"), 80)
-    supervisor_title = _safe_sanitize(_get_global("SUPERVISOR_TITLE", "اختصاصي تغذية الحيوان"), 120)
+    supervisor = _safe_sanitize(_get_global("SUPERVISOR", "عبدالقادر إسماعيل تاور"), 80)
+    supervisor_title = _safe_sanitize(
+        _get_global("SUPERVISOR_TITLE", "اختصاصي إنتاج حيواني وتغذية الحيوان"), 120
+    )
     app_name = _safe_sanitize(_get_global("APP_NAME", "تاور نولجي"), 80)
     wa_raw = str(_get_global("WHATSAPP_NUMBER", "") or "")
     wa_clean = "".join(ch for ch in wa_raw if ch.isdigit())
@@ -4913,6 +5001,7 @@ def render_pdf_requests_admin():
                 st.markdown(f"❌ **{req['doc_title']}** — {req['user_name']} ({req['created_at']})")
                 if req.get("rejection_reason"):
                     st.caption(f"السبب: {req['rejection_reason']}")
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # ✅ v11.11.0 — الفيديو التعريفي
@@ -5485,7 +5574,7 @@ def calculate_barn_dimensions(key: str, count: int, barn_system: str = "أرضي
         "vent_open_area_m2": round(length * height * std["vent_open_ratio"], 2),
         "ventilation_type": std.get("ventilation_type", "نفق"),
         "tunnel_fans_count": tunnel_fans,
-        "tunnel_fan_spec": f"{std['tunnel_fan_diameter_cm']}\"{' — '}{std['tunnel_fan_cfm']} CFM",
+        "tunnel_fan_spec": f"{std['tunnel_fan_diameter_cm']}\" — {std['tunnel_fan_cfm']} CFM",
         "tunnel_fans_hp_total": tunnel_fans * std["tunnel_fan_hp"],
         "side_fans_count": side_fans,
         "side_fan_spec": f"{std['side_fan_cfm']} CFM",
@@ -5941,8 +6030,10 @@ def generate_barn_pdf_report(dims: Dict) -> Optional[bytes]:
         return None
     try:
         font_name = _get_font_name()
-        supervisor = _get_global("SUPERVISOR", "د. عبدالقادر إسماعيل تاور")
-        supervisor_title = _get_global("SUPERVISOR_TITLE", "اختصاصي تغذية الحيوان")
+        supervisor = _get_global("SUPERVISOR", "عبدالقادر إسماعيل تاور")
+        supervisor_title = _get_global(
+            "SUPERVISOR_TITLE", "اختصاصي إنتاج حيواني وتغذية الحيوان"
+        )
 
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
@@ -6010,7 +6101,6 @@ def generate_barn_pdf_report(dims: Dict) -> Optional[bytes]:
         story.append(t)
         story.append(Spacer(1, 12))
 
-        # تضمين الرسم 3D في تقرير PDF عند توفره
         chart_to_png = _get_global("chart_fig_to_png_bytes", None)
         if callable(chart_to_png):
             try:
@@ -6072,8 +6162,8 @@ _APP_NAME = _g("APP_NAME", "تاور نولجي")
 _DUA_SHORT = _g("DUA_SHORT", "اللهم بارك لنا فيما رزقتنا")
 _DUA_QURAN = _g("DUA_QURAN", "")
 _DUA_VISITOR = _g("DUA_VISITOR", "")
-_SUPERVISOR = _g("SUPERVISOR", "د. عبدالقادر إسماعيل")
-_SUPERVISOR_TITLE = _g("SUPERVISOR_TITLE", "")
+_SUPERVISOR = _g("SUPERVISOR", "عبدالقادر إسماعيل تاور")
+_SUPERVISOR_TITLE = _g("SUPERVISOR_TITLE", "اختصاصي إنتاج حيواني وتغذية الحيوان")
 _APP_TAGLINE = _g("APP_TAGLINE", "")
 _WHATSAPP_NUMBER = _g("WHATSAPP_NUMBER", "")
 _OWNER_EMAIL = _g("OWNER_EMAIL", "")
@@ -6383,6 +6473,7 @@ if _owner_b64:
         unsafe_allow_html=True,
     )
 
+import html
 
 # ═══════════════════════════════════════════════════════════════════════
 # بوابة الدخول
@@ -6410,7 +6501,7 @@ if not st.session_state.get("approved", False):
     <div class="dua-main-box">
         <h3>🕌 دعاءُ افتتاحِ المنصة</h3>
         <div class="names">🕊️ رحم الله والدي إسماعيل تاور وأختي ابتسام 🕊️</div>
-        <p class="quran">{_DUA_QURAN}</p>
+        <p class="quran">{html.escape(str(_DUA_QURAN or ""))}</p>
     </div>
     """,
         unsafe_allow_html=True,
@@ -6430,13 +6521,13 @@ if not st.session_state.get("approved", False):
                 unsafe_allow_html=True,
             )
     with col_title:
-        st.markdown(f"<h2 style='color:#2E7D32; text-align:right;'>🌾 {_APP_NAME}</h2>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='color:#2E7D32; text-align:right;'>🌾 {html.escape(str(_APP_NAME))}</h2>", unsafe_allow_html=True)
         st.markdown(
-            f"<p style='color:#1565C0; text-align:right; font-size:1.1rem;'>{_APP_TAGLINE}</p>",
+            f"<p style='color:#1565C0; text-align:right; font-size:1.1rem;'>{html.escape(str(_APP_TAGLINE))}</p>",
             unsafe_allow_html=True,
         )
         st.markdown(
-            f"<h4 style='color:#c62828; text-align:right;'>{_SUPERVISOR} — {_SUPERVISOR_TITLE}</h4>",
+            f"<h4 style='color:#c62828; text-align:right;'>{html.escape(str(_SUPERVISOR))} — {html.escape(str(_SUPERVISOR_TITLE))}</h4>",
             unsafe_allow_html=True,
         )
 
@@ -6529,16 +6620,16 @@ with c3:
         )
 with c4:
     st.markdown(
-        f"<h1 style='color:#0d3011; text-align:right; font-weight:900;'>🌾 {_APP_NAME}</h1>",
+        f"<h1 style='color:#0d3011; text-align:right; font-weight:900;'>🌾 {html.escape(str(_APP_NAME))}</h1>",
         unsafe_allow_html=True,
     )
     st.markdown(
-        f"<p style='color:#1565C0; text-align:right; font-size:1.25rem;'>{_APP_TAGLINE}</p>",
+        f"<p style='color:#1565C0; text-align:right; font-size:1.25rem;'>{html.escape(str(_APP_TAGLINE))}</p>",
         unsafe_allow_html=True,
     )
 
 if _DUA_VISITOR:
-    st.markdown(f'<div class="visitor-dua-banner">{_DUA_VISITOR}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="visitor-dua-banner">{html.escape(str(_DUA_VISITOR))}</div>', unsafe_allow_html=True)
 st.markdown("<hr style='border-top: 3px solid #2e7d32;'>", unsafe_allow_html=True)
 
 role = st.session_state.get("user_role", "guest")
@@ -7118,7 +7209,7 @@ if role == "guest" and "🧮 حاسبة مبسطة" in tab_map:
                 st.markdown("### 🌾 المكونات")
                 for ing, pct in rough.items():
                     st.markdown(
-                        f'<div class="formula-item">▪️ <b>{ing}:</b> {float(pct):.1f}%</div>',
+                        f'<div class="formula-item">▪️ <b>{html.escape(str(ing))}:</b> {float(pct):.1f}%</div>',
                         unsafe_allow_html=True,
                     )
 
@@ -7258,7 +7349,11 @@ if "🔬 النمذجة" in tab_map:
                 if "حليب" in ct:
                     cp_["milk_yield"] = st.number_input("🥛 الحليب:", 5.0, 60.0, 20.0, 1.0, key="cattle_m_v1111")
                 w_tape = _g("weight_tape_widget", None)
-                cp_["weight_kg"] = w_tape("أبقار", "cattle_w_v1111", 500.0) if callable(w_tape) else st.number_input("⚖️ الوزن:", 50.0, 1000.0, 500.0, 10.0, key="cattle_w_fb")
+                cp_["weight_kg"] = (
+                    w_tape("أبقار", "cattle_w_v1111", 500.0)
+                    if callable(w_tape)
+                    else st.number_input("⚖️ الوزن:", 50.0, 1000.0, 500.0, 10.0, key="cattle_w_fb")
+                )
                 rp = _call_if_exists("get_cattle_requirements", ct, **cp_)
                 if rp:
                     p1, p2, p3 = st.columns(3)
@@ -7286,7 +7381,11 @@ if "🔬 النمذجة" in tab_map:
                 if stype == "مرضعات":
                     lit = st.number_input("المواليد:", 1, 3, 1, 1, key="sheep_l_v1111")
                 w_tape = _g("weight_tape_widget", None)
-                ws = w_tape("أغنام", "sheep_w_v1111", 50.0) if callable(w_tape) else st.number_input("⚖️ الوزن:", 10.0, 150.0, 50.0, 2.0, key="sheep_w_fb")
+                ws = (
+                    w_tape("أغنام", "sheep_w_v1111", 50.0)
+                    if callable(w_tape)
+                    else st.number_input("⚖️ الوزن:", 10.0, 150.0, 50.0, 2.0, key="sheep_w_fb")
+                )
                 rp = _call_if_exists("get_sheep_requirements", stype, is_male=is_m, weight_kg=ws, litter_size=lit)
                 if rp:
                     p1, p2, p3 = st.columns(3)
@@ -7333,7 +7432,11 @@ if "🔬 النمذجة" in tab_map:
                 if cmt == "حليب":
                     cm = st.number_input("🥛 الحليب:", 2.0, 20.0, 5.0, 0.5, key="camel_m_v1111")
                 w_tape = _g("weight_tape_widget", None)
-                cwt = w_tape("إبل", "camel_w_v1111", 400.0) if callable(w_tape) else st.number_input("⚖️ الوزن:", 50.0, 900.0, 400.0, 10.0, key="camel_w_fb")
+                cwt = (
+                    w_tape("إبل", "camel_w_v1111", 400.0)
+                    if callable(w_tape)
+                    else st.number_input("⚖️ الوزن:", 50.0, 900.0, 400.0, 10.0, key="camel_w_fb")
+                )
                 rp = _call_if_exists("get_camel_requirements", cmt, weight_kg=cwt, milk_yield=cm)
                 if rp:
                     p1, p2, p3 = st.columns(3)
@@ -7352,7 +7455,11 @@ if "🔬 النمذجة" in tab_map:
                     "الحالة:", ["رياضة_مكثف", "رياضة_عادي", "نمو_أمهار", "مرضعات", "صيانة"], key="horse_t_v1111"
                 )
                 w_tape = _g("weight_tape_widget", None)
-                hwt = w_tape("خيول", "horse_w_v1111", 450.0) if callable(w_tape) else st.number_input("⚖️ الوزن:", 50.0, 900.0, 450.0, 10.0, key="horse_w_fb")
+                hwt = (
+                    w_tape("خيول", "horse_w_v1111", 450.0)
+                    if callable(w_tape)
+                    else st.number_input("⚖️ الوزن:", 50.0, 900.0, 450.0, 10.0, key="horse_w_fb")
+                )
                 rp = _call_if_exists("get_horse_requirements", ht, weight_kg=hwt)
                 if rp:
                     p1, p2, p3 = st.columns(3)
@@ -7455,7 +7562,7 @@ if "🔬 النمذجة" in tab_map:
                     f"""<div class="physio-card">
                     <h4>🧬 الحالة المعتمدة</h4>
                     <p style="color:#1a237e; font-size:1.15rem; font-weight:700; margin:0;">
-                        {animal_choice} — <span style="color:#c62828;">{requirement.name_ar}</span>
+                        {html.escape(str(animal_choice))} — <span style="color:#c62828;">{html.escape(str(requirement.name_ar))}</span>
                     </p>
                     <div style="display:flex; gap:12px; margin-top:10px; flex-wrap:wrap;">
                         <span style="background:#fff; padding:6px 14px; border-radius:8px;">🧬 DP: <b>{requirement.DP}%</b></span>
@@ -7649,7 +7756,7 @@ if "🔬 النمذجة" in tab_map:
                     for ing, pct in formula.items():
                         pct_f = float(pct or 0.0)
                         st.markdown(
-                            f'<div class="formula-item">▪️ <b>{ing}:</b> {pct_f:.2f}% ({pct_f * 10.0:.1f} كجم/طن)</div>',
+                            f'<div class="formula-item">▪️ <b>{html.escape(str(ing))}:</b> {pct_f:.2f}% ({pct_f * 10.0:.1f} كجم/طن)</div>',
                             unsafe_allow_html=True,
                         )
 
@@ -7984,7 +8091,7 @@ if "🎯 NLP" in tab_map:
                             nlp_formula = result.get("formula") or {}
                             for ing, pct in nlp_formula.items():
                                 st.markdown(
-                                    f'<div class="formula-item">▪️ <b>{ing}:</b> {float(pct or 0.0):.2f}%</div>',
+                                    f'<div class="formula-item">▪️ <b>{html.escape(str(ing))}:</b> {float(pct or 0.0):.2f}%</div>',
                                     unsafe_allow_html=True,
                                 )
 
@@ -8097,6 +8204,11 @@ def _show_chart_or_img(obj, caption: str = ""):
         pass
 
 
+def _is_safe_url(url: str) -> bool:
+    u = str(url or "").strip().lower()
+    return u.startswith("http://") or u.startswith("https://")
+
+
 # ═══ 🌰 الزيوت ═══
 if "🌰 الزيوت" in tab_map:
     with tab_map["🌰 الزيوت"]:
@@ -8153,7 +8265,7 @@ if "🍼 بدائل الحليب" in tab_map:
                     st.markdown(
                         f"""<div style="background:#f1f8e9; padding:20px;
                         border-radius:16px; border-right:5px solid #2e7d32;">
-                        <b>📊 {mr_a}:</b><br>
+                        <b>📊 {html.escape(str(mr_a))}:</b><br>
                         بروتين: {std_mr.get('CP', '—')}% | دهن: {std_mr.get('Fat', '—')}% |
                         لاكتوز: {std_mr.get('Lactose', '—')}%<br>
                         Ca: {std_mr.get('Ca', '—')}% | P: {std_mr.get('P', '—')}%
@@ -8202,7 +8314,7 @@ if "🍼 بدائل الحليب" in tab_map:
                                 pct_f = float(pct or 0.0)
                                 kg = pct_f * float(mr_v) / 100.0
                                 st.markdown(
-                                    f'<div class="formula-item">▪️ <b>{ing}:</b> {pct_f:.2f}% ({kg:.2f} كجم)</div>',
+                                    f'<div class="formula-item">▪️ <b>{html.escape(str(ing))}:</b> {pct_f:.2f}% ({kg:.2f} كجم)</div>',
                                     unsafe_allow_html=True,
                                 )
                             st.metric("💰 تكلفة 100 كجم", f"${float(r.get('cost_per_100kg', 0.0)):.2f}")
@@ -8345,11 +8457,11 @@ if "🏗️ الحظائر 3D" in tab_map:
                         dims = st.session_state["horse_barn_dims"]
                         st.markdown(
                             f"""<div class="physio-card">
-                            <h4>🐎 {dims.get('stall_type_ar', '')}</h4>
+                            <h4>🐎 {html.escape(str(dims.get('stall_type_ar', '')))}</h4>
                             <p style="color:#1a237e; font-size:1.1rem; font-weight:700; margin:0;">
-                                {dims.get('stall_dimensions', '')} | المساحة: {dims.get('stall_area_m2', 0)} م²
+                                {html.escape(str(dims.get('stall_dimensions', '')))} | المساحة: {dims.get('stall_area_m2', 0)} م²
                             </p>
-                            <p style="color:#555; margin:8px 0 0 0;">📖 {dims.get('reference', '')}</p>
+                            <p style="color:#555; margin:8px 0 0 0;">📖 {html.escape(str(dims.get('reference', '')))}</p>
                         </div>""",
                             unsafe_allow_html=True,
                         )
@@ -8574,17 +8686,22 @@ if "🐔 المزارع" in tab_map:
             if farms:
                 sel = st.selectbox("اختر مزرعة:", list(farms.keys()), key="farm_sel_v1111")
                 farm = farms[sel]
-                st.markdown(f"### 📝 {farm.get('strain', '')} — قراءة يومية")
-                with st.form(f"rec_{sel}_v1111"):
+                safe_sel_key = abs(hash(sel)) % 1000000
+                st.markdown(f"### 📝 {html.escape(str(farm.get('strain', '')))} — قراءة يومية")
+                with st.form(f"rec_{safe_sel_key}_v1111"):
                     rc = st.columns(3)
                     with rc[0]:
-                        age = st.number_input("العمر", 1, 60, 1, key="r_age_v1111")
+                        age = st.number_input("العمر", 1, 60, 1, key=f"r_age_{safe_sel_key}")
                     with rc[1]:
                         alive = st.number_input(
-                            "حي", 0, int(farm.get("start_birds", 1000)), value=int(farm.get("start_birds", 1000)), key="r_alive_v1111"
+                            "حي",
+                            0,
+                            int(farm.get("start_birds", 1000)),
+                            value=int(farm.get("start_birds", 1000)),
+                            key=f"r_alive_{safe_sel_key}",
                         )
                     with rc[2]:
-                        wt = st.number_input("وزن (كجم)", 0.01, 5.0, 0.045, 0.005, key="r_wt_v1111")
+                        wt = st.number_input("وزن (كجم)", 0.01, 5.0, 0.045, 0.005, key=f"r_wt_{safe_sel_key}")
                     if st.form_submit_button("➕ تسجيل", type="primary", use_container_width=True):
                         farm.setdefault("records", []).append(
                             {"date": str(datetime.now().date()), "age": int(age), "alive": int(alive), "wt": float(wt)}
@@ -8677,12 +8794,12 @@ if role == "owner":
                     padding:50px 30px; border-radius:15px;
                     background:linear-gradient(135deg,#f1f8e9,#e8f5e9);
                     direction:rtl; text-align:center;">
-                    <h1 style="color:#1b5e20;">{_g("APP_NAME", "تاور نولجي")}</h1>
-                    <h3 style="color:#1565C0;">{_g("APP_TAGLINE", "")}</h3>
-                    <h2 style="color:#c62828;">{_g("SUPERVISOR", "")}</h2>
-                    <p style="color:#0d47a1;">{_g("SUPERVISOR_TITLE", "")}</p>
+                    <h1 style="color:#1b5e20;">{html.escape(str(_g("APP_NAME", "تاور نولجي")))}</h1>
+                    <h3 style="color:#1565C0;">{html.escape(str(_g("APP_TAGLINE", "")))}</h3>
+                    <h2 style="color:#c62828;">{html.escape(str(_g("SUPERVISOR", "")))}</h2>
+                    <p style="color:#0d47a1;">{html.escape(str(_g("SUPERVISOR_TITLE", "")))}</p>
                     <p>📅 {datetime.now():%Y-%m-%d}</p>
-                    <p style="color:#c62828;">🤲 {_g("DUA_SHORT", "")} 🤲</p>
+                    <p style="color:#c62828;">🤲 {html.escape(str(_g("DUA_SHORT", "")))} 🤲</p>
                 </div>""",
                     unsafe_allow_html=True,
                 )
@@ -8753,18 +8870,22 @@ if "💬 غرفة التواصل" in tab_map:
                 role_icon = {"owner": "👑", "specialist": "🔬", "guest": "👥"}.get(m.get("role", "guest"), "")
                 bg = "#dcedc8" if is_mine else "#e3f2fd"
                 nc = "#1b5e20" if is_mine else "#1565c0"
+                safe_user = html.escape(str(m.get("user", "")))
+                safe_ts = html.escape(str(m.get("ts", "")))
+                safe_msg = html.escape(str(m.get("msg", ""))).replace("\n", "<br>")
                 chat_html += (
                     f'<div style="background:{bg}; padding:8px 14px; border-radius:10px; '
                     f'margin-bottom:6px; border-right:3px solid {nc};">'
-                    f'<b style="color:{nc};">{role_icon} {m.get("user", "")}</b> '
-                    f'<small style="color:#888;">{m.get("ts", "")}</small><br>'
-                    f'<span style="white-space:pre-wrap;">{m.get("msg", "")}</span></div>'
+                    f'<b style="color:{nc};">{role_icon} {safe_user}</b> '
+                    f'<small style="color:#888;">{safe_ts}</small><br>'
+                    f'<span style="white-space:pre-wrap;">{safe_msg}</span></div>'
                 )
             chat_html += "</div>"
             st.markdown(chat_html, unsafe_allow_html=True)
 
-            with st.form(f"comm_form_{current_room}_v1111", clear_on_submit=True):
-                msg_text = st.text_area("✍️ رسالتك:", height=80, key=f"comm_msg_{current_room}_v1111")
+            safe_room_key = abs(hash(current_room)) % 1000000
+            with st.form(f"comm_form_{safe_room_key}_v1111", clear_on_submit=True):
+                msg_text = st.text_area("✍️ رسالتك:", height=80, key=f"comm_msg_{safe_room_key}_v1111")
                 cc1, cc2 = st.columns([0.75, 0.25])
                 with cc1:
                     share_formula = st.checkbox("📎 إرفاق التركيبة", value=False, key="comm_attach_v1111")
@@ -8807,20 +8928,26 @@ if "🎬 الاستديو" in tab_map:
                     vu = st.text_input("رابط:", key="vid_u_v1111")
                     vd = st.text_area("الوصف:", key="vid_d_v1111")
                     if st.form_submit_button("➕ إضافة", type="primary") and vt.strip() and vu.strip():
-                        sanitize = lambda x, n: _call_if_exists("_sanitize_message", x, n, default=x)
-                        studio["videos"].append(
-                            {
-                                "title": sanitize(vt.strip(), 100),
-                                "url": sanitize(vu.strip(), 500),
-                                "desc": sanitize(vd.strip(), 500),
-                                "ts": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                            }
-                        )
-                        _call_if_exists("_save_studio", studio)
-                        st.rerun()
+                        if not _is_safe_url(vu.strip()):
+                            st.error("⚠️ يرجى إدخال رابط يبدأ بـ http:// أو https://")
+                        else:
+                            sanitize = lambda x, n: _call_if_exists("_sanitize_message", x, n, default=x)
+                            studio["videos"].append(
+                                {
+                                    "title": sanitize(vt.strip(), 100),
+                                    "url": vu.strip()[:500],
+                                    "desc": sanitize(vd.strip(), 500),
+                                    "ts": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                }
+                            )
+                            _call_if_exists("_save_studio", studio)
+                            st.rerun()
                 for i, v in enumerate(list(studio["videos"])):
                     with st.expander(f"🎬 {v.get('title', '')} — {v.get('ts', '')}"):
-                        st.markdown(f"🔗 [فتح]({v.get('url', '')})")
+                        if _is_safe_url(v.get("url", "")):
+                            st.markdown(f"🔗 [فتح]({v.get('url', '')})")
+                        else:
+                            st.caption(f"🔗 {v.get('url', '')}")
                         if v.get("desc"):
                             st.caption(v["desc"])
                         if st.button("🗑️", key=f"del_vid_{i}_v1111"):
@@ -8833,21 +8960,27 @@ if "🎬 الاستديو" in tab_map:
                     s_title = st.text_input("العنوان:", key="sl_t_v1111")
                     s_url = st.text_input("رابط الصورة:", key="sl_u_v1111")
                     if st.form_submit_button("➕ إضافة", type="primary") and s_title.strip() and s_url.strip():
-                        sanitize = lambda x, n: _call_if_exists("_sanitize_message", x, n, default=x)
-                        studio["slides"].append(
-                            {
-                                "title": sanitize(s_title.strip(), 100),
-                                "url": sanitize(s_url.strip(), 500),
-                                "ts": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                            }
-                        )
-                        _call_if_exists("_save_studio", studio)
-                        st.rerun()
+                        if not _is_safe_url(s_url.strip()):
+                            st.error("⚠️ يرجى إدخال رابط صورة يبدأ بـ http:// أو https://")
+                        else:
+                            sanitize = lambda x, n: _call_if_exists("_sanitize_message", x, n, default=x)
+                            studio["slides"].append(
+                                {
+                                    "title": sanitize(s_title.strip(), 100),
+                                    "url": s_url.strip()[:500],
+                                    "ts": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                }
+                            )
+                            _call_if_exists("_save_studio", studio)
+                            st.rerun()
                 for i, s in enumerate(list(studio["slides"])):
                     st.markdown(f"**{s.get('title', '')}**")
-                    try:
-                        st.image(s.get("url", ""), use_container_width=True)
-                    except Exception:
+                    if _is_safe_url(s.get("url", "")):
+                        try:
+                            st.image(s.get("url", ""), use_container_width=True)
+                        except Exception:
+                            st.caption(f"🔗 {s.get('url', '')}")
+                    else:
                         st.caption(f"🔗 {s.get('url', '')}")
                     if st.button("🗑️", key=f"del_sl_{i}_v1111"):
                         studio["slides"].pop(i)
@@ -8873,14 +9006,15 @@ if "🎬 الاستديو" in tab_map:
                 for i, n in enumerate(reversed(list(studio["notes"]))):
                     ri = total_notes - 1 - i
                     st.markdown(
-                        f'<div class="formula-item"><b>{n.get("author", "")}</b> — '
-                        f'<small>{n.get("ts", "")}</small><br>{n.get("text", "")}</div>',
+                        f'<div class="formula-item"><b>{html.escape(str(n.get("author", "")))}</b> — '
+                        f'<small>{html.escape(str(n.get("ts", "")))}</small><br>{html.escape(str(n.get("text", ""))).replace(chr(10), "<br>")}</div>',
                         unsafe_allow_html=True,
                     )
                     if st.button("🗑️", key=f"del_note_{ri}_v1111"):
-                        studio["notes"].pop(ri)
-                        _call_if_exists("_save_studio", studio)
-                        st.rerun()
+                        if 0 <= ri < len(studio["notes"]):
+                            studio["notes"].pop(ri)
+                            _call_if_exists("_save_studio", studio)
+                            st.rerun()
         except Exception as e:
             st.error(f"⚠️ {e}")
 
@@ -8915,8 +9049,8 @@ if "📚 المراجع" in tab_map:
             st.markdown(
                 f"""<div class="physio-card">
                 <h4>📖 المرجع الأساسي</h4>
-                <p style="color:#1a237e; font-size:1.15rem; font-weight:700; margin:0;">{refs.get('primary', '—')}</p>
-                <p style="color:#555; margin:8px 0 0 0;">📑 <b>الجدول:</b> {refs.get('table', '—')}</p>
+                <p style="color:#1a237e; font-size:1.15rem; font-weight:700; margin:0;">{html.escape(str(refs.get('primary', '—')))}</p>
+                <p style="color:#555; margin:8px 0 0 0;">📑 <b>الجدول:</b> {html.escape(str(refs.get('table', '—')))}</p>
             </div>""",
                 unsafe_allow_html=True,
             )
@@ -9000,12 +9134,11 @@ if "📖 الدليل" in tab_map:
 # ═══════════════════════════════════════════════════════════════════════
 # التذييل
 # ═══════════════════════════════════════════════════════════════════════
-
 _app_ver = _g("APP_VERSION", "11.11.0")
 st.markdown(
-    f'<div class="mini-signature">🌾 {_g("APP_NAME", "تاور نولجي")} v{_app_ver} | {_g("SUPERVISOR", "")} © 2026</div>',
+    f'<div class="mini-signature">🌾 {html.escape(str(_g("APP_NAME", "تاور نولجي")))} v{html.escape(str(_app_ver))} | {html.escape(str(_g("SUPERVISOR", "")))} © 2026</div>',
     unsafe_allow_html=True,
 )
 if _g("DUA_SHORT", ""):
-    st.markdown(f'<div class="dua-fixed-banner">🤲 {_g("DUA_SHORT", "")} 🤲</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="dua-fixed-banner">🤲 {html.escape(str(_g("DUA_SHORT", "")))} 🤲</div>', unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
