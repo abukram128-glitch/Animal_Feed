@@ -1354,7 +1354,6 @@ def draw_tape_guide(animal_type: str) -> Optional[io.BytesIO]:
             try:
                 img = PILImage.open(io.BytesIO(img_bytes)).convert("RGB")
                 ax.imshow(img, extent=[0, 1, 0, 1], aspect="auto", zorder=1)
-                # طبقة تظليل خفيفة جداً لتحسين تباين الأسهم والنصوص فوق الصورة الحقيقية
                 ax.add_patch(
                     Rectangle(
                         (0, 0),
@@ -1430,7 +1429,6 @@ def draw_tape_guide(animal_type: str) -> Optional[io.BytesIO]:
 
         pos = TAPE_POSITIONS.get(animal_type, TAPE_POSITIONS["أبقار"])
 
-        # 1. سهم محيط الصدر (عمودي مزدوج الرأس)
         ax.annotate(
             "",
             xy=(pos["girth_x"], pos["girth_y_top"]),
@@ -1465,7 +1463,6 @@ def draw_tape_guide(animal_type: str) -> Optional[io.BytesIO]:
             zorder=12,
         )
 
-        # 2. سهم طول الجسم (أفقي مزدوج الرأس)
         ax.annotate(
             "",
             xy=(pos["length_left"], pos["length_y"]),
@@ -1822,11 +1819,9 @@ def generate_official_pdf_stamp_png(
         ax.set_aspect("equal")
         ax.axis("off")
 
-        # خلفية دائرية شبه شفافة ناعمة لإبراز الختم فوق صفحات PDF
         bg_disk = Circle((0, 0), 1.12, facecolor="#f9fbf9", edgecolor="none", alpha=0.88)
         ax.add_patch(bg_disk)
 
-        # حلقات الختم الثلاثية المتدرجة
         outer_ring = Circle((0, 0), 1.12, fill=False, edgecolor="#145219", linewidth=4.5)
         gold_ring = Circle(
             (0, 0),
@@ -1841,7 +1836,6 @@ def generate_official_pdf_stamp_png(
         ax.add_patch(gold_ring)
         ax.add_patch(inner_ring)
 
-        # فواصل زخرفية ذهبية متناظرة حول الإطار
         for angle_deg in (0, 45, 90, 135, 180, 225, 270, 315):
             rad = np.deg2rad(angle_deg)
             r_mark = 0.96
@@ -1855,7 +1849,6 @@ def generate_official_pdf_stamp_png(
                 color="#c59b27",
             )
 
-        # العنوان العلوي داخل الختم
         ax.text(
             0,
             0.56,
@@ -1868,7 +1861,6 @@ def generate_official_pdf_stamp_png(
             fontproperties=fp,
         )
 
-        # شريط الاعتماد الأوسط
         ax.text(
             0,
             0.16,
@@ -1887,10 +1879,8 @@ def generate_official_pdf_stamp_png(
             ),
         )
 
-        # خط فاصل ذهبي أنيق
         ax.plot([-0.62, 0.62], [-0.10, -0.10], color="#c59b27", linewidth=1.2, alpha=0.85)
 
-        # اسم المشرف / الجهة المعتمدة
         ax.text(
             0,
             -0.30,
@@ -1903,7 +1893,6 @@ def generate_official_pdf_stamp_png(
             fontproperties=fp,
         )
 
-        # التخصص والتاريخ
         ax.text(
             0,
             -0.54,
@@ -3731,7 +3720,7 @@ def _safe_ar(text) -> str:
             return globals()["ar"](s)
         except Exception:
             pass
-    if ARABIC_BIDI_AVAILABLE:
+    if ARABIC_AVAILABLE:
         try:
             return get_display(arabic_reshaper.reshape(s), base_dir="R")
         except Exception:
@@ -3886,7 +3875,6 @@ class PDFGenerator:
             supervisor = _get_global("SUPERVISOR", "عبدالقادر إسماعيل تاور")
             dua_short = _get_global("DUA_SHORT", "رحم الله والدي إسماعيل تاور وأختي ابتسام")
 
-            # رأس الصفحة
             canvas_obj.setFillColor(HexColor("#1b5e20"))
             canvas_obj.rect(0, h - 90, w, 90, fill=1, stroke=0)
             canvas_obj.setFillColor(HexColor("#d4af37"))
@@ -3904,7 +3892,6 @@ class PDFGenerator:
             canvas_obj.setFillColor(HexColor("#d4af37"))
             canvas_obj.drawCentredString(w / 2, h - 76, self._ar(f"إعداد: {supervisor}"))
 
-            # شريط الدعاء أعلى التذييل
             canvas_obj.setFillColor(HexColor("#1b5e20"))
             canvas_obj.rect(0, 42, w, 42, fill=1, stroke=0)
             canvas_obj.setFillColor(HexColor("#d4af37"))
@@ -3913,7 +3900,6 @@ class PDFGenerator:
             canvas_obj.setFont(self.font_name, 10)
             canvas_obj.drawCentredString(w / 2, 62, self._ar(f"🤲 {dua_short} 🤲"))
 
-            # التذييل السفلي ورقم الصفحة
             canvas_obj.setFillColor(HexColor("#1b5e20"))
             canvas_obj.rect(0, 0, w, 42, fill=1, stroke=0)
             canvas_obj.setFillColor(white)
@@ -5900,7 +5886,6 @@ def create_barn_3d_figure(dims: Dict):
 
         fig = go.Figure()
 
-        # الأرضية
         fig.add_trace(
             go.Mesh3d(
                 x=[0, L, L, 0],
@@ -5916,7 +5901,6 @@ def create_barn_3d_figure(dims: Dict):
             )
         )
 
-        # الجدران
         for xp in [0, L]:
             fig.add_trace(
                 go.Mesh3d(
@@ -5948,7 +5932,6 @@ def create_barn_3d_figure(dims: Dict):
                 )
             )
 
-        # السقف
         if dims.get("roof_type") == "gable":
             fig.add_trace(
                 go.Mesh3d(
@@ -5979,7 +5962,6 @@ def create_barn_3d_figure(dims: Dict):
                 )
             )
 
-        # المراوح
         fan_count = int(dims.get("tunnel_fans_count", 0) or 0)
         for i in range(min(fan_count, 20)):
             xc = L - 0.05
@@ -6014,7 +5996,6 @@ def create_barn_3d_figure(dims: Dict):
                 )
             )
 
-        # المعالف
         aisle = float(dims.get("aisle_m", 1.5) or 1.5)
         fw = 0.6
         if dims.get("central_aisle", True) and W > 8:
@@ -6046,7 +6027,6 @@ def create_barn_3d_figure(dims: Dict):
                 )
             )
 
-        # السقايات
         nd = int(dims.get("drinkers_count", 0) or 0)
         for i in range(min(nd, 20)):
             xc = (i + 0.5) * (L / max(nd, 1))
@@ -6068,7 +6048,6 @@ def create_barn_3d_figure(dims: Dict):
 
         count = int(dims.get("count", dims.get("num_horses", 100)) or 100)
 
-        # الحيوانات (عام)
         if not dims.get("is_horse_barn"):
             apr = min(20, max(1, int(np.sqrt(max(count, 1)))))
             ax_, ay_, az_ = [], [], []
@@ -6093,7 +6072,6 @@ def create_barn_3d_figure(dims: Dict):
                     )
                 )
 
-        # ✅ إسطبلات الخيول المحسّنة
         if dims.get("is_horse_barn"):
             rows = max(1, int(dims.get("rows_count", 2) or 2))
             per_row = max(1, int(dims.get("stalls_per_row", 5) or 5))
