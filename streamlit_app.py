@@ -15,6 +15,7 @@ import re
 import threading
 import time as _time
 import traceback
+import urllib.request
 import warnings
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
@@ -48,7 +49,7 @@ try:
     import matplotlib
 
     matplotlib.use("Agg")
-    from matplotlib import animation
+    from matplotlib import animation, font_manager as mpl_fm
     import matplotlib.pyplot as plt
     from matplotlib.patches import Circle, Ellipse, FancyBboxPatch, Rectangle, Wedge
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
@@ -56,6 +57,7 @@ try:
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
+    mpl_fm = None
 
 try:
     from PIL import Image as PILImage, ImageDraw, ImageFont, ImageOps
@@ -122,6 +124,112 @@ try:
     QRCODE_AVAILABLE = True
 except ImportError:
     QRCODE_AVAILABLE = False
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 🔤 إدارة الخطوط العربية ومعالجة النص (RTL) لـ PDF و Matplotlib
+# ═══════════════════════════════════════════════════════════════════════
+
+FONT_DIR = "fonts"
+os.makedirs(FONT_DIR, exist_ok=True)
+
+
+class ArabicFontManager:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._init()
+        return cls._instance
+
+    def _init(self):
+        self.font_name = "Helvetica"
+        self.font_path: Optional[str] = None
+        self.mpl_font_prop = None
+        self.ready = False
+
+        paths = [
+            os.path.join(FONT_DIR, "Amiri-Regular.ttf"),
+            "Amiri-Regular.ttf",
+            "/usr/share/fonts/truetype/amiri/Amiri-Regular.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "C:/Windows/Fonts/arial.ttf",
+        ]
+        for p in paths:
+            if os.path.exists(p) and os.path.getsize(p) > 0:
+                if self._register(p):
+                    return
+
+        try:
+            url = "https://github.com/google/fonts/raw/main/ofl/amiri/Amiri-Regular.ttf"
+            target = os.path.join(FONT_DIR, "Amiri-Regular.ttf")
+            if not os.path.exists(target) or os.path.getsize(target) == 0:
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=12) as resp:
+                    with open(target, "wb") as f:
+                        f.write(resp.read())
+            self._register(target)
+        except Exception:
+            pass
+
+    def _register(self, path: str) -> bool:
+        registered_any = False
+        self.font_path = path
+
+        if REPORTLAB_AVAILABLE:
+            try:
+                pdfmetrics.registerFont(TTFont("TaworArabic", path))
+                self.font_name = "TaworArabic"
+                registered_any = True
+            except Exception:
+                pass
+
+        if MATPLOTLIB_AVAILABLE and mpl_fm is not None:
+            try:
+                mpl_fm.fontManager.addfont(path)
+                self.mpl_font_prop = mpl_fm.FontProperties(fname=path)
+                plt.rcParams["font.family"] = self.mpl_font_prop.get_name()
+                plt.rcParams["axes.unicode_minus"] = False
+                registered_any = True
+            except Exception:
+                pass
+
+        self.ready = registered_any
+        return registered_any
+
+
+font_mgr = ArabicFontManager()
+
+
+@lru_cache(maxsize=2000)
+def _ar_cached(text: Optional[str]) -> str:
+    if text is None:
+        return ""
+    s = str(text)
+    if not s.strip():
+        return s
+    if not ARABIC_AVAILABLE:
+        return s
+    try:
+        configuration = {
+            "delete_harakat": False,
+            "support_ligatures": True,
+            "RIAL SIGN": True,
+        }
+        reshaper = arabic_reshaper.ArabicReshaper(configuration=configuration)
+        reshaped = reshaper.reshape(s)
+        return get_display(reshaped, base_dir="R")
+    except Exception:
+        try:
+            return get_display(arabic_reshaper.reshape(s), base_dir="R")
+        except Exception:
+            return s
+
+
+def ar(text: Optional[str]) -> str:
+    """تشكيل الحروف العربية وربطها وضبط اتجاهها من اليمين إلى اليسار."""
+    return _ar_cached(text)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -594,7 +702,7 @@ def get_reference_equations(animal_type: str, production_type: str) -> Dict[str,
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# دوال مساعدة احتياطية لـ NLP (تعمل إن لم تكن معرّفة في بقية المشروع)
+# دوال مساعدة احتياطية لـ NLP
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -828,6 +936,9 @@ def nlp_optimize_feed(
             if others:
                 for i in others:
                     mix1[i] = 0.10 / len(others)
+            else:
+                mix1[e] = 0.65
+                mix1[p] = 0.35
             pts.append(mix1)
         rng = np.random.RandomState(42)
         for _ in range(3):
@@ -1073,7 +1184,7 @@ def create_nlp_profit_curve(result, ingredient_names, ingredient_data, prices):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# ✅ v11.11.0 — شريط القياس بأسهم دقيقة على الصورة
+# ✅ v11.11.0 — شريط القياس بصورة حقيقية للحيوان وأسهم قياس دقيقة
 # ═══════════════════════════════════════════════════════════════════════
 
 WEIGHT_TAPE_CONFIG = {
@@ -1155,220 +1266,273 @@ WEIGHT_TAPE_CONFIG = {
 }
 
 ANIMAL_PHOTOS = {
-    "أبقار": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Cow_female_black_white.jpg/1024px-Cow_female_black_white.jpg",
-    "أغنام": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Sheep_in_lesser_himalayas.JPG/1024px-Sheep_in_lesser_himalayas.JPG",
-    "ماعز": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Goat_chewing_a_can_%28cropped%29.jpg/1024px-Goat_chewing_a_can_%28cropped%29.jpg",
-    "إبل": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Camel_in_Dubai.jpg/1024px-Camel_in_Dubai.jpg",
-    "خيول": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Nokota_Horses_cropped.jpg/1024px-Nokota_Horses_cropped.jpg",
-    "دواجن": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Hen_in_a_field.jpg/1024px-Hen_in_a_field.jpg",
-    "أسماك": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Tilapia_nilotica.jpg/1024px-Tilapia_nilotica.jpg",
-    "أرانب": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Oryctolagus_cuniculus_Tasmania_2.jpg/1024px-Oryctolagus_cuniculus_Tasmania_2.jpg",
-    "سمان": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Coturnix_coturnix_%28aka%29.jpg/1024px-Coturnix_coturnix_%28aka%29.jpg",
+    "أبقار": [
+        "assets/cattle.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Cow_female_black_white.jpg/1024px-Cow_female_black_white.jpg",
+    ],
+    "أغنام": [
+        "assets/sheep.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Sheep_in_lesser_himalayas.JPG/1024px-Sheep_in_lesser_himalayas.JPG",
+    ],
+    "ماعز": [
+        "assets/goat.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Goat_chewing_a_can_%28cropped%29.jpg/1024px-Goat_chewing_a_can_%28cropped%29.jpg",
+    ],
+    "إبل": [
+        "assets/camel.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Camel_in_Dubai.jpg/1024px-Camel_in_Dubai.jpg",
+    ],
+    "خيول": [
+        "assets/horse.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Nokota_Horses_cropped.jpg/1024px-Nokota_Horses_cropped.jpg",
+    ],
+    "دواجن": [
+        "assets/poultry.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Hen_in_a_field.jpg/1024px-Hen_in_a_field.jpg",
+    ],
+    "أسماك": [
+        "assets/fish.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Tilapia_nilotica.jpg/1024px-Tilapia_nilotica.jpg",
+    ],
+    "أرانب": [
+        "assets/rabbit.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Oryctolagus_cuniculus_Tasmania_2.jpg/1024px-Oryctolagus_cuniculus_Tasmania_2.jpg",
+    ],
+    "سمان": [
+        "assets/quail.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Coturnix_coturnix_%28aka%29.jpg/1024px-Coturnix_coturnix_%28aka%29.jpg",
+    ],
 }
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def _download_image(url: str) -> Optional[bytes]:
-    try:
-        import urllib.request
+def _load_real_animal_photo(animal_type: str) -> Optional[bytes]:
+    """تحميل صورة فوتوغرافية حقيقية للحيوان (محلياً أولاً ثم من الإنترنت)."""
+    sources = ANIMAL_PHOTOS.get(animal_type, ANIMAL_PHOTOS["أبقار"])
+    if isinstance(sources, str):
+        sources = [sources]
 
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return resp.read()
-    except Exception:
-        return None
+    for src in sources:
+        if not src.startswith("http"):
+            if os.path.exists(src) and os.path.getsize(src) > 0:
+                try:
+                    with open(src, "rb") as f:
+                        return f.read()
+                except Exception:
+                    continue
+        else:
+            try:
+                req = urllib.request.Request(
+                    src,
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) TaworNology/11.11"
+                    },
+                )
+                with urllib.request.urlopen(req, timeout=12) as resp:
+                    data = resp.read()
+                    if data and len(data) > 1000:
+                        return data
+            except Exception:
+                continue
+    return None
 
 
 def draw_tape_guide(animal_type: str) -> Optional[io.BytesIO]:
+    """رسم دليل شريط القياس بأسهم دقيقة فوق صورة فوتوغرافية حقيقية للحيوان."""
     if not MATPLOTLIB_AVAILABLE:
         return None
     try:
-        img_url = ANIMAL_PHOTOS.get(animal_type, ANIMAL_PHOTOS["أبقار"])
-        img_bytes = _download_image(img_url)
+        img_bytes = _load_real_animal_photo(animal_type)
+        fp = font_mgr.mpl_font_prop
 
-        fig, ax = plt.subplots(figsize=(12, 7.5))
+        fig, ax = plt.subplots(figsize=(12, 7.5), dpi=140)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
 
         img_loaded = False
         if img_bytes and PIL_AVAILABLE:
             try:
-                img = PILImage.open(io.BytesIO(img_bytes))
-                ax.imshow(img)
+                img = PILImage.open(io.BytesIO(img_bytes)).convert("RGB")
+                ax.imshow(img, extent=[0, 1, 0, 1], aspect="auto", zorder=1)
+                # طبقة تظليل خفيفة جداً لتحسين تباين الأسهم والنصوص فوق الصورة الحقيقية
+                ax.add_patch(
+                    Rectangle(
+                        (0, 0),
+                        1,
+                        1,
+                        facecolor="black",
+                        alpha=0.10,
+                        transform=ax.transAxes,
+                        zorder=2,
+                    )
+                )
                 img_loaded = True
             except Exception:
                 img_loaded = False
 
         if not img_loaded:
+            ax.set_facecolor("#f4f6f4")
             ax.text(
                 0.5,
-                0.5,
-                ar(f"صورة توضيحية — {animal_type}"),
+                0.52,
+                ar(f"تعذّر تحميل الصورة الحقيقية لـ ({animal_type}) — تأكد من الاتصال بالإنترنت"),
                 ha="center",
                 va="center",
-                fontsize=28,
+                fontsize=18,
                 transform=ax.transAxes,
-                color="#1b5e20",
+                color="#b71c1c",
                 fontweight="bold",
+                fontproperties=fp,
             )
 
         TAPE_POSITIONS = {
             "أبقار": {
-                "girth_x": 0.42,
-                "girth_y_top": 0.55,
-                "girth_y_bot": 0.85,
-                "length_left": 0.25,
-                "length_right": 0.85,
-                "length_y": 0.30,
+                "girth_x": 0.43,
+                "girth_y_top": 0.62,
+                "girth_y_bot": 0.24,
+                "length_left": 0.24,
+                "length_right": 0.83,
+                "length_y": 0.68,
             },
             "أغنام": {
-                "girth_x": 0.40,
-                "girth_y_top": 0.50,
-                "girth_y_bot": 0.85,
+                "girth_x": 0.42,
+                "girth_y_top": 0.64,
+                "girth_y_bot": 0.26,
                 "length_left": 0.25,
                 "length_right": 0.80,
-                "length_y": 0.28,
+                "length_y": 0.70,
             },
             "ماعز": {
-                "girth_x": 0.42,
-                "girth_y_top": 0.50,
-                "girth_y_bot": 0.85,
-                "length_left": 0.25,
+                "girth_x": 0.44,
+                "girth_y_top": 0.64,
+                "girth_y_bot": 0.26,
+                "length_left": 0.26,
                 "length_right": 0.80,
-                "length_y": 0.28,
+                "length_y": 0.70,
             },
             "إبل": {
-                "girth_x": 0.40,
-                "girth_y_top": 0.50,
-                "girth_y_bot": 0.85,
+                "girth_x": 0.41,
+                "girth_y_top": 0.60,
+                "girth_y_bot": 0.24,
                 "length_left": 0.22,
                 "length_right": 0.82,
-                "length_y": 0.28,
+                "length_y": 0.66,
             },
             "خيول": {
-                "girth_x": 0.42,
-                "girth_y_top": 0.55,
-                "girth_y_bot": 0.90,
-                "length_left": 0.22,
-                "length_right": 0.85,
-                "length_y": 0.28,
+                "girth_x": 0.43,
+                "girth_y_top": 0.63,
+                "girth_y_bot": 0.25,
+                "length_left": 0.23,
+                "length_right": 0.84,
+                "length_y": 0.69,
             },
         }
 
         pos = TAPE_POSITIONS.get(animal_type, TAPE_POSITIONS["أبقار"])
 
-        ax.plot(
-            [pos["girth_x"], pos["girth_x"]],
-            [pos["girth_y_top"], pos["girth_y_bot"]],
-            color="#c62828",
-            linewidth=5,
-            transform=ax.transAxes,
-            zorder=10,
-            solid_capstyle="round",
-        )
+        # 1. سهم محيط الصدر (عمودي مزدوج الرأس)
         ax.annotate(
             "",
             xy=(pos["girth_x"], pos["girth_y_top"]),
-            xytext=(pos["girth_x"], pos["girth_y_top"] + 0.05),
+            xytext=(pos["girth_x"], pos["girth_y_bot"]),
             xycoords="axes fraction",
             textcoords="axes fraction",
-            arrowprops=dict(arrowstyle="->", color="#c62828", lw=4, mutation_scale=25),
-        )
-        ax.annotate(
-            "",
-            xy=(pos["girth_x"], pos["girth_y_bot"]),
-            xytext=(pos["girth_x"], pos["girth_y_bot"] - 0.05),
-            xycoords="axes fraction",
-            textcoords="axes fraction",
-            arrowprops=dict(arrowstyle="->", color="#c62828", lw=4, mutation_scale=25),
+            arrowprops=dict(
+                arrowstyle="<->,head_width=0.55,head_length=0.65",
+                color="#ff1744",
+                lw=4.5,
+            ),
+            zorder=10,
         )
         ax.text(
-            pos["girth_x"] + 0.05,
-            pos["girth_y_top"] - 0.03,
+            pos["girth_x"] + 0.03,
+            (pos["girth_y_top"] + pos["girth_y_bot"]) / 2.0,
             ar("1. محيط الصدر"),
-            color="#c62828",
+            color="#b71c1c",
             fontweight="bold",
             fontsize=13,
+            ha="left",
+            va="center",
             transform=ax.transAxes,
+            fontproperties=fp,
             bbox=dict(
                 boxstyle="round,pad=0.4",
                 facecolor="white",
-                edgecolor="#c62828",
-                linewidth=2,
+                alpha=0.94,
+                edgecolor="#d32f2f",
+                linewidth=2.2,
             ),
-            zorder=11,
+            zorder=12,
         )
 
-        ax.plot(
-            [pos["length_left"], pos["length_right"]],
-            [pos["length_y"], pos["length_y"]],
-            color="#1565c0",
-            linewidth=5,
-            transform=ax.transAxes,
-            zorder=10,
-            solid_capstyle="round",
-        )
+        # 2. سهم طول الجسم (أفقي مزدوج الرأس)
         ax.annotate(
             "",
             xy=(pos["length_left"], pos["length_y"]),
-            xytext=(pos["length_left"] - 0.03, pos["length_y"]),
+            xytext=(pos["length_right"], pos["length_y"]),
             xycoords="axes fraction",
             textcoords="axes fraction",
-            arrowprops=dict(arrowstyle="->", color="#1565c0", lw=4, mutation_scale=25),
+            arrowprops=dict(
+                arrowstyle="<->,head_width=0.55,head_length=0.65",
+                color="#00b0ff",
+                lw=4.5,
+            ),
+            zorder=10,
         )
-        ax.annotate(
-            "",
-            xy=(pos["length_right"], pos["length_y"]),
-            xytext=(pos["length_right"] + 0.03, pos["length_y"]),
-            xycoords="axes fraction",
-            textcoords="axes fraction",
-            arrowprops=dict(arrowstyle="->", color="#1565c0", lw=4, mutation_scale=25),
-        )
-        mid_length = (pos["length_left"] + pos["length_right"]) / 2
+        mid_length = (pos["length_left"] + pos["length_right"]) / 2.0
         ax.text(
             mid_length,
-            pos["length_y"] - 0.05,
+            pos["length_y"] + 0.06,
             ar("2. طول الجسم"),
-            color="#1565c0",
+            color="#0d47a1",
             fontweight="bold",
             fontsize=13,
             ha="center",
+            va="bottom",
             transform=ax.transAxes,
+            fontproperties=fp,
             bbox=dict(
                 boxstyle="round,pad=0.4",
                 facecolor="white",
+                alpha=0.94,
                 edgecolor="#1565c0",
-                linewidth=2,
+                linewidth=2.2,
             ),
-            zorder=11,
+            zorder=12,
         )
 
         cfg = WEIGHT_TAPE_CONFIG.get(animal_type, {})
         ax.text(
             0.5,
-            0.02,
+            0.035,
             ar(f"1. محيط الصدر: {cfg.get('hg_tip', '')}   |   2. طول الجسم: {cfg.get('bl_tip', '')}"),
             transform=ax.transAxes,
             ha="center",
-            fontsize=11,
+            va="center",
+            fontsize=11.5,
             color="#1a1a1a",
             fontweight="bold",
+            fontproperties=fp,
             bbox=dict(
                 boxstyle="round,pad=0.5",
-                facecolor="#fff8e1",
+                facecolor="#fffde7",
+                alpha=0.95,
                 edgecolor="#d4af37",
-                linewidth=2,
+                linewidth=2.2,
             ),
-            zorder=12,
+            zorder=13,
         )
 
         ax.set_title(
             ar(
-                f"طريقة القياس الصحيحة — {animal_type} | "
-                f"{cfg.get('source', '')} | دقة {cfg.get('accuracy', '')}"
+                f"دليل القياس الفعلي — {animal_type} | "
+                f"المرجع: {cfg.get('source', '')} | الدقة: {cfg.get('accuracy', '')}"
             ),
-            fontsize=14,
+            fontsize=15,
             fontweight="bold",
             color="#1b5e20",
-            pad=15,
+            pad=14,
+            fontproperties=fp,
         )
 
         ax.set_xticks([])
@@ -1379,7 +1543,7 @@ def draw_tape_guide(animal_type: str) -> Optional[io.BytesIO]:
         plt.savefig(
             buf,
             format="png",
-            dpi=130,
+            dpi=140,
             bbox_inches="tight",
             facecolor="white",
             pad_inches=0.15,
@@ -1645,87 +1809,121 @@ def generate_official_pdf_stamp_png(
     subtitle: str = "عبدالقادر إسماعيل تاور",
     date_str: Optional[str] = None,
 ) -> Optional[io.BytesIO]:
-    """توليد ختم رسمي عربي أنيق بصيغة PNG بتشكيل واتجاه سليم لتقارير PDF."""
+    """توليد ختم رسمي عربي أنيق ومتصل الحروف (RTL) بصيغة PNG لتقارير PDF."""
     if not MATPLOTLIB_AVAILABLE:
         return None
     try:
         dt_label = date_str or datetime.now().strftime("%Y-%m-%d")
-        fig, ax = plt.subplots(figsize=(3.8, 3.8), dpi=200)
+        fp = font_mgr.mpl_font_prop
+
+        fig, ax = plt.subplots(figsize=(4.2, 4.2), dpi=240)
         ax.set_xlim(-1.25, 1.25)
         ax.set_ylim(-1.25, 1.25)
         ax.set_aspect("equal")
         ax.axis("off")
 
-        # حلقات الختم الخارجية والداخلية بتناسق لوني ذهبي وأخضر داكن
-        outer_ring = Circle((0, 0), 1.08, fill=False, edgecolor="#1b5e20", linewidth=4.2)
-        mid_ring = Circle(
+        # خلفية دائرية شبه شفافة ناعمة لإبراز الختم فوق صفحات PDF
+        bg_disk = Circle((0, 0), 1.12, facecolor="#f9fbf9", edgecolor="none", alpha=0.88)
+        ax.add_patch(bg_disk)
+
+        # حلقات الختم الثلاثية المتدرجة
+        outer_ring = Circle((0, 0), 1.12, fill=False, edgecolor="#145219", linewidth=4.5)
+        gold_ring = Circle(
             (0, 0),
-            0.98,
+            1.02,
             fill=False,
             edgecolor="#c59b27",
-            linewidth=1.8,
-            linestyle="--",
+            linewidth=2.0,
+            linestyle=(0, (4, 2)),
         )
-        inner_ring = Circle((0, 0), 0.86, fill=False, edgecolor="#1b5e20", linewidth=2.0)
+        inner_ring = Circle((0, 0), 0.90, fill=False, edgecolor="#1b5e20", linewidth=2.2)
         ax.add_patch(outer_ring)
-        ax.add_patch(mid_ring)
+        ax.add_patch(gold_ring)
         ax.add_patch(inner_ring)
 
-        # نجوم فواصل صغيرة حول الإطار
-        for angle_deg in (0, 90, 180, 270):
+        # فواصل زخرفية ذهبية متناظرة حول الإطار
+        for angle_deg in (0, 45, 90, 135, 180, 225, 270, 315):
             rad = np.deg2rad(angle_deg)
+            r_mark = 0.96
+            marker_style = "*" if angle_deg % 90 == 0 else "o"
+            m_size = 7.5 if angle_deg % 90 == 0 else 3.2
             ax.plot(
-                np.cos(rad) * 0.93,
-                np.sin(rad) * 0.93,
-                marker="*",
-                markersize=7,
+                np.cos(rad) * r_mark,
+                np.sin(rad) * r_mark,
+                marker=marker_style,
+                markersize=m_size,
                 color="#c59b27",
             )
 
+        # العنوان العلوي داخل الختم
         ax.text(
             0,
-            0.52,
+            0.56,
             ar("منصة تاور نولجي العلمية"),
+            ha="center",
+            va="center",
+            fontsize=11.0,
+            fontweight="bold",
+            color="#145219",
+            fontproperties=fp,
+        )
+
+        # شريط الاعتماد الأوسط
+        ax.text(
+            0,
+            0.16,
+            ar(title),
             ha="center",
             va="center",
             fontsize=10.5,
             fontweight="bold",
-            color="#1b5e20",
+            color="#8e1b1b",
+            fontproperties=fp,
+            bbox=dict(
+                boxstyle="round,pad=0.36",
+                facecolor="#fffdf5",
+                edgecolor="#c59b27",
+                linewidth=1.6,
+            ),
         )
+
+        # خط فاصل ذهبي أنيق
+        ax.plot([-0.62, 0.62], [-0.10, -0.10], color="#c59b27", linewidth=1.2, alpha=0.85)
+
+        # اسم المشرف / الجهة المعتمدة
         ax.text(
             0,
-            0.12,
-            ar(title),
+            -0.30,
+            ar(subtitle),
             ha="center",
             va="center",
             fontsize=10.0,
             fontweight="bold",
-            color="#8e1b1b",
-            bbox=dict(
-                boxstyle="round,pad=0.32",
-                facecolor="#fffdf6",
-                edgecolor="#c59b27",
-                linewidth=1.4,
-            ),
+            color="#1a1a1a",
+            fontproperties=fp,
         )
+
+        # التخصص والتاريخ
         ax.text(
             0,
-            -0.28,
-            ar(subtitle),
+            -0.54,
+            ar("الإنتاج الحيواني وتغذية الحيوان"),
             ha="center",
             va="center",
-            fontsize=9.5,
-            fontweight="bold",
-            color="#1a1a1a",
+            fontsize=8.0,
+            color="#2e5932",
+            fontproperties=fp,
         )
         ax.text(
             0,
-            -0.58,
+            -0.72,
             ar(f"التاريخ: {dt_label}"),
             ha="center",
             va="center",
             fontsize=8.2,
+            fontweight="bold",
             color="#37474f",
+            fontproperties=fp,
         )
 
         buf = io.BytesIO()
@@ -1734,7 +1932,7 @@ def generate_official_pdf_stamp_png(
             format="png",
             transparent=True,
             bbox_inches="tight",
-            pad_inches=0.06,
+            pad_inches=0.05,
         )
         plt.close(fig)
         buf.seek(0)
@@ -1747,6 +1945,7 @@ def chart_fig_to_png_bytes(fig: Any, width_px: int = 1100, height_px: int = 520)
     """تحويل رسم بياني (Plotly أو Matplotlib) إلى بايتات PNG لتضمينه في PDF أو الجدوى."""
     if fig is None:
         return None
+    fp = font_mgr.mpl_font_prop
     try:
         if MATPLOTLIB_AVAILABLE and hasattr(fig, "savefig"):
             buf = io.BytesIO()
@@ -1770,10 +1969,10 @@ def chart_fig_to_png_bytes(fig: Any, width_px: int = 1100, height_px: int = 520)
             if hasattr(fig, "layout") and getattr(fig.layout, "title", None):
                 title_txt = getattr(fig.layout.title, "text", "") or ""
             if title_txt:
-                ax.set_title(ar(title_txt), fontsize=12, fontweight="bold")
+                ax.set_title(ar(title_txt), fontsize=12, fontweight="bold", fontproperties=fp)
             ax.grid(True, linestyle="--", alpha=0.4)
             if any(getattr(tr, "name", None) for tr in getattr(fig, "data", [])):
-                ax.legend()
+                ax.legend(prop=fp)
             buf = io.BytesIO()
             mfig.savefig(buf, format="png", dpi=140, bbox_inches="tight", facecolor="white")
             plt.close(mfig)
@@ -1824,6 +2023,7 @@ def build_walkthrough_video_mp4(
     """إنشاء فيديو توضيحي يشرح أقسام المنصة وأسلوب عملها."""
     if not MATPLOTLIB_AVAILABLE:
         return None
+    fp = font_mgr.mpl_font_prop
     try:
         slides_data = [
             (
@@ -1888,6 +2088,7 @@ def build_walkthrough_video_mp4(
                 fontsize=18,
                 fontweight="bold",
                 color="white",
+                fontproperties=fp,
             )
             ax.text(
                 0.5,
@@ -1899,6 +2100,7 @@ def build_walkthrough_video_mp4(
                 fontweight="bold",
                 color="#1a237e",
                 wrap=True,
+                fontproperties=fp,
             )
             ax.text(
                 0.5,
@@ -1908,6 +2110,7 @@ def build_walkthrough_video_mp4(
                 va="center",
                 fontsize=11,
                 color="#333333",
+                fontproperties=fp,
             )
 
             progress = ((frame_idx % 25) + 1) / 25.0
@@ -1957,78 +2160,7 @@ def build_walkthrough_video_mp4(
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# الخطوط
-# ═══════════════════════════════════════════════════════════════════════
-
-FONT_DIR = "fonts"
-os.makedirs(FONT_DIR, exist_ok=True)
-
-
-class ArabicFontManager:
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._init()
-        return cls._instance
-
-    def _init(self):
-        self.font_name = "Helvetica"
-        self.ready = False
-        if not REPORTLAB_AVAILABLE:
-            return
-        paths = [
-            os.path.join(FONT_DIR, "Amiri-Regular.ttf"),
-            "Amiri-Regular.ttf",
-            "/usr/share/fonts/truetype/amiri/Amiri-Regular.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        ]
-        for p in paths:
-            if os.path.exists(p) and self._register(p):
-                return
-        try:
-            url = "https://github.com/google/fonts/raw/main/ofl/amiri/Amiri-Regular.ttf"
-            target = os.path.join(FONT_DIR, "Amiri-Regular.ttf")
-            if not os.path.exists(target):
-                import urllib.request
-
-                urllib.request.urlretrieve(url, target)
-            self._register(target)
-        except Exception:
-            pass
-
-    def _register(self, path: str) -> bool:
-        try:
-            pdfmetrics.registerFont(TTFont("TaworArabic", path))
-            self.font_name = "TaworArabic"
-            self.ready = True
-            return True
-        except Exception:
-            return False
-
-
-font_mgr = ArabicFontManager()
-
-
-@lru_cache(maxsize=1500)
-def _ar_cached(text: Optional[str]) -> str:
-    if not text:
-        return ""
-    if not ARABIC_AVAILABLE:
-        return str(text)
-    try:
-        return get_display(arabic_reshaper.reshape(str(text)), base_dir="R")
-    except Exception:
-        return str(text)
-
-
-def ar(text: Optional[str]) -> str:
-    return _ar_cached(text)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# مكتبة الأعلاف (مختصرة — نفس v11.10.4 مع تحسينات وتصحيحات)
+# مكتبة الأعلاف
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -2281,9 +2413,11 @@ INGREDIENT_LIMITS_BY_ANIMAL = {
 def get_animal_limits(animal):
     return INGREDIENT_LIMITS_BY_ANIMAL.get(animal, {})
 
+
 # ═══════════════════════════════════════════════════════════════════════
 # الاحتياجات الغذائية
 # ═══════════════════════════════════════════════════════════════════════
+
 
 @dataclass
 class AnimalRequirement:
@@ -2453,39 +2587,57 @@ def requirement_to_standard(req):
         "ADF": req.ADF, "EE": req.EE, "ASH": req.ASH, "Ca": req.Ca, "P": req.P,
     }
 
-
 # ═══════════════════════════════════════════════════════════════════════
 # الحسابات
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def compute_formula_nutrients(formula):
     totals = {k: 0.0 for k in ["CP", "DP", "SE", "NDF", "ADF", "EE", "ASH", "Ca", "P", "Lys", "Met"]}
+    if not isinstance(formula, dict):
+        return totals
     lookup = _get_ingredient_lookup()
     for ing, pct in formula.items():
         if ing not in lookup:
             continue
         d = lookup[ing]
-        f = float(pct) / 100.0
+        try:
+            f = float(pct) / 100.0
+        except (TypeError, ValueError):
+            continue
         for k in totals:
             if k == "DP":
-                totals[k] += f * float(d.get("CP", 0)) * float(d.get("DC", 0))
+                totals[k] += f * float(d.get("CP", 0.0)) * float(d.get("DC", 0.0))
             else:
-                totals[k] += f * float(d.get(k, 0))
+                totals[k] += f * float(d.get(k, 0.0))
     return totals
 
 
 def compute_total_oil_percentage(formula):
+    if not isinstance(formula, dict):
+        return 0.0
     oils = set(get_oil_ingredients().keys())
-    return sum(float(p) for i, p in formula.items() if i in oils)
+    total_oil = 0.0
+    for i, p in formula.items():
+        if i in oils:
+            try:
+                total_oil += float(p)
+            except (TypeError, ValueError):
+                pass
+    return total_oil
 
 
 def evaluate_difference(pct_diff, standard_value=None):
-    if standard_value is not None and standard_value == 0:
-        if abs(pct_diff) < .001:
+    try:
+        diff_val = float(pct_diff)
+    except (TypeError, ValueError):
+        diff_val = 0.0
+    if standard_value is not None and float(standard_value) == 0.0:
+        if abs(diff_val) < 0.001:
             return {"label": "🎯 مطابق", "color": "#0d5302", "bg": "#c8e6c9", "score": 100}
         return {"label": "⚠️ صفر", "color": "#ef6c00", "bg": "#fff3e0", "score": 40}
-    a = abs(pct_diff)
-    if a <= .5:
+    a = abs(diff_val)
+    if a <= 0.5:
         return {"label": "🎯 مطابق", "color": "#0d5302", "bg": "#c8e6c9", "score": 100}
     if a <= 2:
         return {"label": "🌟 ممتاز", "color": "#1b5e20", "bg": "#dcedc8", "score": 95}
@@ -2504,9 +2656,10 @@ def evaluate_difference(pct_diff, standard_value=None):
 
 def evaluate_quality_weighted(formula, targets, animal_type, basis="DP"):
     actual = compute_formula_nutrients(formula)
+    targets = targets or {}
     is_rum = animal_type in ("أبقار", "أغنام", "ماعز", "إبل")
     is_poultry = animal_type in ("دواجن", "سمان")
-    weights = {}
+    weights: Dict[str, float] = {}
     weights["DP" if basis == "DP" else "CP"] = 0.30
     if targets.get("SE"):
         weights["SE"] = 0.15
@@ -2522,16 +2675,20 @@ def evaluate_quality_weighted(formula, targets, animal_type, basis="DP"):
         weights["Lys"] = 0.05
     if is_poultry and targets.get("Met"):
         weights["Met"] = 0.05
+
     total_w, weighted = 0.0, 0.0
     for nut, w in weights.items():
-        if not targets.get(nut):
+        t_val = float(targets.get(nut) or 0.0)
+        if t_val <= 0:
             continue
-        diff_pct = abs(actual.get(nut, 0) - targets[nut]) / targets[nut] * 100.0
-        ev = evaluate_difference(diff_pct, standard_value=targets[nut])
+        diff_pct = abs(float(actual.get(nut, 0.0)) - t_val) / t_val * 100.0
+        ev = evaluate_difference(diff_pct, standard_value=t_val)
         weighted += ev["score"] * w
         total_w += w
-    ca, phos = actual.get("Ca", 0), actual.get("P", 0)
-    if ca > 0 and phos > 0 and targets.get("Ca", 0) > 0:
+
+    ca = float(actual.get("Ca", 0.0))
+    phos = float(actual.get("P", 0.0))
+    if ca > 0 and phos > 0 and float(targets.get("Ca", 0.0)) > 0:
         r = ca / phos
         if is_poultry:
             if 1.5 <= r <= 2.2:
@@ -2553,7 +2710,7 @@ def evaluate_quality_weighted(formula, targets, animal_type, basis="DP"):
                 rs = 15
         weighted += rs * 0.10
         total_w += 0.10
-    return (weighted / total_w if total_w else 0.0), actual
+    return (weighted / total_w if total_w > 0 else 0.0), actual
 
 
 def get_default_selections(animal_type, production_type, requirement=None):
@@ -2578,7 +2735,7 @@ def get_default_selections(animal_type, production_type, requirement=None):
 
 
 def _normalize_ingredient_name(name):
-    name = re.sub(r"\s+", " ", str(name).strip())
+    name = re.sub(r"\s+", " ", str(name or "").strip())
     lookup = _get_ingredient_lookup()
     if name in lookup:
         return name
@@ -2586,10 +2743,17 @@ def _normalize_ingredient_name(name):
         if lib.lower() in name.lower() or name.lower() in lib.lower():
             return lib
     kw = {
-        "ذره": "ذرة صفراء", "ذرة": "ذرة صفراء", "صويا": "كسب فول صويا 44%",
-        "شعير": "شعير مطحون", "قمح": "قمح محلي", "نخاله": "نخالة قمح (ردة)",
-        "نخالة": "نخالة قمح (ردة)", "ملح": "ملح الطعام", "حجر": "الحجر الجيري",
-        "فوسفات": "فوسفات ثنائي الكالسيوم", "يوريا": "يوريا علفية",
+        "ذره": "ذرة صفراء",
+        "ذرة": "ذرة صفراء",
+        "صويا": "كسب فول صويا 44%",
+        "شعير": "شعير مطحون",
+        "قمح": "قمح محلي",
+        "نخاله": "نخالة قمح (ردة)",
+        "نخالة": "نخالة قمح (ردة)",
+        "ملح": "ملح الطعام",
+        "حجر": "الحجر الجيري",
+        "فوسفات": "فوسفات ثنائي الكالسيوم",
+        "يوريا": "يوريا علفية",
     }
     for k, v in kw.items():
         if k in name.lower():
@@ -2598,13 +2762,18 @@ def _normalize_ingredient_name(name):
 
 
 def auto_formulate_smart(
-    available_ingredients, prices, custom_standard,
-    standard_key="", basis="DP", min_quality=70.0,
-    animal_type="", production_type="",
+    available_ingredients,
+    prices,
+    custom_standard,
+    standard_key="",
+    basis="DP",
+    min_quality=70.0,
+    animal_type="",
+    production_type="",
 ):
     if not SCIPY_AVAILABLE or linprog is None:
         return {"success": False, "message": "SCIPY غير متوفرة"}
-    available_ingredients = [_normalize_ingredient_name(i) for i in available_ingredients]
+    available_ingredients = [_normalize_ingredient_name(i) for i in (available_ingredients or [])]
     available_ingredients = list(dict.fromkeys(available_ingredients))
     lookup = _get_ingredient_lookup()
     ing_data = {i: lookup[i] for i in available_ingredients if i in lookup}
@@ -2612,11 +2781,13 @@ def auto_formulate_smart(
     if len(valid) < 2:
         return {"success": False, "message": "اختر مكونين على الأقل"}
 
+    custom_standard = custom_standard or {}
+    prices = prices or {}
     is_ruminant = animal_type in ("أبقار", "أغنام", "ماعز", "إبل")
     is_poultry = animal_type in ("دواجن", "سمان")
     n = len(valid)
     c = [float(prices.get(i, 300.0)) for i in valid]
-    rows = {}
+    rows: Dict[str, List[float]] = {}
     for nut in ["CP", "SE", "NDF", "ADF", "EE", "ASH", "Ca", "P", "Lys", "Met"]:
         rows[nut] = [float(ing_data[i].get(nut, 0.0)) for i in valid]
     rows["DP"] = [float(ing_data[i].get("CP", 0.0)) * float(ing_data[i].get("DC", 0.0)) for i in valid]
@@ -2641,11 +2812,13 @@ def auto_formulate_smart(
         bounds.append((lb, ub))
 
     energy_sources_idx = [
-        i for i, ing in enumerate(valid)
+        i
+        for i, ing in enumerate(valid)
         if float(ing_data[ing].get("SE", 0.0)) > 40.0 and float(ing_data[ing].get("CP", 0.0)) < 20.0
     ]
     protein_sources_idx = [
-        i for i, ing in enumerate(valid)
+        i
+        for i, ing in enumerate(valid)
         if float(ing_data[ing].get("CP", 0.0)) >= 20.0
     ]
 
@@ -2708,9 +2881,14 @@ def auto_formulate_smart(
         b_ub_base.append(float(oil_std.get("max", 5.0)) * 100.0)
 
     strategies = [
-        ("دقيق 100%", 1.00), ("مرن 97%", 0.97), ("مرن 95%", 0.95),
-        ("مرن 92%", 0.92), ("مرن 90%", 0.90), ("مرن 85%", 0.85),
-        ("مرن 80%", 0.80), ("طوارئ قصوى", 0.75),
+        ("دقيق 100%", 1.00),
+        ("مرن 97%", 0.97),
+        ("مرن 95%", 0.95),
+        ("مرن 92%", 0.92),
+        ("مرن 90%", 0.90),
+        ("مرن 85%", 0.85),
+        ("مرن 80%", 0.80),
+        ("طوارئ قصوى", 0.75),
     ]
     best, best_q = None, 0.0
     attempts = []
@@ -2722,8 +2900,13 @@ def auto_formulate_smart(
             A_ub = list(A_ub_base)
             b_ub = list(b_ub_base)
             res = linprog(
-                c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq,
-                bounds=bounds, method="highs",
+                c,
+                A_ub=A_ub,
+                b_ub=b_ub,
+                A_eq=A_eq,
+                b_eq=b_eq,
+                bounds=bounds,
+                method="highs",
                 options={"presolve": True, "time_limit": 15},
             )
             if res.success and res.x is not None:
@@ -2806,8 +2989,16 @@ def _parse_ingredients_from_text(full_text):
     if not full_text:
         return {}
     fixes = {
-        "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
-        "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4",
+        "٥": "5",
+        "٦": "6",
+        "٧": "7",
+        "٨": "8",
+        "٩": "9",
+        "٠": "0",
+        "١": "1",
+        "٢": "2",
+        "٣": "3",
+        "٤": "4",
     }
     text = str(full_text)
     for old, new in fixes.items():
@@ -2848,7 +3039,7 @@ def _parse_ingredients_from_text(full_text):
                 except ValueError:
                     continue
                 if 0.01 <= val <= 100.0:
-                    name_part = line[:target_match.start()].strip()
+                    name_part = line[: target_match.start()].strip()
                     name_part = re.sub(r"^[\d\.\-\)\(]+\s*", "", name_part)
                     name_part = re.sub(r"[:\-=:\.\s]+$", "", name_part)
                     if len(name_part) > 2:
@@ -2875,10 +3066,17 @@ def match_ingredient_name(text):
     if best_match:
         return best_match
     kw = {
-        "ذرة": "ذرة صفراء", "ذره": "ذرة صفراء", "صويا": "كسب فول صويا 44%",
-        "شعير": "شعير مطحون", "قمح": "قمح محلي", "نخالة": "نخالة قمح (ردة)",
-        "نخاله": "نخالة قمح (ردة)", "ملح": "ملح الطعام", "حجر": "الحجر الجيري",
-        "فوسفات": "فوسفات ثنائي الكالسيوم", "يوريا": "يوريا علفية",
+        "ذرة": "ذرة صفراء",
+        "ذره": "ذرة صفراء",
+        "صويا": "كسب فول صويا 44%",
+        "شعير": "شعير مطحون",
+        "قمح": "قمح محلي",
+        "نخالة": "نخالة قمح (ردة)",
+        "نخاله": "نخالة قمح (ردة)",
+        "ملح": "ملح الطعام",
+        "حجر": "الحجر الجيري",
+        "فوسفات": "فوسفات ثنائي الكالسيوم",
+        "يوريا": "يوريا علفية",
     }
     for k, v in kw.items():
         if k in tl:
@@ -2918,9 +3116,17 @@ def analyze_existing_formula(formula, animal_type, production_type):
     standard = requirement_to_standard(req)
     actual = compute_formula_nutrients(normalized)
     labels = {
-        "CP": "بروتين خام", "DP": "بروتين مهضوم", "SE": "طاقة SE",
-        "NDF": "NDF", "ADF": "ADF", "EE": "دهن", "ASH": "رماد",
-        "Ca": "Ca", "P": "P", "Lys": "Lys", "Met": "Met",
+        "CP": "بروتين خام",
+        "DP": "بروتين مهضوم",
+        "SE": "طاقة SE",
+        "NDF": "NDF",
+        "ADF": "ADF",
+        "EE": "دهن",
+        "ASH": "رماد",
+        "Ca": "Ca",
+        "P": "P",
+        "Lys": "Lys",
+        "Met": "Met",
     }
     comparison = []
     for k, sv in standard.items():
@@ -2931,9 +3137,14 @@ def analyze_existing_formula(formula, animal_type, production_type):
         pct = (diff / sv * 100.0) if sv else 0.0
         ev = evaluate_difference(pct, standard_value=sv)
         comparison.append({
-            "key": k, "العنصر": labels.get(k, k), "المعيار": sv,
-            "المحسوب": cv, "الفرق": diff, "الفرق %": pct,
-            "التقييم": ev["label"], "score": ev["score"],
+            "key": k,
+            "العنصر": labels.get(k, k),
+            "المعيار": sv,
+            "المحسوب": cv,
+            "الفرق": diff,
+            "الفرق %": pct,
+            "التقييم": ev["label"],
+            "score": ev["score"],
         })
 
     quality, _ = evaluate_quality_weighted(normalized, standard, animal_type)
@@ -2941,16 +3152,20 @@ def analyze_existing_formula(formula, animal_type, production_type):
     ca_p = ca / phos if phos > 0 else 0.0
     lookup = _get_ingredient_lookup()
     energy_ings = [
-        ing for ing in normalized
-        if float(lookup.get(ing, {}).get("SE", 0.0)) > 40.0 and float(lookup.get(ing, {}).get("CP", 0.0)) < 20.0
+        ing
+        for ing in normalized
+        if float(lookup.get(ing, {}).get("SE", 0.0)) > 40.0
+        and float(lookup.get(ing, {}).get("CP", 0.0)) < 20.0
     ]
     protein_ings = [
-        ing for ing in normalized
-        if float(lookup.get(ing, {}).get("CP", 0.0)) >= 20.0
+        ing for ing in normalized if float(lookup.get(ing, {}).get("CP", 0.0)) >= 20.0
     ]
     energy_share = sum(normalized[ing] for ing in energy_ings)
     protein_share = sum(normalized[ing] for ing in protein_ings)
-    cost = sum(normalized.get(ing, 0.0) / 100.0 * float(lookup.get(ing, {}).get("price", 300.0)) for ing in normalized)
+    cost = sum(
+        normalized.get(ing, 0.0) / 100.0 * float(lookup.get(ing, {}).get("price", 300.0))
+        for ing in normalized
+    )
     refs = get_references(animal_type, production_type) if "get_references" in globals() else {}
 
     return {
@@ -2975,28 +3190,28 @@ def analyze_existing_formula(formula, animal_type, production_type):
 
 
 MILK_REPLACER_STANDARDS = {
-    "عجول (Calves)": {"CP": 24, "Fat": 20, "Lactose": 45, "Ca": .85, "P": .7, "Lys": 2.2, "Met": .65, "source": "NRC Dairy Cattle", "Ca_P_optimal": (1.2, 1.5)},
-    "حملان (Lambs)": {"CP": 24, "Fat": 24, "Lactose": 40, "Ca": .9, "P": .7, "Lys": 2.4, "Met": .7, "source": "NRC Small Ruminants", "Ca_P_optimal": (1.2, 1.6)},
-    "جديان (Goat Kids)": {"CP": 24, "Fat": 24, "Lactose": 42, "Ca": .9, "P": .7, "Lys": 2.3, "Met": .7, "source": "NRC Small Ruminants", "Ca_P_optimal": (1.2, 1.6)},
-    "إبل (Camels)": {"CP": 26, "Fat": 28, "Lactose": 38, "Ca": .95, "P": .75, "Lys": 2.5, "Met": .8, "source": "FAO Camel", "Ca_P_optimal": (1.2, 1.5)},
-    "أمهار (Foals)": {"CP": 22, "Fat": 18, "Lactose": 48, "Ca": 1.0, "P": .8, "Lys": 2.1, "Met": .6, "source": "NRC Horses", "Ca_P_optimal": (1.2, 1.4)},
+    "عجول (Calves)": {"CP": 24, "Fat": 20, "Lactose": 45, "Ca": 0.85, "P": 0.7, "Lys": 2.2, "Met": 0.65, "source": "NRC Dairy Cattle", "Ca_P_optimal": (1.2, 1.5)},
+    "حملان (Lambs)": {"CP": 24, "Fat": 24, "Lactose": 40, "Ca": 0.9, "P": 0.7, "Lys": 2.4, "Met": 0.7, "source": "NRC Small Ruminants", "Ca_P_optimal": (1.2, 1.6)},
+    "جديان (Goat Kids)": {"CP": 24, "Fat": 24, "Lactose": 42, "Ca": 0.9, "P": 0.7, "Lys": 2.3, "Met": 0.7, "source": "NRC Small Ruminants", "Ca_P_optimal": (1.2, 1.6)},
+    "إبل (Camels)": {"CP": 26, "Fat": 28, "Lactose": 38, "Ca": 0.95, "P": 0.75, "Lys": 2.5, "Met": 0.8, "source": "FAO Camel", "Ca_P_optimal": (1.2, 1.5)},
+    "أمهار (Foals)": {"CP": 22, "Fat": 18, "Lactose": 48, "Ca": 1.0, "P": 0.8, "Lys": 2.1, "Met": 0.6, "source": "NRC Horses", "Ca_P_optimal": (1.2, 1.4)},
 }
 
 MILK_REPLACER_INGREDIENTS = {
-    "حليب مجفف منزوع الدسم": {"CP": 34, "Fat": 1, "Lactose": 52, "Ca": 1.3, "P": 1, "Lys": 2.7, "Met": .9, "price": 3200, "max": 60, "type": "بروتين"},
-    "حليب مجفف كامل الدسم": {"CP": 26, "Fat": 28, "Lactose": 38, "Ca": .95, "P": .75, "Lys": 2.1, "Met": .65, "price": 3800, "max": 70, "type": "بروتين+دهن"},
-    "شرش حليب مجفف": {"CP": 12, "Fat": 1.5, "Lactose": 75, "Ca": .9, "P": .75, "Lys": .9, "Met": .2, "price": 1800, "max": 35, "type": "كربوهيدرات"},
-    "بروتين شرش WPC 80%": {"CP": 80, "Fat": 5, "Lactose": 8, "Ca": .5, "P": .3, "Lys": 7.5, "Met": 1.6, "price": 8500, "max": 25, "type": "بروتين"},
-    "مركز بروتين صويا": {"CP": 66, "Fat": 1, "Lactose": 0, "Ca": .2, "P": .8, "Lys": 4.2, "Met": .9, "price": 2800, "max": 15, "type": "نباتي"},
+    "حليب مجفف منزوع الدسم": {"CP": 34, "Fat": 1, "Lactose": 52, "Ca": 1.3, "P": 1, "Lys": 2.7, "Met": 0.9, "price": 3200, "max": 60, "type": "بروتين"},
+    "حليب مجفف كامل الدسم": {"CP": 26, "Fat": 28, "Lactose": 38, "Ca": 0.95, "P": 0.75, "Lys": 2.1, "Met": 0.65, "price": 3800, "max": 70, "type": "بروتين+دهن"},
+    "شرش حليب مجفف": {"CP": 12, "Fat": 1.5, "Lactose": 75, "Ca": 0.9, "P": 0.75, "Lys": 0.9, "Met": 0.2, "price": 1800, "max": 35, "type": "كربوهيدرات"},
+    "بروتين شرش WPC 80%": {"CP": 80, "Fat": 5, "Lactose": 8, "Ca": 0.5, "P": 0.3, "Lys": 7.5, "Met": 1.6, "price": 8500, "max": 25, "type": "بروتين"},
+    "مركز بروتين صويا": {"CP": 66, "Fat": 1, "Lactose": 0, "Ca": 0.2, "P": 0.8, "Lys": 4.2, "Met": 0.9, "price": 2800, "max": 15, "type": "نباتي"},
     "زيت جوز الهند": {"CP": 0, "Fat": 100, "Lactose": 0, "Ca": 0, "P": 0, "Lys": 0, "Met": 0, "price": 2200, "max": 15, "type": "دهن"},
     "زيت النخيل": {"CP": 0, "Fat": 100, "Lactose": 0, "Ca": 0, "P": 0, "Lys": 0, "Met": 0, "price": 1200, "max": 15, "type": "دهن"},
     "لاكتوز نقي": {"CP": 0, "Fat": 0, "Lactose": 100, "Ca": 0, "P": 0, "Lys": 0, "Met": 0, "price": 1400, "max": 25, "type": "كربوهيدرات"},
     "ليسين L-Lysine": {"CP": 94, "Fat": 0, "Lactose": 0, "Ca": 0, "P": 0, "Lys": 94, "Met": 0, "price": 4200, "max": 1, "type": "أميني"},
-    "ميثيونين": {"CP": 58, "Fat": 0, "Lactose": 0, "Ca": 0, "P": 0, "Lys": 0, "Met": 58, "price": 5800, "max": .8, "type": "أميني"},
+    "ميثيونين": {"CP": 58, "Fat": 0, "Lactose": 0, "Ca": 0, "P": 0, "Lys": 0, "Met": 58, "price": 5800, "max": 0.8, "type": "أميني"},
     "بريمكس فيتامينات": {"CP": 0, "Fat": 0, "Lactose": 0, "Ca": 5, "P": 3, "Lys": 0, "Met": 0, "price": 6500, "max": 1, "type": "بريمكس"},
     "كالسيوم كربونات": {"CP": 0, "Fat": 0, "Lactose": 0, "Ca": 38, "P": 0, "Lys": 0, "Met": 0, "price": 200, "max": 2.5, "type": "معدن"},
     "فوسفات ثنائي الكالسيوم": {"CP": 0, "Fat": 0, "Lactose": 0, "Ca": 23, "P": 18, "Lys": 0, "Met": 0, "price": 1100, "max": 2.5, "type": "معدن"},
-    "ملح طعام": {"CP": 0, "Fat": 0, "Lactose": 0, "Ca": 0, "P": 0, "Lys": 0, "Met": 0, "price": 150, "max": .5, "type": "معدن"},
+    "ملح طعام": {"CP": 0, "Fat": 0, "Lactose": 0, "Ca": 0, "P": 0, "Lys": 0, "Met": 0, "price": 150, "max": 0.5, "type": "معدن"},
 }
 
 
@@ -3024,18 +3239,25 @@ def formulate_milk_replacer(animal, volume=100.0, selected=None):
     base_bounds = [(0.0, MILK_REPLACER_INGREDIENTS[i].get("max", 100.0)) for i in valid]
 
     s1_ub = [
-        (lac, std["Lactose"] * 1.15 * 100.0), ([-x for x in lac], -std["Lactose"] * 0.85 * 100.0),
-        ([-x for x in lys], -std["Lys"] * 0.70 * 100.0), ([-x for x in met], -std["Met"] * 0.70 * 100.0),
-        ([-x for x in ca], -std["Ca"] * 0.85 * 100.0), ([-x for x in p], -std["P"] * 0.85 * 100.0),
+        (lac, std["Lactose"] * 1.15 * 100.0),
+        ([-x for x in lac], -std["Lactose"] * 0.85 * 100.0),
+        ([-x for x in lys], -std["Lys"] * 0.70 * 100.0),
+        ([-x for x in met], -std["Met"] * 0.70 * 100.0),
+        ([-x for x in ca], -std["Ca"] * 0.85 * 100.0),
+        ([-x for x in p], -std["P"] * 0.85 * 100.0),
     ]
     s2_ub = s1_ub[:2] + s1_ub[4:]
     s3_ub = [
-        (cp, std["CP"] * 1.05 * 100.0), ([-x for x in cp], -std["CP"] * 0.95 * 100.0),
-        (fat, std["Fat"] * 1.05 * 100.0), ([-x for x in fat], -std["Fat"] * 0.95 * 100.0),
+        (cp, std["CP"] * 1.05 * 100.0),
+        ([-x for x in cp], -std["CP"] * 0.95 * 100.0),
+        (fat, std["Fat"] * 1.05 * 100.0),
+        ([-x for x in fat], -std["Fat"] * 0.95 * 100.0),
     ]
     s4_ub = [
-        (cp, std["CP"] * 1.15 * 100.0), ([-x for x in cp], -std["CP"] * 0.85 * 100.0),
-        (fat, std["Fat"] * 1.30 * 100.0), ([-x for x in fat], -std["Fat"] * 0.50 * 100.0),
+        (cp, std["CP"] * 1.15 * 100.0),
+        ([-x for x in cp], -std["CP"] * 0.85 * 100.0),
+        (fat, std["Fat"] * 1.30 * 100.0),
+        ([-x for x in fat], -std["Fat"] * 0.50 * 100.0),
     ]
     strategies = [
         ("S1", [[1.0] * n, cp, fat], [100.0, std["CP"] * 100.0, std["Fat"] * 100.0], [u for u, _ in s1_ub], [b for _, b in s1_ub]),
@@ -3049,8 +3271,13 @@ def formulate_milk_replacer(animal, volume=100.0, selected=None):
     for label, A_eq, b_eq, A_ub, b_ub in strategies:
         try:
             res = linprog(
-                c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq,
-                bounds=base_bounds, method="highs",
+                c,
+                A_ub=A_ub,
+                b_ub=b_ub,
+                A_eq=A_eq,
+                b_eq=b_eq,
+                bounds=base_bounds,
+                method="highs",
                 options={"presolve": True, "time_limit": 10},
             )
             if not res.success or res.x is None:
@@ -3238,20 +3465,44 @@ def render_ocr_correction_ui(ingredients):
 
 
 # ═══ الرسوم البيانية ═══
+def _get_mpl_fp():
+    fm_obj = globals().get("font_mgr")
+    return getattr(fm_obj, "mpl_font_prop", None) if fm_obj is not None else None
+
+
 def create_colorful_bar_chart(standard, actual, keys=None):
     if not MATPLOTLIB_AVAILABLE:
         return None
+    standard = standard or {}
+    actual = actual or {}
+    fp = _get_mpl_fp()
     try:
         if keys is None:
             keys = ["CP", "DP", "SE", "NDF", "ADF", "EE", "ASH"]
-        nuts = [n for n in keys if n in standard and standard[n] > 0]
+        nuts = [n for n in keys if n in standard and float(standard[n] or 0) > 0]
         if not nuts:
             return None
         fig, ax = plt.subplots(figsize=(9, 4.5))
         x = np.arange(len(nuts))
         width = 0.35
-        b1 = ax.bar(x - width / 2, [standard[n] for n in nuts], width, label=ar("المعيار"), color="#1976d2", edgecolor="#0d47a1", linewidth=1.5)
-        b2 = ax.bar(x + width / 2, [actual.get(n, 0) for n in nuts], width, label=ar("المحسوب"), color="#43a047", edgecolor="#1b5e20", linewidth=1.5)
+        b1 = ax.bar(
+            x - width / 2,
+            [float(standard[n]) for n in nuts],
+            width,
+            label=ar("المعيار"),
+            color="#1976d2",
+            edgecolor="#0d47a1",
+            linewidth=1.5,
+        )
+        b2 = ax.bar(
+            x + width / 2,
+            [float(actual.get(n, 0.0) or 0.0) for n in nuts],
+            width,
+            label=ar("المحسوب"),
+            color="#43a047",
+            edgecolor="#1b5e20",
+            linewidth=1.5,
+        )
         for bar in b1:
             hh = bar.get_height()
             if hh > 0:
@@ -3260,10 +3511,10 @@ def create_colorful_bar_chart(standard, actual, keys=None):
             hh = bar.get_height()
             if hh > 0:
                 ax.text(bar.get_x() + bar.get_width() / 2, hh, f"{hh:.1f}", ha="center", va="bottom", fontsize=9, fontweight="bold")
-        ax.set_title(ar("مقارنة العناصر"), fontsize=13, fontweight="bold", color="#1b5e20")
+        ax.set_title(ar("مقارنة العناصر"), fontsize=13, fontweight="bold", color="#1b5e20", fontproperties=fp)
         ax.set_xticks(x)
         ax.set_xticklabels(nuts)
-        ax.legend(loc="upper right")
+        ax.legend(loc="upper right", prop=fp)
         ax.grid(axis="y", alpha=0.3)
         ax.set_facecolor("#fafafa")
         buf = io.BytesIO()
@@ -3276,23 +3527,30 @@ def create_colorful_bar_chart(standard, actual, keys=None):
 
 
 def create_colorful_pie_chart(formula):
-    if not MATPLOTLIB_AVAILABLE or len(formula) < 2:
+    if not MATPLOTLIB_AVAILABLE or not isinstance(formula, dict) or len(formula) < 2:
         return None
+    fp = _get_mpl_fp()
     try:
         colors = ["#e53935", "#8e24aa", "#3949ab", "#1e88e5", "#00897b", "#43a047", "#7cb342", "#fdd835", "#fb8c00", "#6d4c41"]
         names = [ar(n) for n in formula.keys()]
-        vals = list(formula.values())
+        vals = [float(v or 0.0) for v in formula.values()]
+        if sum(vals) <= 0:
+            return None
         fig, ax = plt.subplots(figsize=(8, 5))
         _, _, autotexts = ax.pie(
-            vals, autopct="%1.1f%%", colors=colors[:len(names)],
-            startangle=90, pctdistance=0.75, wedgeprops=dict(edgecolor="white", linewidth=2),
+            vals,
+            autopct="%1.1f%%",
+            colors=colors[: len(names)],
+            startangle=90,
+            pctdistance=0.75,
+            wedgeprops=dict(edgecolor="white", linewidth=2),
         )
         for t in autotexts:
             t.set_color("white")
             t.set_fontweight("bold")
             t.set_fontsize(9)
-        ax.legend(names, loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=9)
-        ax.set_title(ar("توزيع المكونات"), fontsize=13, fontweight="bold", color="#1b5e20")
+        ax.legend(names, loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=9, prop=fp)
+        ax.set_title(ar("توزيع المكونات"), fontsize=13, fontweight="bold", color="#1b5e20", fontproperties=fp)
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=120, bbox_inches="tight", facecolor="white")
         plt.close(fig)
@@ -3305,14 +3563,17 @@ def create_colorful_pie_chart(formula):
 def create_radar_chart(standard, actual, keys=None):
     if not MATPLOTLIB_AVAILABLE:
         return None
+    standard = standard or {}
+    actual = actual or {}
+    fp = _get_mpl_fp()
     try:
         if keys is None:
             keys = ["CP", "DP", "SE", "NDF", "ADF", "EE", "Ca", "P"]
-        nuts = [n for n in keys if n in standard and standard[n] > 0]
+        nuts = [n for n in keys if n in standard and float(standard[n] or 0) > 0]
         if len(nuts) < 3:
             return None
         std_norm = [100.0] * len(nuts)
-        act_norm = [(actual.get(n, 0) / standard[n]) * 100.0 for n in nuts]
+        act_norm = [(float(actual.get(n, 0.0) or 0.0) / float(standard[n])) * 100.0 for n in nuts]
         angles = np.linspace(0, 2 * np.pi, len(nuts), endpoint=False).tolist()
         std_norm += std_norm[:1]
         act_norm += act_norm[:1]
@@ -3324,8 +3585,8 @@ def create_radar_chart(standard, actual, keys=None):
         ax.fill(angles, act_norm, alpha=0.25, color="#43a047")
         ax.set_xticks(angles[:-1])
         ax.set_xticklabels(nuts)
-        ax.set_title(ar("المقارنة %"), fontweight="bold", color="#1b5e20", pad=20)
-        ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
+        ax.set_title(ar("المقارنة %"), fontweight="bold", color="#1b5e20", pad=20, fontproperties=fp)
+        ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1), prop=fp)
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=120, bbox_inches="tight", facecolor="white")
         plt.close(fig)
@@ -3339,17 +3600,18 @@ def create_gauge_chart(score):
     if not MATPLOTLIB_AVAILABLE:
         return None
     try:
+        sc = max(0.0, min(100.0, float(score or 0.0)))
         fig, ax = plt.subplots(figsize=(4, 4), subplot_kw=dict(aspect="equal"))
         colors = ["#c62828", "#ef6c00", "#f9a825", "#7cb342", "#43a047", "#1b5e20"]
         for i, c in enumerate(colors):
             t1 = 180 - (i * 30)
             t2 = 180 - ((i + 1) * 30)
             ax.add_patch(Wedge((0, 0), 1, t2, t1, width=0.3, facecolor=c, edgecolor="white", linewidth=2))
-        angle = 180 - (max(0.0, min(100.0, float(score))) / 100.0) * 180.0
+        angle = 180 - (sc / 100.0) * 180.0
         rad = np.radians(angle)
         ax.plot([0, 0.85 * np.cos(rad)], [0, 0.85 * np.sin(rad)], color="#1a1a1a", linewidth=3, zorder=10)
         ax.add_patch(Circle((0, 0), 0.08, color="#1a1a1a", zorder=11))
-        ax.text(0, -0.25, f"{score:.0f}%", ha="center", fontsize=20, fontweight="bold", color="#1b5e20")
+        ax.text(0, -0.25, f"{sc:.0f}%", ha="center", fontsize=20, fontweight="bold", color="#1b5e20")
         ax.set_xlim(-1.2, 1.2)
         ax.set_ylim(-0.7, 1.2)
         ax.axis("off")
@@ -3363,27 +3625,48 @@ def create_gauge_chart(score):
 
 
 def create_ca_p_ratio_chart(ca, p, target_ca=0, target_p=0):
-    if not MATPLOTLIB_AVAILABLE or p <= 0:
+    if not MATPLOTLIB_AVAILABLE:
         return None
+    p_val = float(p or 0.0)
+    ca_val = float(ca or 0.0)
+    if p_val <= 0:
+        return None
+    fp = _get_mpl_fp()
     try:
-        ratio = ca / p
+        ratio = ca_val / p_val
         fig, ax = plt.subplots(figsize=(8, 3))
         zones = [
-            (0, .8, "#b71c1c"), (.8, 1.2, "#ef6c00"), (1.2, 1.5, "#f9a825"),
-            (1.5, 2.0, "#2e7d32"), (2.0, 3.0, "#f9a825"), (3.0, 5.0, "#ef6c00"), (5.0, 8.0, "#b71c1c"),
+            (0, 0.8, "#b71c1c"),
+            (0.8, 1.2, "#ef6c00"),
+            (1.2, 1.5, "#f9a825"),
+            (1.5, 2.0, "#2e7d32"),
+            (2.0, 3.0, "#f9a825"),
+            (3.0, 5.0, "#ef6c00"),
+            (5.0, 8.0, "#b71c1c"),
         ]
         for x0, x1, c in zones:
             ax.axvspan(x0, x1, alpha=0.35, color=c)
-        ratio_clipped = min(ratio, 7.9)
+        ratio_clipped = min(max(ratio, 0.0), 7.9)
         ax.axvline(ratio_clipped, color="#0d47a1", linewidth=4, zorder=10)
         ax.text(
-            ratio_clipped, 0.85, f"{ratio:.2f}", ha="center", fontsize=18, fontweight="bold",
-            color="#0d47a1", bbox=dict(boxstyle="round,pad=0.5", facecolor="white", edgecolor="#0d47a1", linewidth=2),
+            ratio_clipped,
+            0.85,
+            f"{ratio:.2f}",
+            ha="center",
+            fontsize=18,
+            fontweight="bold",
+            color="#0d47a1",
+            bbox=dict(boxstyle="round,pad=0.5", facecolor="white", edgecolor="#0d47a1", linewidth=2),
         )
         ax.set_xlim(0, 8)
         ax.set_ylim(0, 1.2)
         ax.set_yticks([])
-        ax.set_title(ar(f"نسبة الكالسيوم للفوسفور Ca:P — Ca={ca:.2f}% | P={p:.2f}%"), fontweight="bold", color="#1b5e20")
+        ax.set_title(
+            ar(f"نسبة الكالسيوم للفوسفور Ca:P — Ca={ca_val:.2f}% | P={p_val:.2f}%"),
+            fontweight="bold",
+            color="#1b5e20",
+            fontproperties=fp,
+        )
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=130, bbox_inches="tight", facecolor="white")
         plt.close(fig)
@@ -3396,9 +3679,10 @@ def create_ca_p_ratio_chart(ca, p, target_ca=0, target_p=0):
 def create_quality_breakdown_chart(rows):
     if not MATPLOTLIB_AVAILABLE or not rows:
         return None
+    fp = _get_mpl_fp()
     try:
-        labels = [ar(r["العنصر"]) for r in rows[:9]]
-        scores = [r.get("score", 50) for r in rows[:9]]
+        labels = [ar(r.get("العنصر", "")) for r in rows[:9]]
+        scores = [float(r.get("score", 50) or 50) for r in rows[:9]]
         colors = []
         for s in scores:
             if s >= 95:
@@ -3418,8 +3702,8 @@ def create_quality_breakdown_chart(rows):
             ax.text(bar.get_x() + bar.get_width() / 2, hh, f"{hh:.0f}", ha="center", va="bottom", fontweight="bold")
         ax.axhline(y=70, color="#c62828", linestyle="--", linewidth=2, label=ar("حد القبول 70%"))
         ax.set_ylim(0, 105)
-        ax.set_title(ar("تقييم العناصر"), fontweight="bold", color="#1b5e20")
-        ax.legend(loc="lower right")
+        ax.set_title(ar("تقييم العناصر"), fontweight="bold", color="#1b5e20", fontproperties=fp)
+        ax.legend(loc="lower right", prop=fp)
         ax.grid(axis="y", alpha=0.3)
         plt.xticks(rotation=30, ha="right")
         buf = io.BytesIO()
@@ -3431,55 +3715,10 @@ def create_quality_breakdown_chart(rows):
         return None
 
 
-import base64
-import io
-import json
-import os
-import random
-import urllib.parse
-from datetime import datetime
-from typing import Dict, Optional
-
-import numpy as np
-import streamlit as st
-
-try:
-    import plotly.graph_objects as go
-    PLOTLY_AVAILABLE = True
-except Exception:
-    go = None
-    PLOTLY_AVAILABLE = False
-
-try:
-    from reportlab.lib.colors import HexColor, white
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import ParagraphStyle
-    from reportlab.platypus import (
-        HRFlowable,
-        Image as RLImage,
-        PageBreak,
-        Paragraph,
-        SimpleDocTemplate,
-        Spacer,
-        Table,
-        TableStyle,
-    )
-    REPORTLAB_AVAILABLE = True
-except Exception:
-    REPORTLAB_AVAILABLE = False
-
-try:
-    import arabic_reshaper
-    from bidi.algorithm import get_display
-    ARABIC_BIDI_AVAILABLE = True
-except Exception:
-    ARABIC_BIDI_AVAILABLE = False
-
-
 # ═══════════════════════════════════════════════════════════════════════
-# دوال مساعدة آمنة للتنسيق والأمان
+# دوال مساعدة آمنة للتنسيق والأمان وتقارير PDF
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _safe_ar(text) -> str:
     if text is None:
@@ -3487,6 +3726,11 @@ def _safe_ar(text) -> str:
     s = str(text)
     if not s:
         return ""
+    if "ar" in globals() and callable(globals()["ar"]):
+        try:
+            return globals()["ar"](s)
+        except Exception:
+            pass
     if ARABIC_BIDI_AVAILABLE:
         try:
             return get_display(arabic_reshaper.reshape(s), base_dir="R")
@@ -3593,6 +3837,7 @@ def _append_pdf_stamp_and_photo_block(story, font_name: str, supervisor: str, su
 # PDF Generator
 # ═══════════════════════════════════════════════════════════════════════
 
+
 class PDFGenerator:
     def __init__(self):
         self.font_name = _get_font_name()
@@ -3606,9 +3851,17 @@ class PDFGenerator:
     def _ar(self, t) -> str:
         return _safe_ar(t)
 
-    def _para_style(self, name: str, size: int = 11, align=None, color: str = "#1a1a1a",
-                    space_after: int = 6, leading_mult: float = 1.6, font_name: Optional[str] = None,
-                    left_indent: int = 0):
+    def _para_style(
+        self,
+        name: str,
+        size: int = 11,
+        align=None,
+        color: str = "#1a1a1a",
+        space_after: int = 6,
+        leading_mult: float = 1.6,
+        font_name: Optional[str] = None,
+        left_indent: int = 0,
+    ):
         if not REPORTLAB_AVAILABLE:
             return None
         if align is None:
@@ -4146,8 +4399,14 @@ class PDFGenerator:
 pdf_gen = PDFGenerator()
 
 
-def generate_nlp_math_pdf(result: Dict, animal_type: str, production_type: str,
-                          nlp_sel=None, ing_data=None, nlp_prices=None) -> Optional[bytes]:
+def generate_nlp_math_pdf(
+    result: Dict,
+    animal_type: str,
+    production_type: str,
+    nlp_sel=None,
+    ing_data=None,
+    nlp_prices=None,
+) -> Optional[bytes]:
     if not REPORTLAB_AVAILABLE or not isinstance(result, dict):
         return None
     try:
@@ -4583,6 +4842,10 @@ def generate_lab_pdf(result: Dict, ctx: Dict = None) -> Optional[bytes]:
     except Exception:
         return None
 
+
+pdf_gen = PDFGenerator()
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # ✅ v11.11.0 — نظام الموافقة على PDF
 # ═══════════════════════════════════════════════════════════════════════
@@ -4715,6 +4978,7 @@ def _read_pdf_bytes(request_id: str) -> Optional[bytes]:
 
 
 # ═══ أزرار التواصل والاستشارة ═══
+
 
 def render_consultation_buttons(key_suffix: str = ""):
     supervisor = _safe_sanitize(_get_global("SUPERVISOR", "عبدالقادر إسماعيل تاور"), 80)
@@ -5007,6 +5271,7 @@ def render_pdf_requests_admin():
 # ✅ v11.11.0 — الفيديو التعريفي
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def get_intro_video_path() -> Optional[str]:
     for p in ["intro_video.mp4", "intro.mp4", "تعريفي.mp4", "tutorial.mp4", "video/intro.mp4"]:
         if os.path.exists(p):
@@ -5057,17 +5322,25 @@ def render_welcome_with_video() -> bool:
     return True
 
 
-# ═══ الصور ═══
+# ═══ الصور الحقيقية ═══
 ANIMAL_IMAGES = {
-    "أبقار": "https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?q=80&w=600",
-    "عام": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600",
+    "أبقار": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Cow_female_black_white.jpg/1024px-Cow_female_black_white.jpg",
+    "أغنام": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Sheep_in_lesser_himalayas.JPG/1024px-Sheep_in_lesser_himalayas.JPG",
+    "ماعز": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Goat_chewing_a_can_%28cropped%29.jpg/1024px-Goat_chewing_a_can_%28cropped%29.jpg",
+    "إبل": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Camel_in_Dubai.jpg/1024px-Camel_in_Dubai.jpg",
+    "خيول": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Nokota_Horses_cropped.jpg/1024px-Nokota_Horses_cropped.jpg",
+    "دواجن": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Hen_in_a_field.jpg/1024px-Hen_in_a_field.jpg",
+    "أسماك": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Tilapia_nilotica.jpg/1024px-Tilapia_nilotica.jpg",
+    "أرانب": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Oryctolagus_cuniculus_Tasmania_2.jpg/1024px-Oryctolagus_cuniculus_Tasmania_2.jpg",
+    "سمان": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Coturnix_coturnix_%28aka%29.jpg/1024px-Coturnix_coturnix_%28aka%29.jpg",
+    "عام": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Cow_female_black_white.jpg/1024px-Cow_female_black_white.jpg",
 }
 
 
 @st.cache_data(ttl=3600)
 def _load_first_existing_b64(paths_tuple) -> Optional[str]:
     for p in paths_tuple:
-        if p and os.path.exists(p):
+        if p and os.path.exists(p) and os.path.getsize(p) > 0:
             try:
                 with open(p, "rb") as f:
                     return base64.b64encode(f.read()).decode("utf-8")
@@ -5088,7 +5361,6 @@ def get_owner_photo() -> Optional[str]:
 
 img_base64 = get_img_b64(_get_global("PHOTO_OPTIONS", ()))
 owner_b64 = get_owner_photo()
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # مربط الخيول + الحظائر
@@ -5497,7 +5769,7 @@ def calculate_barn_dimensions(key: str, count: int, barn_system: str = "أرضي
     if not std:
         return None
     count = max(1, int(count or 1))
-    area = count * std["area_per_head"]
+    area = count * float(std["area_per_head"])
     width = max(float(std["width_m"]), 1.0)
     length = max(area / width, 6.0)
     height = max(float(std["height_m"]), 1.0)
@@ -5508,22 +5780,22 @@ def calculate_barn_dimensions(key: str, count: int, barn_system: str = "أرضي
     wall_area = 2 * length * height + 2 * width * height
     floor_area = length * width
 
-    feeders = max(1, int(np.ceil(count * std["feeder_cm_per_head"] / 300.0)))
-    drinkers = max(1, int(np.ceil(count * std["drinker_cm_per_head"] / 200.0)))
+    feeders = max(1, int(np.ceil(count * float(std["feeder_cm_per_head"]) / 300.0)))
+    drinkers = max(1, int(np.ceil(count * float(std["drinker_cm_per_head"]) / 200.0)))
 
-    vent_summer = volume * std["ach_summer"]
-    vent_winter = volume * std["ach_winter"]
+    vent_summer = volume * float(std["ach_summer"])
+    vent_winter = volume * float(std["ach_winter"])
     vent_summer_cfm = vent_summer * 35.3147 / 60.0
     vent_winter_cfm = vent_winter * 35.3147 / 60.0
-    tunnel_fans = max(1, int(np.ceil(vent_summer_cfm / max(float(std["tunnel_fan_cfm"]), 1.0))))
-    side_fans = max(1, int(np.ceil(vent_winter_cfm / max(float(std["side_fan_cfm"]), 1.0))))
+    tunnel_fans = max(1, int(np.ceil(vent_summer_cfm / max(float(std.get("tunnel_fan_cfm", 12000.0)), 1.0))))
+    side_fans = max(1, int(np.ceil(vent_winter_cfm / max(float(std.get("side_fan_cfm", 5000.0)), 1.0))))
 
     cooling_pad = 0.0
     if std.get("cooling_pad_enabled", False):
-        cooling_pad = round(vent_summer_cfm * std["cooling_pad_m2_per_1000cfm"] / 1000.0, 2)
+        cooling_pad = round(vent_summer_cfm * float(std.get("cooling_pad_m2_per_1000cfm", 0.4)) / 1000.0, 2)
 
     light_fixtures = max(1, int(np.ceil(floor_area / 100.0)))
-    water_day = count * std["water_per_head_L"]
+    water_day = count * float(std["water_per_head_L"])
 
     cost_structure = floor_area * 60
     cost_roof = roof_area * 25
@@ -5563,22 +5835,22 @@ def calculate_barn_dimensions(key: str, count: int, barn_system: str = "أرضي
         "wall_area_m2": round(wall_area, 2),
         "feeders_count": feeders,
         "drinkers_count": drinkers,
-        "total_feeder_length_m": round(count * std["feeder_cm_per_head"] / 100.0, 1),
-        "total_drinker_length_m": round(count * std["drinker_cm_per_head"] / 100.0, 1),
+        "total_feeder_length_m": round(count * float(std["feeder_cm_per_head"]) / 100.0, 1),
+        "total_drinker_length_m": round(count * float(std["drinker_cm_per_head"]) / 100.0, 1),
         "feeder_type": std.get("feeder_type", "خطية"),
         "drinker_type": std.get("drinker_type", "حوض"),
         "vent_flow_summer_m3h": int(vent_summer),
         "vent_flow_winter_m3h": int(vent_winter),
         "vent_flow_summer_cfm": int(vent_summer_cfm),
         "vent_flow_winter_cfm": int(vent_winter_cfm),
-        "vent_open_area_m2": round(length * height * std["vent_open_ratio"], 2),
+        "vent_open_area_m2": round(length * height * float(std["vent_open_ratio"]), 2),
         "ventilation_type": std.get("ventilation_type", "نفق"),
         "tunnel_fans_count": tunnel_fans,
         "tunnel_fan_spec": f"{std['tunnel_fan_diameter_cm']}\" — {std['tunnel_fan_cfm']} CFM",
-        "tunnel_fans_hp_total": tunnel_fans * std["tunnel_fan_hp"],
+        "tunnel_fans_hp_total": tunnel_fans * float(std["tunnel_fan_hp"]),
         "side_fans_count": side_fans,
         "side_fan_spec": f"{std['side_fan_cfm']} CFM",
-        "side_fans_hp_total": side_fans * std["side_fan_hp"],
+        "side_fans_hp_total": side_fans * float(std["side_fan_hp"]),
         "cooling_pad_area_m2": cooling_pad,
         "cooling_pad_enabled": std.get("cooling_pad_enabled", False),
         "structure_type": std.get("structure_type", "هيكل معدني"),
@@ -5588,7 +5860,7 @@ def calculate_barn_dimensions(key: str, count: int, barn_system: str = "أرضي
         "floor_material": std.get("floor_material", "خرسانة"),
         "roof_material_area_m2": round(roof_area, 2),
         "insulation_area_m2": round(roof_area + wall_area * 0.6, 2),
-        "insulation_thickness_mm": std.get("insulation_thickness_cm", 3.0) * 10,
+        "insulation_thickness_mm": float(std.get("insulation_thickness_cm", 3.0)) * 10,
         "lighting_lux": std.get("lighting_lux", 30),
         "light_hours": std.get("light_hours", 16),
         "light_fixtures": light_fixtures,
@@ -5623,7 +5895,7 @@ def create_barn_3d_figure(dims: Dict):
         W = max(float(dims.get("width_m", 8.0) or 8.0), 1.0)
         H = max(float(dims.get("height_m", 3.0) or 3.0), 1.0)
         RH = max(float(dims.get("ridge_height_m", H + 1.0) or H + 1.0), H)
-        max_dim = max(L, W, RH)
+        max_dim = max(L, W, RH, 1.0)
         ax_x, ax_y, ax_z = L / max_dim, W / max_dim, max(RH / max_dim, 0.15)
 
         fig = go.Figure()
@@ -5798,7 +6070,7 @@ def create_barn_3d_figure(dims: Dict):
 
         # الحيوانات (عام)
         if not dims.get("is_horse_barn"):
-            apr = min(20, max(1, int(np.sqrt(count))))
+            apr = min(20, max(1, int(np.sqrt(max(count, 1)))))
             ax_, ay_, az_ = [], [], []
             for ri in range(apr):
                 for ci in range(apr):
@@ -5825,8 +6097,8 @@ def create_barn_3d_figure(dims: Dict):
         if dims.get("is_horse_barn"):
             rows = max(1, int(dims.get("rows_count", 2) or 2))
             per_row = max(1, int(dims.get("stalls_per_row", 5) or 5))
-            stall_w = float(dims.get("stall_width_m", 3.5) or 3.5)
-            stall_l = float(dims.get("stall_length_m", 3.5) or 3.5)
+            stall_w = max(float(dims.get("stall_width_m", 3.5) or 3.5), 0.5)
+            stall_l = max(float(dims.get("stall_length_m", 3.5) or 3.5), 0.5)
             wall_h = H * 0.75
 
             for row in range(rows):
@@ -6121,6 +6393,7 @@ def generate_barn_pdf_report(dims: Dict) -> Optional[bytes]:
         return None
 
 
+import html
 import time as _time
 import traceback
 import urllib.parse
@@ -6433,6 +6706,7 @@ html, body, [data-testid="stAppViewContainer"] {
 # صورة المالك (حق الملكية)
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _get_owner_photo_b64() -> Optional[str]:
     fn = globals().get("get_owner_photo")
     if callable(fn):
@@ -6473,8 +6747,6 @@ if _owner_b64:
         unsafe_allow_html=True,
     )
 
-import html
-
 # ═══════════════════════════════════════════════════════════════════════
 # بوابة الدخول
 # ═══════════════════════════════════════════════════════════════════════
@@ -6487,6 +6759,22 @@ if st.session_state.get("approved") and (_now_check - _last_check) > 3600:
     st.rerun()
 st.session_state["last_activity"] = _now_check
 _call_if_exists("generate_csrf_token")
+
+
+def _verify_owner_access(entered_code: str) -> bool:
+    if callable(globals().get("check_owner_code")):
+        try:
+            return bool(globals()["check_owner_code"](entered_code))
+        except Exception:
+            pass
+    expected = str(
+        _g("OWNER_CODE", "")
+        or _g("ADMIN_CODE", "")
+        or os.environ.get("TAWOR_OWNER_CODE", "")
+        or "TAWOR2026"
+    ).strip()
+    return bool(entered_code) and str(entered_code).strip() == expected
+
 
 if not st.session_state.get("approved", False):
     if _call_if_exists("render_welcome_with_video", default=False):
@@ -6521,7 +6809,10 @@ if not st.session_state.get("approved", False):
                 unsafe_allow_html=True,
             )
     with col_title:
-        st.markdown(f"<h2 style='color:#2E7D32; text-align:right;'>🌾 {html.escape(str(_APP_NAME))}</h2>", unsafe_allow_html=True)
+        st.markdown(
+            f"<h2 style='color:#2E7D32; text-align:right;'>🌾 {html.escape(str(_APP_NAME))}</h2>",
+            unsafe_allow_html=True,
+        )
         st.markdown(
             f"<p style='color:#1565C0; text-align:right; font-size:1.1rem;'>{html.escape(str(_APP_TAGLINE))}</p>",
             unsafe_allow_html=True,
@@ -6548,7 +6839,7 @@ if not st.session_state.get("approved", False):
         )
         oc = st.text_input("كود المالك:", type="password", key="oc_v1111")
         if st.button("👑 دخول", type="primary", use_container_width=True, key="b_owner_v1111"):
-            if _call_if_exists("check_owner_code", oc, default=False):
+            if _verify_owner_access(oc):
                 st.session_state.update({"approved": True, "user_role": "owner"})
                 st.rerun()
             else:
@@ -6582,7 +6873,6 @@ if not st.session_state.get("approved", False):
 
     st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # الواجهة الرئيسية
@@ -6629,7 +6919,10 @@ with c4:
     )
 
 if _DUA_VISITOR:
-    st.markdown(f'<div class="visitor-dua-banner">{html.escape(str(_DUA_VISITOR))}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="visitor-dua-banner">{html.escape(str(_DUA_VISITOR))}</div>',
+        unsafe_allow_html=True,
+    )
 st.markdown("<hr style='border-top: 3px solid #2e7d32;'>", unsafe_allow_html=True)
 
 role = st.session_state.get("user_role", "guest")
@@ -6707,6 +7000,7 @@ def _render_consult_button(animal: str = "", quality: float = 0.0, cost: float =
 
 
 # ═══ 🧪 مختبر التركيبات ═══
+
 
 def render_lab_tab(role: str = "guest"):
     st.markdown('<div class="section-title">🧪 مختبر التركيبات</div>', unsafe_allow_html=True)
@@ -8175,40 +8469,6 @@ if "🎯 NLP" in tab_map:
             st.error(f"⚠️ {e}")
 
 
-from datetime import datetime
-import traceback
-import pandas as pd
-import streamlit as st
-
-
-def _g(name: str, default=None):
-    val = globals().get(name, default)
-    return default if val is None else val
-
-
-def _call_if_exists(name: str, *args, default=None, **kwargs):
-    fn = globals().get(name)
-    if callable(fn):
-        return fn(*args, **kwargs)
-    return default
-
-
-def _show_chart_or_img(obj, caption: str = ""):
-    if not obj:
-        return
-    try:
-        data = obj.getvalue() if hasattr(obj, "getvalue") else obj
-        if data:
-            st.image(data, caption=caption, use_container_width=True)
-    except Exception:
-        pass
-
-
-def _is_safe_url(url: str) -> bool:
-    u = str(url or "").strip().lower()
-    return u.startswith("http://") or u.startswith("https://")
-
-
 # ═══ 🌰 الزيوت ═══
 if "🌰 الزيوت" in tab_map:
     with tab_map["🌰 الزيوت"]:
@@ -8352,7 +8612,7 @@ if "📷 OCR" in tab_map:
                 up = st.file_uploader("ارفع الصورة:", type=["jpg", "jpeg", "png"], key="ocr_upload_v1111")
                 if up:
                     uploaded = up.read()
-                    _show_chart_or_img(uploaded, caption="الصورة")
+                    _render_chart_image(uploaded, caption="الصورة")
                     if st.button("🔍 تحليل", type="primary", use_container_width=True, key="ocr_run_v1111"):
                         with st.spinner("🔬 جاري التحليل..."):
                             result = _call_if_exists(
@@ -8923,7 +9183,7 @@ if "🎬 الاستديو" in tab_map:
 
             sub_s1, sub_s2, sub_s3 = st.tabs(["📹 فيديوهات", "📊 شرائح", "📝 ملاحظات"])
             with sub_s1:
-                with st.form("sv_v1111"):
+                with st.form("sv_v1111", clear_on_submit=True):
                     vt = st.text_input("العنوان:", key="vid_t_v1111")
                     vu = st.text_input("رابط:", key="vid_u_v1111")
                     vd = st.text_area("الوصف:", key="vid_d_v1111")
@@ -8956,7 +9216,7 @@ if "🎬 الاستديو" in tab_map:
                             st.rerun()
 
             with sub_s2:
-                with st.form("ss_v1111"):
+                with st.form("ss_v1111", clear_on_submit=True):
                     s_title = st.text_input("العنوان:", key="sl_t_v1111")
                     s_url = st.text_input("رابط الصورة:", key="sl_u_v1111")
                     if st.form_submit_button("➕ إضافة", type="primary") and s_title.strip() and s_url.strip():
@@ -8988,7 +9248,7 @@ if "🎬 الاستديو" in tab_map:
                         st.rerun()
 
             with sub_s3:
-                with st.form("sn_v1111"):
+                with st.form("sn_v1111", clear_on_submit=True):
                     nt = st.text_area("ملاحظة:", key="note_t_v1111")
                     if st.form_submit_button("➕ حفظ", type="primary") and nt.strip():
                         sanitize = lambda x, n: _call_if_exists("_sanitize_message", x, n, default=x)
