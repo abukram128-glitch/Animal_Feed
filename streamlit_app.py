@@ -3478,7 +3478,7 @@ def create_colorful_bar_chart(standard, actual, keys=None):
             x - width / 2,
             [float(standard[n]) for n in nuts],
             width,
-            label=ar("المعيار"),
+            label=_safe_ar("المعيار"),
             color="#1976d2",
             edgecolor="#0d47a1",
             linewidth=1.5,
@@ -3487,7 +3487,7 @@ def create_colorful_bar_chart(standard, actual, keys=None):
             x + width / 2,
             [float(actual.get(n, 0.0) or 0.0) for n in nuts],
             width,
-            label=ar("المحسوب"),
+            label=_safe_ar("المحسوب"),
             color="#43a047",
             edgecolor="#1b5e20",
             linewidth=1.5,
@@ -3500,7 +3500,7 @@ def create_colorful_bar_chart(standard, actual, keys=None):
             hh = bar.get_height()
             if hh > 0:
                 ax.text(bar.get_x() + bar.get_width() / 2, hh, f"{hh:.1f}", ha="center", va="bottom", fontsize=9, fontweight="bold")
-        ax.set_title(ar("مقارنة العناصر"), fontsize=13, fontweight="bold", color="#1b5e20", fontproperties=fp)
+        ax.set_title(_safe_ar("مقارنة العناصر"), fontsize=13, fontweight="bold", color="#1b5e20", fontproperties=fp)
         ax.set_xticks(x)
         ax.set_xticklabels(nuts)
         ax.legend(loc="upper right", prop=fp)
@@ -3521,7 +3521,7 @@ def create_colorful_pie_chart(formula):
     fp = _get_mpl_fp()
     try:
         colors = ["#e53935", "#8e24aa", "#3949ab", "#1e88e5", "#00897b", "#43a047", "#7cb342", "#fdd835", "#fb8c00", "#6d4c41"]
-        names = [ar(n) for n in formula.keys()]
+        names = [_safe_ar(n) for n in formula.keys()]
         vals = [float(v or 0.0) for v in formula.values()]
         if sum(vals) <= 0:
             return None
@@ -3539,7 +3539,7 @@ def create_colorful_pie_chart(formula):
             t.set_fontweight("bold")
             t.set_fontsize(9)
         ax.legend(names, loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=9, prop=fp)
-        ax.set_title(ar("توزيع المكونات"), fontsize=13, fontweight="bold", color="#1b5e20", fontproperties=fp)
+        ax.set_title(_safe_ar("توزيع المكونات"), fontsize=13, fontweight="bold", color="#1b5e20", fontproperties=fp)
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=120, bbox_inches="tight", facecolor="white")
         plt.close(fig)
@@ -3568,13 +3568,13 @@ def create_radar_chart(standard, actual, keys=None):
         act_norm += act_norm[:1]
         angles += angles[:1]
         fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
-        ax.plot(angles, std_norm, "o-", linewidth=2.5, color="#1976d2", label=ar("المعيار"))
+        ax.plot(angles, std_norm, "o-", linewidth=2.5, color="#1976d2", label=_safe_ar("المعيار"))
         ax.fill(angles, std_norm, alpha=0.15, color="#1976d2")
-        ax.plot(angles, act_norm, "o-", linewidth=2.5, color="#43a047", label=ar("المحسوب"))
+        ax.plot(angles, act_norm, "o-", linewidth=2.5, color="#43a047", label=_safe_ar("المحسوب"))
         ax.fill(angles, act_norm, alpha=0.25, color="#43a047")
         ax.set_xticks(angles[:-1])
         ax.set_xticklabels(nuts)
-        ax.set_title(ar("المقارنة %"), fontweight="bold", color="#1b5e20", pad=20, fontproperties=fp)
+        ax.set_title(_safe_ar("المقارنة %"), fontweight="bold", color="#1b5e20", pad=20, fontproperties=fp)
         ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1), prop=fp)
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=120, bbox_inches="tight", facecolor="white")
@@ -3651,7 +3651,7 @@ def create_ca_p_ratio_chart(ca, p, target_ca=0, target_p=0):
         ax.set_ylim(0, 1.2)
         ax.set_yticks([])
         ax.set_title(
-            ar(f"نسبة الكالسيوم للفوسفور Ca:P — Ca={ca_val:.2f}% | P={p_val:.2f}%"),
+            _safe_ar(f"نسبة الكالسيوم للفوسفور Ca:P — Ca={ca_val:.2f}% | P={p_val:.2f}%"),
             fontweight="bold",
             color="#1b5e20",
             fontproperties=fp,
@@ -3670,7 +3670,7 @@ def create_quality_breakdown_chart(rows):
         return None
     fp = _get_mpl_fp()
     try:
-        labels = [ar(r.get("العنصر", "")) for r in rows[:9]]
+        labels = [_safe_ar(r.get("العنصر", "")) for r in rows[:9]]
         scores = [float(r.get("score", 50) or 50) for r in rows[:9]]
         colors = []
         for s in scores:
@@ -3689,9 +3689,9 @@ def create_quality_breakdown_chart(rows):
         for bar in bars:
             hh = bar.get_height()
             ax.text(bar.get_x() + bar.get_width() / 2, hh, f"{hh:.0f}", ha="center", va="bottom", fontweight="bold")
-        ax.axhline(y=70, color="#c62828", linestyle="--", linewidth=2, label=ar("حد القبول 70%"))
+        ax.axhline(y=70, color="#c62828", linestyle="--", linewidth=2, label=_safe_ar("حد القبول 70%"))
         ax.set_ylim(0, 105)
-        ax.set_title(ar("تقييم العناصر"), fontweight="bold", color="#1b5e20", fontproperties=fp)
+        ax.set_title(_safe_ar("تقييم العناصر"), fontweight="bold", color="#1b5e20", fontproperties=fp)
         ax.legend(loc="lower right", prop=fp)
         ax.grid(axis="y", alpha=0.3)
         plt.xticks(rotation=30, ha="right")
@@ -6815,13 +6815,31 @@ if not st.session_state.get("approved", False):
             <p style="font-size:0.82rem;">إدارة كاملة + موافقة PDF</p></div>""",
             unsafe_allow_html=True,
         )
-        oc = st.text_input("كود المالك:", type="password", key="oc_v1111")
-        if st.button("👑 دخول", type="primary", use_container_width=True, key="b_owner_v1111"):
-            if _verify_owner_access(oc):
-                st.session_state.update({"approved": True, "user_role": "owner"})
-                st.rerun()
-            else:
-                st.error("❌ كود غير صحيح")
+        lock_until = float(st.session_state.get("owner_lock_until", 0.0) or 0.0)
+        now_ts = _time.time()
+        if lock_until > now_ts:
+            rem_sec = int(lock_until - now_ts) + 1
+            st.warning(f"🔒 تم قفل محاولات الدخول مؤقتاً. أعد المحاولة بعد {rem_sec} ثانية.")
+        else:
+            oc = st.text_input("كود المالك:", type="password", key="oc_v1111")
+            if st.button("👑 دخول", type="primary", use_container_width=True, key="b_owner_v1111"):
+                if _verify_owner_access(oc):
+                    st.session_state.update({
+                        "approved": True,
+                        "user_role": "owner",
+                        "owner_attempts": 0,
+                        "owner_lock_until": 0.0,
+                    })
+                    st.rerun()
+                else:
+                    attempts = int(st.session_state.get("owner_attempts", 0) or 0) + 1
+                    st.session_state["owner_attempts"] = attempts
+                    if attempts >= 5:
+                        st.session_state["owner_lock_until"] = _time.time() + 60.0
+                        st.session_state["owner_attempts"] = 0
+                        st.error("❌ تجاوزت الحد المسموح (5 محاولات). تم القفل لمدة 60 ثانية.")
+                    else:
+                        st.error(f"❌ كود غير صحيح (المحاولة {attempts} من 5)")
 
     with col_spec:
         st.markdown(
@@ -6855,6 +6873,18 @@ if not st.session_state.get("approved", False):
 # ═══════════════════════════════════════════════════════════════════════
 # الواجهة الرئيسية
 # ═══════════════════════════════════════════════════════════════════════
+
+
+def _is_safe_url(url: str) -> bool:
+    u = str(url or "").strip()
+    if not u:
+        return False
+    try:
+        parsed = urllib.parse.urlparse(u)
+        return parsed.scheme.lower() in ("http", "https") and bool(parsed.netloc)
+    except Exception:
+        return False
+
 
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
@@ -7037,6 +7067,8 @@ def render_lab_tab(role: str = "guest"):
             if cat_filter != "الكل" and cat_name != cat_filter:
                 continue
             for ing_name, ing_data in items.items():
+                if not isinstance(ing_data, dict):
+                    continue
                 if search_q and search_q.lower() not in ing_name.lower():
                     continue
                 clean_cat = (
